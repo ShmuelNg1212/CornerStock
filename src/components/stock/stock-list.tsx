@@ -132,6 +132,7 @@ export function StockList({ groups, place, locationNames, today, base = "", fixt
     <div className="pb-4 lg:pb-0">
       <h1 className="sr-only">Stock</h1>
       <Greeting />
+      {!base && <Link href="/catalog" className={`${buttonClass.link} mb-2 lg:hidden`}>Browse catalog →</Link>}
 
       <Tiles total={total} models={groups.length} today={today} />
 

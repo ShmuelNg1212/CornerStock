@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { LogOut } from "lucide-react";
 import { useAccount } from "@/components/account-context";
 import { LocationPicker } from "@/components/location-picker";
@@ -29,6 +30,7 @@ export function AccountPanel() {
           <LocationPicker locations={account.locations} selected={account.selected} />
         </div>
       )}
+      <Link href="/catalog" className={`${buttonClass.quiet} mt-5 w-full`}>Browse catalog</Link>
       <form action={account.signOut} data-leaves-scan className="mt-5">
         <button type="submit" className={`${buttonClass.quiet} w-full`}>
           <LogOut className="size-5" aria-hidden="true" />

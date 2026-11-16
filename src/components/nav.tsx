@@ -1,6 +1,6 @@
 "use client";
 
-import { Camera, ChevronLeft, LayoutList, Settings, UserRound } from "lucide-react";
+import { BookOpen, Camera, ChevronLeft, LayoutList, Settings, UserRound } from "lucide-react";
 import { AnimatePresence, m } from "motion/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -23,6 +23,7 @@ export function Nav({ owner, variant, base = "" }: { owner: boolean; variant: "r
   if (variant === "rail") {
     const items = [
       { href: "/", label: "Stock", icon: LayoutList, current: stock },
+      { href: "/catalog", label: "Catalog", icon: BookOpen, current: path.startsWith("/catalog") },
       { href: "/scan", label: "Scan labels", icon: Camera, current: path.startsWith("/scan") },
       owner
         ? { href: "/settings", label: "Settings", icon: Settings, current: path.startsWith("/settings") }
