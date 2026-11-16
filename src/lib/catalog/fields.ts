@@ -1,0 +1,10 @@
+export const CATALOG_FIELDS = ["upc", "model_name", "nominal_weight_lb", "brand", "color", "fragrance", "coverstock", "weight_block", "finish", "rg", "diff", "mass_bias", "product_code", "selling_price"] as const;
+export const STOCK_FIELDS = ["serial", ...CATALOG_FIELDS, "gross_weight", "top_weight", "pin_distance", "boxed_on", "location"] as const;
+export type ImportField = (typeof STOCK_FIELDS)[number];
+export type FileFormat = "csv" | "xlsx";
+export type ImportKind = "catalog" | "stock";
+export type FileCell = { text: string; formula?: boolean; numeric?: boolean; csv?: boolean };
+export type ImportSheet = { name: string; headers: string[]; rows: { row: number; cells: FileCell[] }[] };
+export type ImportRow = { row: number; values: Partial<Record<ImportField, string>> };
+export type FileError = { row: number; field: string; message: string };
+export type ColumnMapping = Partial<Record<ImportField, number>>;
