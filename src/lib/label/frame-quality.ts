@@ -15,6 +15,11 @@ export const FRAME_LIMITS = {
   blownChannel: 250,
   /** A connected blown-out patch of this share of the frame or more is glare. The photos give 0.0001 or less. */
   glareBlobShare: 0.005,
+  /**
+   * A bar unit narrower than this (pixels, serial size) means the label is too far.
+   * The serial reads at 1.77 px and fails at about 1.5 px. The glare photos give 2.08 px or more.
+   */
+  farBelow: 1.8,
   /** A hint shows only when its cause lasts this long. */
   hintHoldMs: 800,
   /** The window of frames that a hint looks at. */
@@ -26,8 +31,9 @@ export const FRAME_LIMITS = {
 } as const;
 
 export type FrameScores = { sharpness: number; glareShare: number };
-export type FrameRead = FrameScores & { at: number; codes: LabelBarcodes };
-export type FrameHint = "aim" | "hold" | "glare" | "soft" | "align" | "added";
+type FrameCodes = { codes: LabelBarcodes; moduleSize: number | null };
+export type FrameRead = FrameScores & FrameCodes & { at: number };
+export type FrameHint = "aim" | "hold" | "glare" | "far" | "soft" | "align" | "added";
 export type FrameImage = { data: Uint8ClampedArray; width: number; height: number };
 
 /**
@@ -106,15 +112,18 @@ const complete = (codes: LabelBarcodes) => Boolean(codes.upc && codes.serial);
 /**
  * Glare on the label. Two signs count:
  * - a large blown-out patch;
- * - a sharp frame where a barcode reads but the UPC or the serial does not.
- *   On the label photos, glossy ink that reflects the light makes the bars silver.
- *   The bars do not go white, so the patch check does not see it. The neighbour barcode
- *   reads, which shows that the frame is sharp and the label is in view.
+ * - a sharp frame where a barcode reads but the UPC or the serial does not, and the bars
+ *   are large enough to read. On the label photos, glossy ink that reflects the light makes
+ *   the bars silver. The bars do not go white, so the patch check does not see it. The
+ *   neighbour barcode reads, which shows that the frame is sharp and the label is in view.
  */
-export function frameHasGlare(frame: FrameScores & { codes: LabelBarcodes }): boolean {
+export function frameHasGlare(frame: FrameScores & FrameCodes): boolean {
   if (frame.glareShare >= FRAME_LIMITS.glareBlobShare) return true;
-  return frame.sharpness >= FRAME_LIMITS.softBelow && found(frame.codes) > 0 && !complete(frame.codes);
+  return partial(frame) && frame.sharpness >= FRAME_LIMITS.softBelow && !tooFar(frame);
 }
+
+const partial = (frame: FrameCodes) => found(frame.codes) > 0 && !complete(frame.codes);
+const tooFar = (frame: FrameCodes) => frame.moduleSize !== null && frame.moduleSize < FRAME_LIMITS.farBelow;
 
 /**
  * Decides on the latest frame. `history` is in time order and ends with the latest frame.
@@ -137,6 +146,7 @@ export function decideFrame(history: FrameRead[], now: number, skipSerials: read
     window.length > 0 && window[0].at <= now - FRAME_LIMITS.hintHoldMs && window.every(test);
 
   if (lasts(frameHasGlare)) return { capture: false, hint: "glare" };
+  if (lasts((f) => partial(f) && tooFar(f))) return { capture: false, hint: "far" };
   if (lasts((f) => found(f.codes) === 0 && f.sharpness < FRAME_LIMITS.softBelow)) return { capture: false, hint: "soft" };
 
   const lastCode = history.findLast((f) => found(f.codes) > 0);

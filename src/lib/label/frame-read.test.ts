@@ -55,6 +55,10 @@ describe("analyzeFrame on the label photos", () => {
     for (const n of [2, 3, 10]) expect(frameHasGlare(await analyzeFrame(fixture(n))), `photo ${n}`).toBe(false);
   });
 
+  it("finds the barcodes of the glare photos large enough, so the hint is glare and not distance", async () => {
+    for (const n of [4, 5, 8]) expect((await analyzeFrame(fixture(n))).moduleSize, `photo ${n}`).toBeGreaterThanOrEqual(FRAME_LIMITS.farBelow);
+  });
+
   it("finds all real photos sharp", async () => {
     for (const n of [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]) {
       expect((await analyzeFrame(fixture(n))).sharpness, `photo ${n}`).toBeGreaterThanOrEqual(FRAME_LIMITS.softBelow);

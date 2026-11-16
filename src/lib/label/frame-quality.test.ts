@@ -39,6 +39,7 @@ const read = (at: number, change: Partial<FrameRead> = {}): FrameRead => ({
   codes: { upc: "887970617601", serial: "23VSLE30B047", product_code: null },
   sharpness: 3000,
   glareShare: 0,
+  moduleSize: 2.5,
   ...change,
 });
 const none = { upc: null, serial: null, product_code: null };
@@ -51,6 +52,10 @@ describe("frameHasGlare", () => {
   it("is false for a frame with no barcode, or with the UPC and the serial", () => {
     expect(frameHasGlare(read(0, { codes: none }))).toBe(false);
     expect(frameHasGlare(read(0))).toBe(false);
+  });
+
+  it("is false when the barcodes are too small to read: the label is too far, not in glare", () => {
+    expect(frameHasGlare(read(0, { codes: { upc: "887970778029", serial: null, product_code: null }, moduleSize: 1.5 }))).toBe(false);
   });
 
   it("is true for a frame with a large white patch", () => {
@@ -84,6 +89,12 @@ describe("decideFrame", () => {
     const frames = [0, 200, 400, 600, 800, 1000].map((at) => read(at, glare));
     expect(decideFrame(frames.slice(0, 2), 200).hint).toBe("hold");
     expect(decideFrame(frames, 1000).hint).toBe("glare");
+  });
+
+  it("asks to move closer when a partial read stays too small", () => {
+    const far = { codes: { upc: "887970778029", serial: null, product_code: null }, moduleSize: 1.5 };
+    const frames = [0, 200, 400, 600, 800, 1000].map((at) => read(at, far));
+    expect(decideFrame(frames, 1000).hint).toBe("far");
   });
 
   it("shows the soft hint when frames with no barcode stay soft", () => {

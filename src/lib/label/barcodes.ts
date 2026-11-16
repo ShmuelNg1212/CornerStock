@@ -28,6 +28,26 @@ export function toFound(results: ReadResult[]): FoundBarcode[] {
     });
 }
 
+type Point = { x: number; y: number };
+const isUpc = (format: string) => format.startsWith("EAN") || format.startsWith("UPC");
+/** On the labels, the bars of the UPC are 1.2 times wider than the bars of the serial barcode. */
+const UPC_TO_SERIAL = 1.2;
+
+/**
+ * The width in pixels of one bar unit, in the size of the serial barcode, for the smallest
+ * barcode that read. A small value means the label is far from the camera. Null with no barcode.
+ * Code 39 has 16 units for each character, with a start and a stop character. A UPC has 95 units.
+ */
+export function moduleSize(results: { format: string; text: string; position: { topLeft: Point; topRight: Point } }[]): number | null {
+  let smallest: number | null = null;
+  for (const r of results) {
+    const width = Math.hypot(r.position.topRight.x - r.position.topLeft.x, r.position.topRight.y - r.position.topLeft.y);
+    const size = isUpc(r.format) ? width / 95 / UPC_TO_SERIAL : width / ((r.text.length + 2) * 16);
+    smallest = smallest === null ? size : Math.min(smallest, size);
+  }
+  return smallest;
+}
+
 /** A product code on the labels starts with letters (BBMVSL15L). A serial number starts with the year (23VSLE30B047). */
 const startsWithLetter = (text: string) => /^[A-Z]/.test(text);
 
