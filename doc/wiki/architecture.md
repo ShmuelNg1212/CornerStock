@@ -43,6 +43,8 @@ This page gives the reasons for the structure. Read the code for the structure i
 ## Live view
 
 - The app listens for changes to the stock tables and then reloads the page data from the server. The server query stays the one source of the view.
+- The stock list is in a shared layout. It stays mounted when a detail route changes, so the search context remains visible on large screens.
+- React view transitions and CSS show navigation and count changes. No motion library is needed. Reduced motion disables movement.
 
 ## Known limits
 

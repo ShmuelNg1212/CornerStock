@@ -41,9 +41,9 @@ To test on a phone before the deploy, the phone needs HTTPS for the camera. Use 
 
 Never put a secret in a `NEXT_PUBLIC_` variable.
 
-## Deploy (not done yet)
+## Deploy
 
-No remote and no Vercel project exist. When they exist:
+The GitHub remote is `https://github.com/ShmuelNg1212/CornerStock`. The first Vercel deployment is in progress.
 
 1. Push the repository to GitHub. Import it in Vercel.
 2. Add the environment variables above in Vercel, for Production.
@@ -52,6 +52,6 @@ No remote and no Vercel project exist. When they exist:
 5. Push. A release is complete only when the new version shows on the live site.
 6. Rollback: in Vercel, open Deployments, select the previous deployment, and select "Promote to Production". Or revert the commit and push.
 
-A version marker on the live site is not built yet. Add one before the first release.
+The sign-in HTML contains a `cornerstock-release` meta tag. The first release marker is `2026-11-16-find-first-1`. Check this tag on the live site after deployment.
 
 A change to the database is a new file in `supabase/migrations/`. Run it in the SQL Editor before the push that needs it.

@@ -27,7 +27,7 @@ Source: the brand kit handoff in [../study/1794811328_brand_kit_handoff.md](../s
   - Motion is functional and quick. It shows a state change. Under the reduced-motion setting, nothing moves.
   - Light theme only.
 
-## Built (not yet used with a real Supabase project)
+## Built
 
 - Staff sign in with an email and a password. The owner makes the accounts.
 - Scan: a photo of the box label. The app reads the barcodes for the UPC and the serial number. No AI service is used. Then a confirm screen, then a save into the selected location.
@@ -37,6 +37,10 @@ Source: the brand kit handoff in [../study/1794811328_brand_kit_handoff.md](../s
 - A known UPC fills the model details from the catalog.
 - A serial number that is already recorded is refused. The message links to the existing ball.
 - Stock view: models with a count for each weight, for one location or all locations. Search finds a model or a serial number.
+- Model search filters during typing. Serial search starts after a 200 ms pause. The address keeps the query.
+- At 1024px and wider, the stock list stays beside the detail pane. Smaller screens show a top bar, bottom tabs, and one screen at a time.
+- Ball actions open in a modal sheet on smaller screens. They open inline on larger screens.
+- App links and sign-out warn before discarding unsaved label photos. Browser Back is not covered by this guard.
 - Ball page: details, label photo, history. Staff mark a ball as sold or move it to another location.
 - Owner only: put a sold ball back in stock, correct the details, remove a ball, set a selling price, manage locations and staff accounts. Each of the first three needs a reason.
 - Colors: actions use `#B94A25`, a darker variant of signal orange, because white text on `#D45A32` has a contrast of 4.0. Secondary text uses `#5A6369`.
