@@ -68,7 +68,7 @@ export function Nav({ owner, variant, base = "" }: { owner: boolean; variant: "r
           <TabLink
             href={detail && back ? back : `${base}/`}
             label={detail ? "Back" : "Stock"}
-            current={stock}
+            current={stock && !detail}
             transitionTypes={detail ? BACK : undefined}
             icon={detail ? ChevronLeft : LayoutList}
             badge={<SavedBadge className="absolute -top-1 -right-2" />}

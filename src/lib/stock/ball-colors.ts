@@ -1,7 +1,7 @@
 /** Navy: the swatch when the color text names no known color. */
 export const FALLBACK_SWATCH = "#172a3a";
 
-// Common color words on bowling ball boxes. Two-word names come first, so "sky blue" is not "blue".
+// Common color words on bowling ball boxes.
 const COLORS: [string, string][] = [
   ["sky blue", "#6fb7e6"],
   ["royal blue", "#2a4fb5"],
@@ -47,14 +47,16 @@ const COLORS: [string, string][] = [
   ["tan", "#c8a27a"],
 ];
 
-/** One to three swatches from a color text such as "Red / Blue / Purple". */
+// One pattern for all the names, longest first, so "sky blue" wins over "blue". Built one time.
+const BY_NAME = new Map(COLORS);
+const PATTERN = new RegExp(`\\b(${[...BY_NAME.keys()].sort((a, b) => b.length - a.length).join("|")})\\b`, "g");
+
+/** One to three swatches from a color text such as "Red / Blue / Purple", in the order of the text. */
 export function ballSwatches(text: string | null | undefined): string[] {
   const found: string[] = [];
-  for (const part of (text ?? "").toLowerCase().split(/[/,&+|]|\band\b/)) {
-    const word = part.trim();
-    if (!word) continue;
-    const hit = COLORS.find(([name]) => new RegExp(`\\b${name}\\b`).test(word));
-    if (hit && !found.includes(hit[1])) found.push(hit[1]);
+  for (const match of (text ?? "").toLowerCase().matchAll(PATTERN)) {
+    const swatch = BY_NAME.get(match[1])!;
+    if (!found.includes(swatch)) found.push(swatch);
     if (found.length === 3) break;
   }
   return found.length ? found : [FALLBACK_SWATCH];

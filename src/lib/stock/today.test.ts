@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { startOfManilaDay, todayCounts, type TodayMovement } from "./today";
+import { manilaHour, startOfManilaDay, todayCounts, type TodayMovement } from "./today";
+
+describe("manilaHour", () => {
+  it("gives the hour in Manila", () => {
+    expect(manilaHour(new Date("2026-11-15T23:30:00Z"))).toBe(7);
+    expect(manilaHour(new Date("2026-11-16T16:00:00Z"))).toBe(0);
+  });
+});
 
 describe("startOfManilaDay", () => {
   it("gives midnight in Manila (UTC+8) as a UTC time", () => {
@@ -12,7 +19,8 @@ describe("startOfManilaDay", () => {
   });
 });
 
-const move = (type: TodayMovement["type"], from: string | null, to: string | null): TodayMovement => ({
+const move = (type: TodayMovement["type"], from: string | null, to: string | null, ball = `x${Math.random()}`): TodayMovement => ({
+  ball_id: ball,
   type,
   from_location_id: from,
   to_location_id: to,
@@ -24,9 +32,9 @@ describe("todayCounts", () => {
     move("receive", null, "a"),
     move("receive", null, "b"),
     move("sell", "a", null),
+    move("sell", "b", null, "s1"),
     move("sell", "b", null),
-    move("sell", "b", null),
-    move("reverse_sale", null, "b"),
+    move("reverse_sale", null, "b", "s1"),
     move("transfer", "a", "b"),
     move("adjust", null, "a"),
   ];
@@ -42,6 +50,11 @@ describe("todayCounts", () => {
 
   it("does not give a negative sale count", () => {
     expect(todayCounts([move("reverse_sale", null, "a")], "a")).toEqual({ received: 0, sold: 0 });
+  });
+
+  it("does not remove a sale of today for the reversal of an earlier sale", () => {
+    const list = [move("sell", "a", null, "p"), move("sell", "a", null, "q"), move("reverse_sale", null, "a", "old")];
+    expect(todayCounts(list, "a")).toEqual({ received: 0, sold: 2 });
   });
 
   it("gives zero with no movements", () => {

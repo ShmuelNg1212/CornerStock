@@ -28,6 +28,12 @@ describe("ballSwatches", () => {
     expect(ballSwatches(null)).toEqual([FALLBACK_SWATCH]);
   });
 
+  it("reads the colors in the order of the text, also with no separator", () => {
+    expect(ballSwatches("Red Pearl")).toEqual([...ballSwatches("Red"), ...ballSwatches("Pearl")]);
+    expect(ballSwatches("Purple Pearl")[0]).toBe(ballSwatches("Purple")[0]);
+    expect(ballSwatches("Red Blue")).toHaveLength(2);
+  });
+
   it("does not repeat a swatch", () => {
     expect(ballSwatches("Black / Black")).toHaveLength(1);
   });

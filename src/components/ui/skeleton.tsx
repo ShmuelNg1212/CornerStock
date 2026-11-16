@@ -19,7 +19,7 @@ export function StockListSkeleton() {
       <Skeleton className="mt-3 h-14 w-full rounded-2xl" />
       <div className="mt-2.5 flex gap-1.5">
         {[0, 1, 2, 3, 4].map((pill) => (
-          <Skeleton key={pill} className="h-10 w-16 rounded-full" />
+          <Skeleton key={pill} className="h-12 w-16 rounded-full lg:h-10" />
         ))}
       </div>
       <div className="mt-4 space-y-2.5">

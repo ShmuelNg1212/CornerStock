@@ -14,6 +14,7 @@ import { RollingNumber } from "@/components/ui/rolling-number";
 import { Sheet } from "@/components/ui/sheet";
 import { spring, stagger } from "@/lib/motion";
 import { changedModels, snapshot, type CountSnapshot } from "@/lib/stock/changes";
+import { manilaHour } from "@/lib/stock/today";
 import { applyFilters, brandCounts, filterGroups, parseFilters, stockTotal, weightCounts, type StockFilters, type StockGroup } from "@/lib/stock/group";
 import { cn } from "@/lib/utils";
 import { BallGlyph } from "./ball-glyph";
@@ -304,7 +305,7 @@ export function StockList({ groups, place, locationNames, today, base = "", fixt
 function Greeting() {
   const account = useAccount();
   if (!account) return null;
-  const hour = (new Date().getUTCHours() + 8) % 24;
+  const hour = manilaHour(new Date());
   const part = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
   const first = account.name.trim().split(/\s+/)[0] || "there";
   return (
@@ -365,7 +366,7 @@ function Pills({
   onClearBrand: () => void;
 }) {
   const pill =
-    "relative flex h-10 shrink-0 items-center gap-1.5 rounded-full px-3.5 text-sm font-medium outline-none transition-[color,transform] duration-(--dur-fast) focus-visible:ring-3 focus-visible:ring-ring/40 active:scale-[0.96]";
+    "relative flex h-12 shrink-0 items-center gap-1.5 rounded-full px-4 text-sm font-medium lg:h-10 lg:px-3.5 outline-none transition-[color,transform] duration-(--dur-fast) focus-visible:ring-3 focus-visible:ring-ring/40 active:scale-[0.96]";
   const options = [{ weight: null as number | null, label: "All", count: null as number | null }, ...weights.map((w) => ({ weight: w.weight, label: `${w.weight} lb`, count: w.count }))];
   return (
     <div className="-mx-4 mt-2.5 flex gap-1.5 overflow-x-auto px-4 pb-1 [scrollbar-width:none] lg:mx-0 lg:flex-wrap lg:overflow-visible lg:px-0 [&::-webkit-scrollbar]:hidden" role="group" aria-label="Filter by weight and brand">
@@ -396,7 +397,7 @@ function Pills({
             type="button"
             onClick={onClearBrand}
             aria-label={`Show all brands, not only ${active.brand}`}
-            className="grid size-8 place-items-center rounded-full outline-none hover:bg-white/12 focus-visible:ring-3 focus-visible:ring-white/50"
+            className="grid size-10 place-items-center rounded-full outline-none hover:bg-white/12 lg:size-8 focus-visible:ring-3 focus-visible:ring-white/50"
           >
             <X className="size-4" aria-hidden="true" />
           </button>
@@ -446,6 +447,7 @@ function LocationSheet({ open, onClose }: { open: boolean; onClose: () => void }
 
 /** One model: a ball in its colors, the name, a chip for each weight, and the total. */
 function ModelCard({
+  ref,
   group,
   index,
   base,
@@ -453,6 +455,7 @@ function ModelCard({
   selectedModel,
   onSeen,
 }: {
+  ref?: React.Ref<HTMLLIElement>;
   group: StockGroup;
   index: number;
   base: string;
@@ -467,6 +470,7 @@ function ModelCard({
   const selected = ids.includes(selectedModel ?? "");
   return (
     <m.li
+      ref={ref}
       layout="position"
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0, transition: { ...spring.layout, delay: stagger(index) } }}

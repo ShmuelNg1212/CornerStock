@@ -49,7 +49,7 @@ export function SwipeBack({ href, children }: { href: string; children: React.Re
   return (
     <div
       ref={box}
-      style={{ touchAction: enabled ? "pan-y" : undefined }}
+      style={{ touchAction: enabled ? "pan-y pinch-zoom" : undefined }}
       onPointerDown={(event) => {
         if (!enabled || event.pointerType !== "touch" || event.clientX > EDGE) return;
         gesture.current = { id: event.pointerId, x: event.clientX, y: event.clientY, t: event.timeStamp, locked: false };
@@ -76,7 +76,8 @@ export function SwipeBack({ href, children }: { href: string; children: React.Re
         if (!g?.locked) return;
         const dx = event.clientX - g.x;
         const speed = dx / Math.max(1, event.timeStamp - g.t);
-        if (dx > window.innerWidth * 0.35 || speed > 0.6) router.push(href, { transitionTypes: BACK });
+        // A fast flick also goes back, but only after a real move, not a graze of the edge.
+        if (dx > window.innerWidth * 0.35 || (dx > 48 && speed > 0.6)) router.push(href, { transitionTypes: BACK });
         else settle(Math.max(0, dx));
       }}
       onPointerCancel={(event) => {

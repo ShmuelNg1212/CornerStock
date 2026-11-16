@@ -22,7 +22,12 @@ async function List() {
     getLocations(),
     getLocations().then(({ selected }) => countsIn(selected)),
     supabase.from("ball_models").select(columns),
-    supabase.from("stock_movements").select("type, from_location_id, to_location_id").gte("at", since).in("type", ["receive", "sell", "reverse_sale"]),
+    supabase
+      .from("stock_movements")
+      .select("ball_id, type, from_location_id, to_location_id")
+      .gte("at", since)
+      .in("type", ["receive", "sell", "reverse_sale"])
+      .order("id"),
   ]);
   const models = (catalog ?? []) as StockModel[];
   // The API returns a limited number of rows. Read any counted model that the catalog read did not return.
