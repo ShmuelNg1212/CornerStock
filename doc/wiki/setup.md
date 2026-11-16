@@ -57,7 +57,7 @@ The GitHub remote is `https://github.com/ShmuelNg1212/CornerStock`. Production i
 
 The first release was verified on 2026-11-16. Deployment `dpl_8kpxM8UBzNUZb2XphkAW9csZwbxY` serves commit `d8027ef`.
 
-The current release was verified on 2026-11-16. Deployment `dpl_Gp6QuHH7u5JQa7XQ3FnRkYdzsE3K` serves commit `d001291` (adds the `apple-mobile-web-app-capable` tag; Next.js writes only `mobile-web-app-capable`, and iOS needs the Apple tag for the status bar style and the startup images). The release marker is `2026-11-16-apple-1`. The functions run in `syd1`. Rollback commit: `bdf8346`. The checks after the push: the marker, the Apple tag, the status bar style tag, and 31 startup image links. A home-screen app reads these tags only when it is added: remove it and add it again after a change.
+The current release was verified on 2026-11-16. Deployment `dpl_A5bzUwDUg1jPq8FJPeSCo2HQ87Kd` serves commit `f086c00` (navigation and motion: floating tab bar, summary tiles, filter pills, swipe back, `motion` library). The release marker is `2026-11-16-lane-1`. The functions run in `syd1`. Rollback commit: `d001291`. The checks after the push: the marker showed after approximately 50 s, and a signed-out visit to `/` and `/account` goes to `/login`. A real scan on a phone was not checked by the agent.
 
 1. Push the repository to GitHub. Import it in Vercel.
 2. Add the environment variables above in Vercel, for Production.
