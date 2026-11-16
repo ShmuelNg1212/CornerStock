@@ -1,7 +1,7 @@
 "use client";
 
 import { ArrowDownToLine, ChevronDown, Layers, MapPin, Search, Tag, X } from "lucide-react";
-import { AnimatePresence, m } from "motion/react";
+import { AnimatePresence, m, useReducedMotion } from "motion/react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -460,6 +460,7 @@ function ModelCard({
   selectedModel: string | null;
   onSeen: (ids: string[]) => void;
 }) {
+  const reduced = useReducedMotion();
   const ids = group.weights.map((w) => w.modelId);
   const delta = ids.reduce((sum, id) => sum + (marks[id] ?? 0), 0);
   const changed = ids.some((id) => id in marks);
@@ -469,7 +470,7 @@ function ModelCard({
       layout="position"
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0, transition: { ...spring.layout, delay: stagger(index) } }}
-      exit={{ opacity: 0, scale: 0.97, transition: { duration: 0.12 } }}
+      exit={{ opacity: 0, scale: reduced ? 1 : 0.97, transition: { duration: 0.12 } }}
       transition={spring.layout}
       onPointerDown={changed ? () => onSeen(ids) : undefined}
       data-selected={selected || undefined}

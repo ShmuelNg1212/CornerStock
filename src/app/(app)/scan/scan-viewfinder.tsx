@@ -20,7 +20,8 @@ const HINTS: Record<FrameHint, { text: string; icon: typeof Hand }> = {
 
 const round =
   "grid size-12 place-items-center rounded-full bg-rail/80 text-rail-foreground outline-none transition-[background-color,transform] duration-(--dur-fast) hover:bg-rail active:scale-95 focus-visible:ring-3 focus-visible:ring-gold";
-const corner = "absolute size-9 transition-[border-color,transform] duration-(--dur) ease-out";
+// The corners close in when a barcode reads, and lock with a small overshoot when the photo is taken.
+const corner = "absolute size-9 transition-[border-color,transform] duration-(--dur-slow) ease-[cubic-bezier(0.34,1.56,0.64,1)]";
 
 /** Shows which barcode is read. A check and a dash, not color alone. */
 function CodeMark({ label, read }: { label: string; read: boolean }) {
@@ -107,7 +108,7 @@ export function ScanViewfinder({
   const captured = flash !== null;
   // Corners: ivory while it looks, gold when a barcode reads, green on a capture.
   const tone = captured ? "border-ok" : someRead ? "border-gold" : "border-white/85";
-  const inward = captured ? "scale-95" : "";
+  const inward = captured ? "scale-[0.86]" : someRead ? "scale-[0.94]" : "";
   // The hint icon is gold for a problem the staff member can fix, so it stands out on the navy tray.
   const hintTone = ["glare", "far", "soft", "align"].includes(frameHint) && state === "live" ? "text-gold" : "";
 
