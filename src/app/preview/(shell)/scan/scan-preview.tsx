@@ -7,8 +7,10 @@ import { ScanBatch } from "@/app/(app)/scan/scan-batch";
 import { ScanConfirm } from "@/app/(app)/scan/scan-confirm";
 import { ScanReading } from "@/app/(app)/scan/scan-reading";
 import { ScanStart } from "@/app/(app)/scan/scan-start";
+import { ScanViewfinder } from "@/app/(app)/scan/scan-viewfinder";
 import { EMPTY, type BatchItem } from "@/app/(app)/scan/scan-types";
 import { inputClass } from "@/components/ui/field";
+import { readLabelPhoto } from "@/lib/label/read-photo";
 import { locations } from "../../fixtures";
 
 const LABEL = "/preview-label.jpg";
@@ -33,7 +35,7 @@ const batch: BatchItem[] = [
   item("71", "needs_details", { known: false, fields: { ...EMPTY, serial: "SUPERLONGSERIALNUMBER00000000000001" }, message: "The UPC barcode was not found. Take the photo again, or type the 12 digits below the barcode." }),
   item("88", "reading"),
 ];
-const STEPS = ["start", "saved", "reading", "confirm", "new", "error", "batch", "batch-empty"];
+const STEPS = ["start", "saved", "reading", "confirm", "new", "error", "batch", "batch-empty", "viewfinder", "viewfinder-batch"];
 const noop = () => {};
 
 /** The steps of the scan flow with fixture data. Select a step with `?step=`. */
@@ -42,6 +44,11 @@ export function ScanPreview() {
   // "confirm": Save shows the saved state, so the move of the label photo into the saved row is visible.
   const [demoSaved, setDemoSaved] = useState(false);
   const step = wanted === "confirm" && demoSaved ? "saved" : wanted;
+  // "viewfinder": the live camera with the real frame reader. A capture runs the real photo read.
+  // The catalog lookup and the save need a sign-in, so the preview shows the barcodes only.
+  const [shot, setShot] = useState<{ preview: string; serial: string; upc: string } | null>(null);
+  const [shots, setShots] = useState<string[]>([]);
+  const [problem, setProblem] = useState<string | null>(null);
   const select = (
     <select className={inputClass} defaultValue={locations[0].id}>
       {locations.map((l) => (
@@ -111,6 +118,52 @@ export function ScanPreview() {
           existingBallId="b1"
           message="Check the marked fields."
         />
+      )}
+      {step === "viewfinder" && !shot && !problem && (
+        <ScanViewfinder
+          mode="single"
+          base="/preview"
+          onCapture={async (file) => {
+            const codes = await readLabelPhoto(file).catch(() => null);
+            setShot({ preview: URL.createObjectURL(file), serial: codes?.serial ?? "", upc: codes?.upc ?? "" });
+          }}
+          onClose={() => setProblem("closed")}
+          onTakePhoto={noop}
+          onUnavailable={setProblem}
+        />
+      )}
+      {step === "viewfinder" && problem && <p data-testid="camera-problem">Camera: {problem}</p>}
+      {step === "viewfinder" && shot && (
+        <ScanConfirm
+          {...confirm}
+          preview={shot.preview}
+          fields={{ ...EMPTY, serial: shot.serial, upc: shot.upc }}
+          errors={{}}
+          unread={[]}
+          knownModel={false}
+          editModel
+          existingBallId={null}
+          message={null}
+        />
+      )}
+      {step === "viewfinder-batch" && (
+        <>
+          <ScanViewfinder
+            mode="batch"
+            base="/preview"
+            added={shots.length}
+            skipSerials={shots}
+            onCapture={(_, codes) => codes.serial && setShots((list) => [...list, codes.serial!])}
+            onClose={noop}
+            onTakePhoto={noop}
+            onUnavailable={setProblem}
+          />
+          <ul data-testid="batch-serials">
+            {shots.map((serial) => (
+              <li key={serial}>{serial}</li>
+            ))}
+          </ul>
+        </>
       )}
       {(step === "batch" || step === "batch-empty") && (
         <ScanBatch
