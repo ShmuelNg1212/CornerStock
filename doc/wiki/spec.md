@@ -30,6 +30,7 @@ Source: the brand kit handoff in [../study/1794811328_brand_kit_handoff.md](../s
 ## Built
 
 - Staff sign in with an email and a password. The owner makes the accounts.
+- An account with no access (inactive, or no profile) cannot sign in. The sign-in page shows "This account does not have access. Ask the owner." When the owner deactivates a signed-in account, its next page load signs it out and shows the same message.
 - Scan: the live camera opens at once. The app reads the barcodes in the browser, about 5 frames each second, in a Web Worker. It takes the photo when the same UPC and serial number read in 2 frames in a row. No AI service is used. Then a confirm screen, then a save into the selected location. After a save, the camera opens again and skips the serial number that was just saved.
 - Live camera hints: point at the label, hold still, glare (tilt the box, or turn off the torch), move closer, hold the phone still, line up the phone with the label, already added. Two marks show if the serial and the UPC read.
 - Live camera controls: close, shutter (takes the photo now), torch (only where the browser supports it), "Take a photo instead" (the phone camera app). The camera stops when the page is hidden or the camera closes.
