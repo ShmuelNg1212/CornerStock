@@ -4,6 +4,7 @@ import { StockList } from "@/components/stock/stock-list";
 import { StockListSkeleton } from "@/components/ui/skeleton";
 import { ALL_LOCATIONS, getLocations } from "@/lib/auth";
 import { groupStock, type StockModel } from "@/lib/stock/group";
+import { startOfManilaDay, todayCounts, type TodayMovement } from "@/lib/stock/today";
 import { createClient } from "@/lib/supabase/server";
 
 async function List() {
@@ -15,10 +16,18 @@ async function List() {
     return ((await query).data ?? []) as { model_id: string; in_stock: number }[];
   };
   // The catalog is small. Read it in parallel with the counts; groupStock keeps only the models in stock.
-  const [{ locations, selected }, counts, { data: catalog }] = await Promise.all([
+  // The movements of today give the "In today" and "Sold today" tiles. A day has few movements.
+  const since = startOfManilaDay(new Date()).toISOString();
+  const [{ locations, selected }, counts, { data: catalog }, { data: moves }] = await Promise.all([
     getLocations(),
     getLocations().then(({ selected }) => countsIn(selected)),
     supabase.from("ball_models").select(columns),
+    supabase
+      .from("stock_movements")
+      .select("ball_id, type, from_location_id, to_location_id")
+      .gte("at", since)
+      .in("type", ["receive", "sell", "reverse_sale"])
+      .order("id"),
   ]);
   const models = (catalog ?? []) as StockModel[];
   // The API returns a limited number of rows. Read any counted model that the catalog read did not return.
@@ -36,6 +45,7 @@ async function List() {
       key={selected}
       groups={groupStock(models, counts)}
       place={place}
+      today={todayCounts((moves ?? []) as TodayMovement[], selected)}
       locationNames={Object.fromEntries(locations.map((l) => [l.id, l.name]))}
     />
   );

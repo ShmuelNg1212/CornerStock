@@ -22,6 +22,10 @@
   --animate-enter: enter var(--dur-slow) var(--ease-snap);
   --animate-mark: mark var(--dur-slow) var(--ease-snap);
   --animate-pulse-soft: pulse-soft 1.4s ease-in-out infinite;
+  --animate-sweep: sweep 900ms var(--ease-snap) 1 both;
+  --shadow-card: 0 1px 2px rgb(23 42 58 / 0.05), 0 4px 14px -6px rgb(23 42 58 / 0.10);
+  --shadow-float: 0 2px 6px rgb(23 42 58 / 0.08), 0 14px 36px -10px rgb(23 42 58 / 0.30);
+  --radius-card: 1.25rem;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-inter);
@@ -189,6 +193,15 @@
     transform: scale(0.6);
   }
 }
+/* One gold light passes across a card that another device changed. */
+@keyframes sweep {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
 @keyframes pulse-soft {
   50% {
     opacity: 0.55;
@@ -269,12 +282,32 @@
   }
 }
 
+/* Another weight of the same model: the screen changes in place with a short fade and lift. */
+::view-transition-old(.weight-switch) {
+  animation: var(--dur-exit) ease-in both vt-fade reverse;
+}
+::view-transition-new(.weight-switch) {
+  --slide-offset: 0px;
+  animation: var(--dur) var(--ease-snap) both vt-fade;
+}
+
 /* A skeleton gives way to the content. */
 ::view-transition-old(.reveal) {
   animation: var(--dur-exit) ease-in both vt-fade reverse;
 }
 ::view-transition-new(.reveal) {
   animation: var(--dur) var(--ease-snap) var(--dur-exit) both vt-fade;
+}
+
+/* Phones: the weight chip in the list becomes the weight tag of the model screen.
+   Large screens show both at once, and a name must be unique, so the names apply only on phones. */
+@media (max-width: 1023px) {
+  .vt-weight {
+    view-transition-name: var(--vt-name);
+  }
+}
+::view-transition-group(.weight-tag) {
+  animation-duration: var(--dur-slow);
 }
 
 /* The label photo becomes the thumbnail of the saved row. */

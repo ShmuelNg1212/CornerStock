@@ -2,6 +2,7 @@
 
 import { startTransition, useEffect, useRef, useState } from "react";
 import { lookupLabel, receiveBall } from "@/app/actions";
+import { announceSaved } from "@/lib/events";
 import type { LabelBarcodes } from "@/lib/label/barcodes";
 import { readMessage, scanStatus } from "@/lib/label/batch";
 import { readLabelPhoto } from "@/lib/label/read-photo";
@@ -280,7 +281,10 @@ export function useScan({ locations, defaultLocationId }: { locations: Location[
       updateItem(item.id, { status: "saving", message: null });
       try {
         const { result, photoKept } = await submit(item.photo, item.fields, locationId, item.id);
-        if (result.ok) updateItem(item.id, { status: "saved", ballId: result.ballId, savedTo: location, photoKept });
+        if (result.ok) {
+          updateItem(item.id, { status: "saved", ballId: result.ballId, savedTo: location, photoKept });
+          announceSaved(1);
+        }
         else
           updateItem(item.id, {
             status: result.existingBallId ? "duplicate" : "needs_details",
@@ -313,6 +317,7 @@ export function useScan({ locations, defaultLocationId }: { locations: Location[
     try {
       const { result, photoKept } = await submit(photo.current, fields, locationId, requestId.current);
       const location = locations.find((l) => l.id === locationId)?.name ?? "";
+      if (result.ok) announceSaved(1);
       if (result.ok && fromBatch) {
         updateItem(fromBatch, { status: "saved", fields, ballId: result.ballId, savedTo: location, photoKept });
         reset();

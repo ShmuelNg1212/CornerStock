@@ -1,19 +1,33 @@
 "use client";
 
-import { Camera, LayoutList, Settings } from "lucide-react";
+import { Camera, ChevronLeft, LayoutList, Settings, UserRound } from "lucide-react";
+import { AnimatePresence, m } from "motion/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState, useSyncExternalStore } from "react";
+import { BallGlyph } from "@/components/stock/ball-glyph";
+import { backTarget } from "@/lib/back-target";
+import { BALLS_SAVED } from "@/lib/events";
+import { spring } from "@/lib/motion";
 
-/** The main navigation. `rail` is the column on large screens; `tabs` is the bar at the bottom of a phone. */
+const BACK = ["nav-back"];
+
+/** The main navigation. `rail` is the column on large screens; `tabs` is the floating bar on a phone. */
 export function Nav({ owner, variant, base = "" }: { owner: boolean; variant: "rail" | "tabs"; base?: string }) {
   const path = usePathname().slice(base.length) || "/";
-  const items = [
-    { href: "/", label: "Stock", icon: LayoutList, current: path === "/" || path.startsWith("/models") || path.startsWith("/balls") },
-    { href: "/scan", label: variant === "rail" ? "Scan labels" : "Scan", icon: Camera, current: path.startsWith("/scan") },
-    ...(owner ? [{ href: "/settings", label: "Settings", icon: Settings, current: path.startsWith("/settings") }] : []),
-  ];
+  const detail = path.startsWith("/models") || path.startsWith("/balls");
+  const stock = path === "/" || detail;
+  // A ball screen goes back to its model; a model screen goes back to the list.
+  const back = useSyncExternalStore(backTarget.subscribe, backTarget.get, () => null);
 
   if (variant === "rail") {
+    const items = [
+      { href: "/", label: "Stock", icon: LayoutList, current: stock },
+      { href: "/scan", label: "Scan labels", icon: Camera, current: path.startsWith("/scan") },
+      owner
+        ? { href: "/settings", label: "Settings", icon: Settings, current: path.startsWith("/settings") }
+        : { href: "/account", label: "Account", icon: UserRound, current: path.startsWith("/account") },
+    ];
     return (
       <nav aria-label="Main">
         <ul className="space-y-1">
@@ -22,10 +36,13 @@ export function Nav({ owner, variant, base = "" }: { owner: boolean; variant: "r
               <Link
                 href={`${base}${href}`}
                 aria-current={current ? "page" : undefined}
-                className="flex h-11 items-center gap-3 rounded-lg px-3 font-medium text-rail-muted outline-none transition-colors duration-(--dur-fast) hover:bg-white/8 hover:text-white focus-visible:ring-3 focus-visible:ring-white/40 aria-[current=page]:bg-white/12 aria-[current=page]:text-white"
+                className="relative flex h-11 items-center gap-3 rounded-lg px-3 font-medium text-rail-muted outline-none transition-colors duration-(--dur-fast) hover:text-white focus-visible:ring-3 focus-visible:ring-white/40 aria-[current=page]:text-white"
               >
-                <Icon className="size-5 shrink-0" aria-hidden="true" />
-                {label}
+                {/* The indicator slides to the current item: the cause is the navigation. */}
+                {current && <m.span layoutId="rail-indicator" transition={spring.tab} className="absolute inset-0 rounded-lg bg-white/12" />}
+                <Icon className="relative size-5 shrink-0" aria-hidden="true" />
+                <span className="relative">{label}</span>
+                {href === "/" && <SavedBadge className="relative ml-auto" />}
               </Link>
             </li>
           ))}
@@ -34,24 +51,136 @@ export function Nav({ owner, variant, base = "" }: { owner: boolean; variant: "r
     );
   }
 
+  const third = owner
+    ? { href: "/settings", label: "Settings", icon: Settings, current: path.startsWith("/settings") }
+    : { href: "/account", label: "Account", icon: UserRound, current: path.startsWith("/account") };
+  const scanning = path.startsWith("/scan");
+
   return (
-    <nav aria-label="Main" style={{ viewTransitionName: "shell-tabs" }} className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-card pb-[env(safe-area-inset-bottom)] lg:hidden">
-      <ul className="mx-auto flex max-w-3xl">
-        {items.map(({ href, label, icon: Icon, current }) => (
-          <li key={href} className="flex-1">
-            <Link
-              href={`${base}${href}`}
-              aria-current={current ? "page" : undefined}
-              className="group flex h-16 flex-col items-center justify-center gap-1 text-xs font-medium text-muted-foreground outline-none focus-visible:bg-muted aria-[current=page]:text-foreground"
-            >
-              <span className="grid h-7 w-14 place-items-center rounded-full transition-colors duration-(--dur) group-aria-[current=page]:bg-secondary">
-                <Icon className="size-5" aria-hidden="true" />
-              </span>
-              {label}
-            </Link>
-          </li>
-        ))}
+    <nav
+      aria-label="Main"
+      style={{ viewTransitionName: "shell-tabs" }}
+      className="fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom)+0.5rem)] z-20 mx-auto max-w-md rounded-[1.5rem] bg-card/95 shadow-(--shadow-float) ring-1 ring-border backdrop-blur-md lg:hidden"
+    >
+      <ul className="grid h-16 grid-cols-3 items-center px-2">
+        <li className="flex justify-center">
+          {/* In a detail screen, the Stock item becomes Back. It stays at the thumb. */}
+          <TabLink
+            href={detail && back ? back : `${base}/`}
+            label={detail ? "Back" : "Stock"}
+            current={stock && !detail}
+            transitionTypes={detail ? BACK : undefined}
+            icon={detail ? ChevronLeft : LayoutList}
+            badge={<SavedBadge className="absolute -top-1 -right-2" />}
+          />
+        </li>
+        <li className="flex justify-center">
+          <Link
+            href={`${base}/scan`}
+            aria-current={scanning ? "page" : undefined}
+            aria-label="Scan labels"
+            className="group -mt-7 grid size-16 place-items-center rounded-full bg-action text-action-foreground shadow-[0_10px_22px_-8px_rgb(185_74_37/0.7)] ring-4 ring-background outline-none transition-transform duration-(--dur-fast) focus-visible:ring-ring/50 active:scale-[0.94] aria-[current=page]:ring-gold/60"
+          >
+            <Camera className="size-7 transition-transform duration-(--dur) group-aria-[current=page]:scale-110" aria-hidden="true" />
+          </Link>
+        </li>
+        <li className="flex justify-center">
+          <TabLink href={`${base}${third.href}`} label={third.label} current={third.current} icon={third.icon} />
+        </li>
       </ul>
     </nav>
+  );
+}
+
+function TabLink({
+  href,
+  label,
+  current,
+  icon: Icon,
+  transitionTypes,
+  badge,
+}: {
+  href: string;
+  label: string;
+  current: boolean;
+  icon: typeof LayoutList;
+  transitionTypes?: string[];
+  badge?: React.ReactNode;
+}) {
+  return (
+    <Link
+      href={href}
+      transitionTypes={transitionTypes}
+      aria-current={current ? "page" : undefined}
+      className="group flex h-14 min-w-18 flex-col items-center justify-center gap-0.5 rounded-2xl text-xs font-medium text-muted-foreground outline-none focus-visible:ring-3 focus-visible:ring-ring/40 aria-[current=page]:text-foreground"
+    >
+      <span className="relative grid h-8 w-12 place-items-center">
+        {current && <m.span layoutId="tab-indicator" transition={spring.tab} className="absolute inset-0 rounded-xl bg-primary" />}
+        <AnimatePresence mode="popLayout" initial={false}>
+          <m.span
+            key={label}
+            className="relative grid place-items-center group-aria-[current=page]:text-primary-foreground"
+            initial={{ opacity: 0, scale: 0.6 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.6 }}
+            transition={spring.snappy}
+          >
+            <Icon className="size-5" aria-hidden="true" />
+          </m.span>
+        </AnimatePresence>
+        {badge}
+      </span>
+      {label}
+    </Link>
+  );
+}
+
+/**
+ * After a scan saves balls, a ball drops into the Stock item and "+N" shows for 2 seconds.
+ * The cause is the save. Under reduced motion the badge shows with no movement.
+ */
+function SavedBadge({ className }: { className?: string }) {
+  const [saved, setSaved] = useState<{ count: number; key: number } | null>(null);
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout>;
+    const onSaved = (event: Event) => {
+      const count = (event as CustomEvent<number>).detail;
+      setSaved((current) => ({ count: (current?.count ?? 0) + count, key: Date.now() }));
+      clearTimeout(timer);
+      timer = setTimeout(() => setSaved(null), 2000);
+    };
+    window.addEventListener(BALLS_SAVED, onSaved);
+    return () => {
+      window.removeEventListener(BALLS_SAVED, onSaved);
+      clearTimeout(timer);
+    };
+  }, []);
+  return (
+    <span className={className} role="status">
+      <AnimatePresence>
+        {saved && (
+          <m.span
+            key="badge"
+            className="tabular relative flex h-5 min-w-5 items-center justify-center rounded-full bg-gold px-1 text-[0.6875rem] font-bold text-foreground"
+            initial={{ opacity: 0, scale: 0.4 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.6, transition: { duration: 0.12 } }}
+            transition={spring.snappy}
+          >
+            <span className="sr-only">Saved: </span>+{saved.count}
+            <m.span
+              key={saved.key}
+              aria-hidden="true"
+              className="pointer-events-none absolute -top-9 left-1/2 -ml-2.5"
+              initial={{ y: -18, opacity: 0, rotate: -160 }}
+              animate={{ y: [-18, 26, 22, 26], opacity: [0, 1, 1, 0], rotate: 0 }}
+              transition={{ duration: 0.6, times: [0, 0.55, 0.75, 1], ease: "easeOut" }}
+            >
+              <BallGlyph color="Orange" className="size-5" />
+            </m.span>
+          </m.span>
+        )}
+      </AnimatePresence>
+    </span>
   );
 }

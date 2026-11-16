@@ -1,6 +1,6 @@
 # 0001: The brand kit is confirmed, and motion is functional
 
-Date: 2026-11-16. Status: accepted. Decided by: the human.
+Date: 2026-11-16. Status: accepted. Decided by: the human. Decision 2 and the motion consequences are replaced by [0002](0002-motion-with-character.md). The rest stays.
 
 ## Context
 

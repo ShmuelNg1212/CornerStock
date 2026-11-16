@@ -36,7 +36,7 @@ export default async function BallPage({ params }: { params: Promise<{ id: strin
     ((allLocations ?? []) as Location[]).find((l) => l.id === locationId)?.name ?? "—";
 
   return (
-    <DetailTransition>
+    <DetailTransition back={`/models/${model.id}`}>
       <BallView
         ball={ball}
         model={model}

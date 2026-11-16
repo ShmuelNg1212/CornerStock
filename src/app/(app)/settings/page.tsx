@@ -1,3 +1,4 @@
+import { AccountPanel } from "@/components/account-panel";
 import type { Metadata } from "next";
 import { requireOwner } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
@@ -20,7 +21,8 @@ export default async function SettingsPage() {
   }
   return (
     <div className="mx-auto max-w-2xl lg:mx-0">
-      <h1 className="text-2xl font-bold">Settings</h1>
+      <h1 className="mb-4 text-2xl font-bold">Settings</h1>
+      <AccountPanel />
       <LocationSettings locations={(locations ?? []) as Location[]} inStock={inStock} />
       <StaffSettings staff={(staff ?? []) as Profile[]} ownId={owner.id} />
     </div>

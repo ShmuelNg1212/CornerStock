@@ -49,7 +49,7 @@ Confirmed by the human on 2026-11-16:
 - Type: Space Grotesk for headings and brand. Inter for interface and data. Tabular numerals for quantities and prices.
 - Personality: organized, dependable, approachable, precise, with restrained sporting energy.
 - Voice: short, direct, helpful. Examples: "Receive stock", "Stock count saved", "Low stock".
-- Motion: functional and quick. Motion explains a state change. It is not decoration.
+- Motion: it has character, but each motion has a cause: a navigation, a state change, or a touch. Motion with no cause is not permitted (ADR 0002).
 
 Proposed, not confirmed: the tagline "Every item. Accounted for."
 

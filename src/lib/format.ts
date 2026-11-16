@@ -27,3 +27,10 @@ export const MOVEMENT_LABEL: Record<MovementType, string> = {
   adjust: "Corrected",
   remove: "Removed",
 };
+
+/** The initials of a name, for the round badge. */
+export function initials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return "S";
+  return (parts[0][0] + (parts.length > 1 ? parts[parts.length - 1][0] : "")).toUpperCase();
+}
