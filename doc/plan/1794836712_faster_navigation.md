@@ -40,7 +40,7 @@ Closed on 2026-11-16. The human answered: 1 A (`syd1`), 2 yes (`getClaims()`), 3
 - Acceptance: the pages show the same data as before. Typecheck, lint, unit tests, and database tests pass.
 - Complete when: the preview route and a signed-in local build show the same model, ball, and list data.
 
-### [ ] 4. Refresh one time after an action (`tests: alongside`)
+### [x] 4. Refresh one time after an action (`tests: alongside`)
 
 - Remove `router.refresh()` from `ball-actions.tsx`. The server action already revalidates the layout.
 - Acceptance: after a sale or a transfer, the ball page and the stock count show the new state without a manual reload.

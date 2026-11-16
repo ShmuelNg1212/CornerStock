@@ -1,7 +1,6 @@
 "use client";
 
 import { ArrowLeftRight, Ban, Pencil, Tag, Undo2 } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { adjustBall, removeBall, reverseSale, sellBall, transferBall, type ActionResult, type AdjustInput } from "@/app/actions";
@@ -31,7 +30,6 @@ export function BallActions({
   locations: Location[];
   owner: boolean;
 }) {
-  const router = useRouter();
   const [panel, setPanel] = useState<Panel>(null);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<keyof AdjustInput, string>>>({});
@@ -78,7 +76,6 @@ export function BallActions({
       if (result.ok) {
         setPanel(null);
         toast.success(done);
-        router.refresh();
       } else {
         setError(result.error);
         setFieldErrors(result.fieldErrors ?? {});
