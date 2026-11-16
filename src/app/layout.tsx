@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, Space_Grotesk } from "next/font/google";
 import { Toaster } from "sonner";
+import startupImages from "@/lib/startup-images.json";
 import "./globals.css";
 
 const inter = Inter({ variable: "--font-inter", subsets: ["latin"] });
@@ -9,7 +10,8 @@ const spaceGrotesk = Space_Grotesk({ variable: "--font-space-grotesk", subsets: 
 export const metadata: Metadata = {
   title: { default: "Cornerstock", template: "%s · Cornerstock" },
   description: "Bowling ball stock for Bowlers Corner.",
-  appleWebApp: { capable: true, title: "Cornerstock", statusBarStyle: "black-translucent" },
+  // The startup images are made by scripts/make-startup-images.mjs, one for each iPhone and iPad screen.
+  appleWebApp: { capable: true, title: "Cornerstock", statusBarStyle: "black-translucent", startupImage: startupImages },
   robots: { index: false, follow: false },
   other: { "cornerstock-release": "2026-11-16-fast-1" },
 };
