@@ -3,9 +3,9 @@
 import { Camera, CircleCheck, Keyboard, LoaderCircle, TriangleAlert } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { receiveBall } from "@/app/actions";
-import type { ExtractResponse } from "@/app/api/extract/route";
+import { lookupLabel, receiveBall } from "@/app/actions";
 import { buttonClass, Field, inputClass } from "@/components/ui/field";
+import { readLabelPhoto } from "@/lib/label/read-photo";
 import { LABEL_FIELDS, validateLabel, type LabelErrors, type LabelField, type RawLabel } from "@/lib/label/rules";
 import { createClient } from "@/lib/supabase/client";
 import type { Location } from "@/lib/types";
@@ -100,37 +100,43 @@ export function ScanFlow({ locations, defaultLocationId }: { locations: Location
   async function onPhoto(file: File | undefined) {
     if (!file) return;
     begin("reading");
-    const blob = await shrink(file);
-    photo.current = blob;
-    setPreview(URL.createObjectURL(blob));
+    setPreview(URL.createObjectURL(file));
+    // Read the barcodes from the full photo. Keep a smaller copy as the record of the label.
+    const [codes, small] = await Promise.all([
+      readLabelPhoto(file).catch(() => null),
+      shrink(file),
+    ]);
+    photo.current = small;
 
-    const body = new FormData();
-    body.set("photo", blob, "label.jpg");
-    let result: ExtractResponse | { error: string };
-    try {
-      const response = await fetch("/api/extract", { method: "POST", body });
-      result = await response.json();
-    } catch {
-      result = { error: "The photo was not sent. Check the connection. You can type the details." };
+    const next: RawLabel = { ...EMPTY, upc: codes?.upc ?? "", serial: codes?.serial ?? "", product_code: codes?.product_code ?? "" };
+    let known = false;
+    if (codes?.upc || codes?.serial) {
+      try {
+        const lookup = await lookupLabel({ upc: codes.upc, serial: codes.serial });
+        if (lookup.model) {
+          Object.assign(next, lookup.model);
+          known = true;
+        }
+        setExistingBallId(lookup.existingBallId);
+      } catch {
+        setMessage("The catalog was not checked. Check the connection. You can continue and type the details.");
+      }
     }
 
-    if ("error" in result) {
-      setMessage(result.error);
-      setFields(EMPTY);
-      setUnread([]);
-      setKnownModel(false);
-      setEditModel(true);
-    } else {
-      const next = Object.fromEntries(LABEL_FIELDS.map((f) => [f, result.fields[f] ?? ""])) as RawLabel;
-      setFields(next);
-      setKnownModel(result.knownModel);
-      setEditModel(!result.knownModel);
-      setExistingBallId(result.existingBallId);
-      // Show which fields the reader left empty, and which values break a rule, before the first Save.
-      setUnread(BALL_FIELDS.map((f) => f.field).filter((f) => !next[f]));
-      const check = validateLabel(next);
-      setErrors(Object.fromEntries(Object.entries(check.errors).filter(([f]) => next[f as LabelField])));
+    if (!codes) {
+      setMessage("The photo could not be read on this device. Type the details.");
+    } else if (!codes.upc && !codes.serial) {
+      setMessage("No barcode was found in the photo. Take the photo again, closer and straight, or type the details.");
+    } else if (!codes.serial) {
+      setMessage("The serial number barcode was not found. Take the photo again, or type the serial number.");
+    } else if (!codes.upc) {
+      setMessage("The UPC barcode was not found. Take the photo again, or type the 12 digits below the barcode.");
     }
+
+    setFields(next);
+    setKnownModel(known);
+    setEditModel(!known);
+    setUnread((["serial", "upc"] as LabelField[]).filter((f) => !next[f]));
     setStep("confirm");
   }
 
@@ -214,7 +220,7 @@ export function ScanFlow({ locations, defaultLocationId }: { locations: Location
         )}
         <div className="mt-4 rounded-xl border border-border bg-card p-5">
           <p className="text-muted-foreground">
-            Take a photo of the white label on the ball box. Hold the phone straight and fill the frame with the label.
+            Take a photo of the white label on the ball box. Hold the phone straight and fill the frame with the label, so the barcodes are sharp.
           </p>
           {camera}
           <button type="button" onClick={() => fileInput.current?.click()} className={`${buttonClass.action} mt-4 h-14 w-full text-lg`}>
@@ -243,7 +249,7 @@ export function ScanFlow({ locations, defaultLocationId }: { locations: Location
         <h1 className="text-2xl font-bold">Scan label</h1>
         <div role="status" className="mt-4 flex items-center gap-3 rounded-xl border border-border bg-card p-5">
           <LoaderCircle className="size-6 shrink-0 animate-spin text-action motion-reduce:animate-none" aria-hidden="true" />
-          <p className="font-medium">Reading the label…</p>
+          <p className="font-medium">Reading the barcodes…</p>
         </div>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         {preview && <img src={preview} alt="" className="mt-4 max-h-80 rounded-xl border border-border" />}
@@ -256,7 +262,7 @@ export function ScanFlow({ locations, defaultLocationId }: { locations: Location
       key={field}
       label={label}
       error={errors[field]}
-      hint={unread.includes(field) && !fields[field] ? "Not read from the photo. Type it if the label has it." : hint}
+      hint={unread.includes(field) && !fields[field] ? "Not found in the photo. Type it from the label." : hint}
     >
       <input
         value={fields[field] ?? ""}
@@ -284,7 +290,9 @@ export function ScanFlow({ locations, defaultLocationId }: { locations: Location
       noValidate
     >
       <h1 className="text-2xl font-bold">Check the details</h1>
-      <p className="text-muted-foreground">Compare each value with the label, then save.</p>
+      <p className="text-muted-foreground">
+        {knownModel ? "Type the weights and the pin distance from the label, then save." : "Type the details from the label, then save."}
+      </p>
 
       {/* eslint-disable-next-line @next/next/no-img-element */}
       {preview && <img src={preview} alt="The label photo" className="mt-4 max-h-72 rounded-xl border border-border" />}
@@ -360,10 +368,16 @@ export function ScanFlow({ locations, defaultLocationId }: { locations: Location
         <button type="submit" disabled={saving} className={`${buttonClass.action} flex-1`}>
           {saving ? "Saving…" : "Save to stock"}
         </button>
+        {preview && (
+          <button type="button" onClick={() => fileInput.current?.click()} disabled={saving} className={buttonClass.quiet}>
+            Retake
+          </button>
+        )}
         <button type="button" onClick={reset} disabled={saving} className={buttonClass.quiet}>
           Cancel
         </button>
       </div>
+      {camera}
     </form>
   );
 }

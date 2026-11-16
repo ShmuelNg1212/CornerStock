@@ -7,7 +7,7 @@ Sources: [../wiki/spec.md](../wiki/spec.md), [../study/1794811730_ball_box_label
 
 ## Goal
 
-A staff member takes a photo of a ball box label. The app extracts the details. The staff member confirms them. The ball is then in stock, and all signed-in staff see the change live.
+A staff member takes a photo of a ball box label. The app reads the barcodes. The staff member confirms them. The ball is then in stock, and all signed-in staff see the change live.
 
 ## Scope
 
@@ -19,7 +19,7 @@ Out, for later plans: shoes, bags, accessories, purchase orders, suppliers, tran
 
 1. Stack: Next.js, TypeScript, Tailwind, shadcn/ui, Supabase, Vercel.
 2. One record for each ball, identified by its serial number.
-3. Label reading: one photo goes to the server. A vision model extracts the fields. The server validates the UPC check digit. The staff member confirms before the save.
+3. **Changed by the human after the first build:** label reading is free. The browser reads the barcodes (UPC, serial number, product code). Staff type the per-ball values for now. No vision model. The first decision was a vision model on the server.
 4. Two roles: staff and owner.
 5. **Changed by the human:** each location has its own stock. A selector switches between locations and shows what is available in each one. The selector also has an "All locations" option.
 6. A ball leaves stock by its serial number. No checkout link is necessary.
@@ -36,7 +36,6 @@ Agent decisions that follow from decision 5:
 ## Steps only the human can do
 
 - Create a Supabase project and supply its URL and keys.
-- Supply an API key for the vision model.
 - Create a Vercel project when the first deploy is wanted. A GitHub remote is necessary for this.
 
 ## Status
@@ -44,11 +43,11 @@ Agent decisions that follow from decision 5:
 Updated after the first execute session.
 
 - T1, T2, T3, T4, T6, T7: complete. Their tests pass.
-- T5: the code and a test exist. The test needs an API key. It has not run.
+- T5: changed to barcode reading in the browser. A test reads the serial number and the UPC from the sample photo. It passes. The product code barcode is too small in the sample photo to read.
 - T8, D2, D3, D4, D5: the code exists. No check was possible, because no Supabase project exists.
 - D1: not started. The screens use the brand tokens. The contrast check is in `src/app/globals.css`.
 - R1: not started.
-- Blocked on the human steps in [../wiki/setup.md](../wiki/setup.md): the Supabase project and the API key.
+- Blocked on the human steps in [../wiki/setup.md](../wiki/setup.md): the Supabase project.
 - Added during execute: an account that signs up by itself gets no access.
 
 ## Tasks
@@ -71,9 +70,9 @@ Updated after the first execute session.
   - Acceptance: pure functions validate the UPC check digit and parse gross weight ("15 LBS 4 OZ"), pin distance ("3-3.5"), top weight, and the boxed date. Bad input gives a clear error for that field.
   - Complete when: the tests pass, with the sample label values as one case.
 
-- [ ] **T5. Label extraction.** `tests: first`
-  - Acceptance: a server endpoint accepts a label photo from a signed-in staff member and returns the fields in the study's field map. Each field that the model cannot read is empty, not guessed. The API key stays on the server.
-  - Complete when: the endpoint returns the correct values for the sample label photo.
+- [x] **T5. Label reading (changed: barcodes, not a vision model).** `tests: first`
+  - Acceptance: the browser reads the UPC and the serial number from the barcodes in a label photo. A code that is not found gives an empty field, not a guess.
+  - Complete when: a test reads the correct UPC and serial number from the sample label photo.
 
 - [x] **T6. Save a ball.** `tests: first`
   - Acceptance: one database function creates the ball, creates the model if the UPC is new, and writes the movement, in one transaction. A second save of the same serial number is refused with a message that names the existing ball. A repeated submission does not create a second ball.
@@ -117,4 +116,4 @@ Updated after the first execute session.
 - Run the test suite, `code-review`, and `security-review`.
 - On a real phone, signed in as staff: scan the sample label, confirm, save. Then scan it again and see the duplicate refusal.
 - On a second device: see the new ball appear without a reload.
-- Signed out: the stock view and the extraction endpoint refuse access.
+- Signed out: the stock view refuses access.

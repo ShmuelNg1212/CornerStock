@@ -13,10 +13,9 @@
 | Lint | `npx eslint .` |
 | Production build | `npm run build` |
 | Make the app icons again | `node scripts/make-icons.mjs` |
+| Update the barcode reader file after a `zxing-wasm` upgrade | `cp node_modules/zxing-wasm/dist/reader/zxing_reader.wasm public/` |
 
 The database tests start a temporary Postgres server. They need `initdb` and `pg_ctl` on the PATH (`brew install postgresql@17`). They do not need Docker or a Supabase project.
-
-The label reading test calls the real vision model. It runs only when `ANTHROPIC_API_KEY` is set in the shell.
 
 ## First setup (human steps)
 
@@ -26,10 +25,9 @@ Do these steps one time.
 2. In the project, open Authentication > Sign In / Providers. Set "Allow new users to sign up" to off. Keep the Email provider on.
 3. Open the SQL Editor. Paste all of `supabase/migrations/20261116000000_ball_stock.sql`. Run it one time.
 4. Open Authentication > Users > Add user. Enter the owner's email and a password. Select "Auto Confirm User". The first account becomes the owner.
-5. Get an API key for the Claude API at https://platform.claude.com.
-6. Copy `.env.example` to `.env.local`. Fill in the four values. The Supabase values are in Project Settings > API Keys. Use the publishable key (`sb_publishable_...`) and the secret key (`sb_secret_...`). Do not use the legacy `anon` and `service_role` keys: Supabase removes them at the end of 2026.
-7. Run `npm run dev`. Open http://localhost:3000. Sign in as the owner.
-8. In Settings, add the other locations and the staff accounts.
+5. Copy `.env.example` to `.env.local`. Fill in the three values. The Supabase values are in Project Settings > API Keys. Use the publishable key (`sb_publishable_...`) and the secret key (`sb_secret_...`). Do not use the legacy `anon` and `service_role` keys: Supabase removes them at the end of 2026.
+6. Run `npm run dev`. Open http://localhost:3000. Sign in as the owner.
+7. In Settings, add the other locations and the staff accounts.
 
 To test on a phone before the deploy, the phone needs HTTPS for the camera. Use the deployed site, or a tunnel.
 
@@ -40,8 +38,6 @@ To test on a phone before the deploy, the phone needs HTTPS for the camera. Use 
 | `NEXT_PUBLIC_SUPABASE_URL` | Browser and server | No |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Browser and server | No. Row-level security limits it. |
 | `SUPABASE_SECRET_KEY` | Server only: staff account creation | Yes |
-| `ANTHROPIC_API_KEY` | Server only: label reading | Yes |
-| `LABEL_MODEL` | Server only, optional. Default `claude-opus-5-5`. | No |
 
 Never put a secret in a `NEXT_PUBLIC_` variable.
 

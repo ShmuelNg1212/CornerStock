@@ -22,7 +22,6 @@ export async function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname;
 
   if (!data.user && path !== "/login") {
-    if (path.startsWith("/api/")) return NextResponse.json({ error: "Sign in first." }, { status: 401 });
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     url.search = "";
@@ -37,5 +36,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|icon|apple-icon|.*\\.(?:svg|png|jpg|jpeg|webp)$).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|icon|apple-icon|.*\\.(?:svg|png|jpg|jpeg|webp|wasm)$).*)"],
 };

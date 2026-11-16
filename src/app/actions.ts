@@ -13,11 +13,13 @@ import {
   parsePinDistance,
   normalizeSerial,
   validateLabel,
+  validateUpc,
   type LabelErrors,
   type RawLabel,
 } from "@/lib/label/rules";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import type { BallModel } from "@/lib/types";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
 const done: ActionResult = { ok: true };
@@ -54,6 +56,49 @@ export async function setLocation(value: string) {
 // ---------------------------------------------------------------------------
 // Stock
 // ---------------------------------------------------------------------------
+
+export type LabelLookup = {
+  /** The catalog values for this UPC, or null when the UPC is new. */
+  model: RawLabel | null;
+  /** Set when a ball with this serial number is already recorded. */
+  existingBallId: string | null;
+};
+
+/** Looks up what the shop already knows about a scanned UPC and serial number. */
+export async function lookupLabel(input: { upc: string | null; serial: string | null }): Promise<LabelLookup> {
+  await requireStaff();
+  const supabase = await createClient();
+  const result: LabelLookup = { model: null, existingBallId: null };
+
+  const upc = input.upc ? validateUpc(input.upc) : null;
+  if (upc?.ok) {
+    const { data: model } = await supabase.from("ball_models").select("*").eq("upc", upc.value).maybeSingle<BallModel>();
+    if (model) {
+      const text = (value: number | null) => (value === null ? "" : String(Number(value)));
+      result.model = {
+        brand: model.brand ?? "",
+        model_name: model.name,
+        nominal_weight_lb: String(model.nominal_weight_lb),
+        color: model.color ?? "",
+        fragrance: model.fragrance ?? "",
+        coverstock: model.coverstock ?? "",
+        weight_block: model.weight_block ?? "",
+        finish: model.finish ?? "",
+        rg: text(model.rg),
+        diff: text(model.diff),
+        mass_bias: text(model.mass_bias),
+        product_code: model.product_code ?? "",
+      };
+    }
+  }
+
+  const serial = input.serial ? normalizeSerial(input.serial) : null;
+  if (serial?.ok) {
+    const { data: ball } = await supabase.from("balls").select("id").eq("serial", serial.value).maybeSingle<{ id: string }>();
+    result.existingBallId = ball?.id ?? null;
+  }
+  return result;
+}
 
 export type ReceiveResult =
   | { ok: true; ballId: string }

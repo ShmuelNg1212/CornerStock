@@ -22,9 +22,14 @@ This page gives the reasons for the structure. Read the code for the structure i
 
 ## Label reading
 
-- The phone sends one photo to `/api/extract`. A vision model returns the fields. A field that it cannot read is empty.
-- The model output is a proposal. The staff member confirms it. The rules in `src/lib/label/rules.ts` validate it in the browser and again on the server. The database constraints are the last check.
-- The UPC check digit catches most misread UPCs. A serial number has no check digit, so the confirm screen is the check.
+- The human selected free barcode reading. No AI service reads the label.
+- The browser reads the barcodes in the photo with `zxing-wasm`. The app serves the reader file itself (`public/zxing_reader.wasm`), so a scan does not depend on a CDN.
+- The barcodes give the UPC, the serial number, and the product code. A barcode read is exact or it fails.
+- A known UPC fills the model details from the catalog. For a new UPC, the staff member types the model details one time.
+- The staff member types the values that are printed only as text: gross weight, top weight, pin distance, and the boxed date. These fields are optional.
+- The rules in `src/lib/label/rules.ts` validate the values in the browser and again on the server. The database constraints are the last check.
+- The photo is kept as a record of the label.
+- An earlier version read the photo with a vision model on the server. It is in the git history (commit `0e091fb`).
 
 ## Accounts
 
@@ -42,4 +47,5 @@ This page gives the reasons for the structure. Read the code for the structure i
 ## Known limits
 
 - The app does not work offline.
-- `/api/extract` has no rate limit. Each call costs money. Only signed-in staff can call it.
+- The UPC field accepts 12 digits (UPC-A) only. A label with only an EAN-13 code that does not start with 0 is not supported.
+- The reader takes the barcode above the UPC as the serial number. This order comes from one sample label.
