@@ -22,3 +22,8 @@ grant usage on schema public to anon, authenticated;
 alter default privileges in schema public grant all on tables to anon, authenticated;
 alter default privileges in schema public grant all on sequences to anon, authenticated;
 alter default privileges in schema public grant execute on functions to anon, authenticated;
+
+-- Supabase Auth writes auth.users as this role. It has no privileges in the public schema.
+create role supabase_auth_admin nologin;
+grant usage on schema auth to supabase_auth_admin;
+grant select, insert, update, delete on auth.users to supabase_auth_admin;

@@ -140,6 +140,58 @@ describe("accounts", () => {
     );
     expect(result.rowCount).toBe(0);
   });
+
+  // Supabase Auth inserts the user, then writes the custom app metadata in a second statement.
+  const authInsertThenMark = async (name: string) => {
+    const id = (
+      await admin.query("insert into auth.users (email, raw_user_meta_data) values ($1, $2) returning id", [
+        `${name}@example.test`,
+        JSON.stringify({ full_name: name }),
+      ])
+    ).rows[0].id as string;
+    await admin.query(
+      "update auth.users set raw_app_meta_data = raw_app_meta_data || '{\"added_by_owner\": true}' where id = $1",
+      [id],
+    );
+    return id;
+  };
+  const isActive = async (id: string) =>
+    (await admin.query("select active from public.profiles where id = $1", [id])).rows[0]?.active;
+
+  it("gives access when the owner mark arrives after the insert", async () => {
+    const added = await authInsertThenMark("Late Mark");
+    expect(await isActive(added)).toBe(true);
+  });
+
+  it("keeps a deactivated account inactive when its app metadata changes later", async () => {
+    const added = await authInsertThenMark("Deactivated Later");
+    await admin.query("update public.profiles set active = false where id = $1", [added]);
+    await admin.query(
+      "update auth.users set raw_app_meta_data = raw_app_meta_data || '{\"provider\": \"email\"}' where id = $1",
+      [added],
+    );
+    expect(await isActive(added)).toBe(false);
+  });
+
+  it("lets Supabase Auth delete an account with no stock history", async () => {
+    const leaving = await addUser("Leaving");
+    await admin.query("set role supabase_auth_admin");
+    try {
+      await admin.query("delete from auth.users where id = $1", [leaving]);
+    } finally {
+      await admin.query("reset role");
+    }
+    expect((await admin.query("select 1 from public.profiles where id = $1", [leaving])).rowCount).toBe(0);
+  });
+
+  it("refuses a Supabase Auth delete of the last active owner", async () => {
+    await admin.query("set role supabase_auth_admin");
+    try {
+      await expect(admin.query("delete from auth.users where id = $1", [owner])).rejects.toThrow(/LAST_OWNER/);
+    } finally {
+      await admin.query("reset role");
+    }
+  });
 });
 
 describe("receive_ball", () => {

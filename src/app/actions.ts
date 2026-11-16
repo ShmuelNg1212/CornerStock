@@ -320,7 +320,8 @@ export async function addStaff(input: { fullName: string; email: string; passwor
     password: parsed.data.password,
     email_confirm: true,
     user_metadata: { full_name: parsed.data.fullName },
-    // The database gives access only to accounts with this mark. See handle_new_user.
+    // The database gives access only to accounts with this mark. Supabase Auth writes it after the insert,
+    // so handle_user_added_by_owner gives the access, not handle_new_user.
     app_metadata: { added_by_owner: true },
   });
   if (error) {
