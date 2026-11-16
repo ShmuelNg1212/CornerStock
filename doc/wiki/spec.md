@@ -7,6 +7,9 @@ Source: the brand kit handoff in [../study/1794811328_brand_kit_handoff.md](../s
 - The app name is Cornerstock.
 - The app manages bowling equipment stock for Bowlers Corner, a bowling supply shop at Sta. Lucia East Mall, Philippines.
 - Cornerstock is a new identity for the inventory app. It does not replace the shop's existing logo.
+- Main function: make the recording of bowling ball stock seamless.
+- The whole store sees a live view of the current ball stock.
+- The app scans a ball box label, extracts all the details, and adds the ball to the store stock. See [../study/1794811730_ball_box_label.md](../study/1794811730_ball_box_label.md) for the sample label and its fields.
 
 ## Proposed, not confirmed
 
@@ -31,7 +34,7 @@ Source: the brand kit handoff in [../study/1794811328_brand_kit_handoff.md](../s
 
 1. Product catalog: images, SKUs, barcodes, suppliers, costs, selling prices.
 2. Variant-level stock:
-   - Balls: model and weight.
+   - Balls: model and weight. The sample label shows that each ball also has its own serial number, gross weight, top weight, and pin distance. Stock for balls is thus likely a list of individual balls. This is not yet approved.
    - Shoes: model, size, sizing system, handedness.
    - Bags: capacity and color.
    - Accessories: size, color, or pack.
@@ -52,6 +55,10 @@ Source: the brand kit handoff in [../study/1794811328_brand_kit_handoff.md](../s
 - Stock-changing operations are authoritative on the server and database. No privileged key in the client.
 
 ## Open questions
+
+- Who sees the live view: staff only, or customers also?
+- Do all stocked ball makers print a serial number and a UPC on the box?
+- Which method reads the printed label text: on-device text recognition or a server vision model?
 
 - What is the existing checkout workflow? Is there a checkout system to integrate?
 - How many stock locations are there?
