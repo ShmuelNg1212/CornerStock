@@ -45,15 +45,18 @@ Never put a secret in a `NEXT_PUBLIC_` variable.
 
 The GitHub remote is `https://github.com/ShmuelNg1212/CornerStock`. Production is https://cornerstock.vercel.app. The Vercel project is `cornerstock` in `shmuelng8310-5097s-projects`.
 
-The first release was verified on 2026-11-16. Deployment `dpl_8kpxM8UBzNUZb2XphkAW9csZwbxY` serves commit `d8027ef`. Production permits public access to the app's sign-in page. Vercel protects preview deployments.
+The first release was verified on 2026-11-16. Deployment `dpl_8kpxM8UBzNUZb2XphkAW9csZwbxY` serves commit `d8027ef`.
+
+The current release was verified on 2026-11-16. Deployment `dpl_9oBn99BL7ChBsrZx8SieTUUwz8so` serves commit `59878d7`. The release marker is `2026-11-16-fast-1`. The functions run in `syd1`. Rollback commit: `d8027ef`. Production permits public access to the app's sign-in page. Vercel protects preview deployments.
 
 1. Push the repository to GitHub. Import it in Vercel.
 2. Add the environment variables above in Vercel, for Production.
 3. Before each push to main: run `npm test` and `npm run build` with the production values of the `NEXT_PUBLIC_` variables.
 4. Record the current production commit: `git rev-parse origin/main`.
 5. Push. A release is complete only when the new version shows on the live site.
+   To see the function region, run `npx vercel inspect cornerstock.vercel.app --scope shmuelng8310-5097s-projects`. The `x-vercel-id` header of a prerendered page does not show it.
 6. Rollback: in Vercel, open Deployments, select the previous deployment, and select "Promote to Production". Or revert the commit and push.
 
-The sign-in HTML contains a `cornerstock-release` meta tag. The first release marker is `2026-11-16-find-first-1`. Check this tag on the live site after deployment.
+The sign-in HTML contains a `cornerstock-release` meta tag. Check this tag on the live site after deployment.
 
 A change to the database is a new file in `supabase/migrations/`. Run it in the SQL Editor before the push that needs it.
