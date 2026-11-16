@@ -82,9 +82,9 @@ Write docs and plans in ASD-STE100: short sentences, one instruction per sentenc
 - Stock changes go through the database functions in `supabase/migrations/`. Do not add a direct table write for stock.
 - Cornerstock is a stock and inventory app for Bowlers Corner, a bowling supply shop at Sta. Lucia East Mall, Philippines. The name is confirmed. Do not restart naming work.
 - Main function, set by the human: seamless recording of bowling ball stock, a live stock view for the whole store, and intake by a scan of the ball box label. Give this priority over other scope. Label fields: [doc/study/1794811730_ball_box_label.md](doc/study/1794811730_ball_box_label.md).
-- The brand direction and the tech stack are recommendations, not confirmed decisions. See [doc/wiki/spec.md](doc/wiki/spec.md) for the confirmed and proposed lists.
+- The brand direction is confirmed ([doc/adr/0001-brand-kit-confirmed-and-functional-motion.md](doc/adr/0001-brand-kit-confirmed-and-functional-motion.md)). The tech stack is a recommendation, not a confirmed decision. See [doc/wiki/spec.md](doc/wiki/spec.md) for the confirmed and proposed lists.
 - Brand source: [doc/study/1794811328_brand_kit_handoff.md](doc/study/1794811328_brand_kit_handoff.md) and its concept board. The board is a visual reference, not production artwork.
-- Design tool: impeccable. No motion pass. PRODUCT.md and DESIGN.md are impeccable's design sources, not wiki pages. They do not exist yet; run `/impeccable init` and `/impeccable document` at the first design study.
+- Design tool: impeccable. Motion is functional and quick: it shows a state change and does not decorate. Under the reduced-motion setting, nothing moves. PRODUCT.md and DESIGN.md are impeccable's design sources, not wiki pages.
 - The UI ships to phones, tablets, and counter computers. Use `mobile-native` for phone work.
 - Inventory rule: stock-changing operations are authoritative on the server and database. Never put a privileged database key in client code.
 - The git guardrails hook is installed at user level (`~/.claude/hooks/block-destructive-git.sh`). Codex has no such hook; the push rule is a written rule there.

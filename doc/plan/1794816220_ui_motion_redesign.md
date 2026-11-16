@@ -1,11 +1,11 @@
 # Plan: UI and motion redesign ("Find first")
 
-Status: waiting for approval. Mode: design. Branch: `feat/ui-redesign`.
+Status: approved on 2026-11-16, in execution. Mode: design. Branch: `feat/ui-redesign`.
 Study: [../study/1794816127_ui_motion_redesign.md](../study/1794816127_ui_motion_redesign.md). Sketch: [../study/assets/1794816127_find_first_sketch.html](../study/assets/1794816127_find_first_sketch.html).
 
 ## OPEN QUESTIONS
 
-Each question has a recommendation. Answer "all recommended" to accept them.
+Closed on 2026-11-16. The human replied "approved" and did not answer the questions one by one. The agent took this as approval of each recommendation: 1 A (preview route with fixture data), 2 yes, 3 the redesign stays on its own branch, 4 the tagline shows on the sign-in screen only.
 
 1. **How do I check the screens behind sign-in?** No test account exists.
    - A (recommended): I add a preview route that shows each screen with fixture data. It is in development builds only. It also gives the worst-case data test.
@@ -32,7 +32,7 @@ Each question has a recommendation. Answer "all recommended" to accept them.
 
 ## Tasks
 
-### [ ] 1. Record the decisions (`tests: none`, docs)
+### [x] 1. Record the decisions (`tests: none`, docs)
 
 Skills: `domain-modeling` (ADR), `writing-for-agents` (AGENTS.md).
 

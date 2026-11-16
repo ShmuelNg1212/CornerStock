@@ -16,6 +16,16 @@ Source: the brand kit handoff in [../study/1794811328_brand_kit_handoff.md](../s
 - Each location has its own stock. A selector switches between locations.
 - A ball leaves stock by its serial number.
 - First version: see [../plan/1794812081_ball_stock_first_version.md](../plan/1794812081_ball_stock_first_version.md) for the approved decisions.
+- Brand (confirmed on 2026-11-16, see [../adr/0001-brand-kit-confirmed-and-functional-motion.md](../adr/0001-brand-kit-confirmed-and-functional-motion.md)):
+  - Endorsement: "For Bowlers Corner".
+  - Personality: organized, dependable, approachable, precise, with restrained sporting energy.
+  - Logo: a geometric corner bracket that frames a bowling ball with three finger holes.
+  - Palette: ink navy `#172A3A`, warm ivory `#F6F3EC`, maple gold `#D7A55B`, signal orange `#D45A32`, slate gray `#6B747A`. Use mostly ivory and navy.
+  - Type: Space Grotesk for headings and brand. Inter for interface and data. Tabular numerals for quantities and prices.
+  - Stock statuses show a label and an icon, not color alone.
+  - Voice: short, direct, helpful. Examples: "Receive stock", "3 pairs remaining", "Low stock".
+  - Motion is functional and quick. It shows a state change. Under the reduced-motion setting, nothing moves.
+  - Light theme only.
 
 ## Built (not yet used with a real Supabase project)
 
@@ -35,13 +45,7 @@ Source: the brand kit handoff in [../study/1794811328_brand_kit_handoff.md](../s
 
 ### Brand
 
-- Endorsement: "For Bowlers Corner". Tagline: "Every item. Accounted for."
-- Personality: organized, dependable, approachable, precise, with restrained sporting energy.
-- Logo: a geometric corner bracket that frames a bowling ball with three finger holes.
-- Palette: ink navy `#172A3A`, warm ivory `#F6F3EC`, maple gold `#D7A55B`, signal orange `#D45A32`, slate gray `#6B747A`. Use mostly ivory and navy. Contrast is not yet validated.
-- Type: Space Grotesk for headings and brand. Inter for interface and data. Tabular numerals for quantities and prices.
-- Stock statuses show a label and an icon, not color alone.
-- Voice: short, direct, helpful. Examples: "Receive stock", "3 pairs remaining", "Low stock".
+- Tagline: "Every item. Accounted for." It shows on the sign-in screen only.
 
 ### Stack
 
