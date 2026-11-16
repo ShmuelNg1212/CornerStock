@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { filterGroups, groupStock, stockTotal, type StockModel } from "./group";
+import { applyFilters, brandCounts, filterGroups, groupStock, parseFilters, stockTotal, weightCounts, type StockModel } from "./group";
 
 const model = (id: string, name: string, weight: number, brand: string | null = "Storm", color: string | null = null): StockModel => ({
   id,
@@ -111,5 +111,66 @@ describe("stockTotal", () => {
     ]);
     expect(stockTotal(groups)).toBe(5);
     expect(stockTotal([])).toBe(0);
+  });
+});
+
+describe("filters by weight and brand", () => {
+  const groups = groupStock(
+    [...models, model("d15", "Black Widow 3.0", 15, "Hammer"), model("e12", "Mystery", 12, null)],
+    [
+      { model_id: "a14", in_stock: 1 },
+      { model_id: "a15", in_stock: 4 },
+      { model_id: "a16", in_stock: 2 },
+      { model_id: "b15", in_stock: 3 },
+      { model_id: "c12", in_stock: 5 },
+      { model_id: "d15", in_stock: 1 },
+      { model_id: "e12", in_stock: 2 },
+    ],
+  );
+
+  it("keeps only the chosen weight in each group, with its count as the total", () => {
+    const list = applyFilters(groups, { weight: 15, brand: null });
+    expect(list.map((g) => [g.name, g.total, g.weights.map((w) => w.weight)])).toEqual([
+      ["Black Widow 3.0", 1, [15]],
+      ["Hy-Road", 3, [15]],
+      ["Phaze II", 4, [15]],
+    ]);
+  });
+
+  it("keeps only the chosen brand, in any letter case", () => {
+    expect(applyFilters(groups, { weight: null, brand: "storm" }).map((g) => g.name)).toEqual(["Hy-Road", "Phaze II"]);
+  });
+
+  it("combines weight, brand, and a text search", () => {
+    const list = filterGroups(applyFilters(groups, { weight: 15, brand: "Storm" }), "phaze");
+    expect(list.map((g) => [g.name, g.total])).toEqual([["Phaze II", 4]]);
+  });
+
+  it("returns the groups unchanged with no filter", () => {
+    expect(applyFilters(groups, { weight: null, brand: null })).toBe(groups);
+  });
+
+  it("counts the balls of each weight, from heavy to light", () => {
+    expect(weightCounts(groups)).toEqual([
+      { weight: 16, count: 2 },
+      { weight: 15, count: 8 },
+      { weight: 14, count: 1 },
+      { weight: 12, count: 7 },
+    ]);
+  });
+
+  it("counts the balls of each brand by name, and skips a model with no brand", () => {
+    expect(brandCounts(groups)).toEqual([
+      { brand: "Brunswick", count: 5 },
+      { brand: "Hammer", count: 1 },
+      { brand: "Storm", count: 10 },
+    ]);
+  });
+
+  it("reads the filters from the address and ignores values that are not in stock", () => {
+    expect(parseFilters({ w: "15", b: "storm" }, groups)).toEqual({ weight: 15, brand: "Storm" });
+    expect(parseFilters({ w: "13", b: "Nobody" }, groups)).toEqual({ weight: null, brand: null });
+    expect(parseFilters({ w: "15abc", b: "" }, groups)).toEqual({ weight: null, brand: null });
+    expect(parseFilters({ w: null, b: null }, groups)).toEqual({ weight: null, brand: null });
   });
 });
