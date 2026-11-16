@@ -19,10 +19,10 @@ export default async function SettingsPage() {
     inStock[row.location_id] = (inStock[row.location_id] ?? 0) + row.in_stock;
   }
   return (
-    <>
+    <div className="mx-auto max-w-2xl lg:mx-0">
       <h1 className="text-2xl font-bold">Settings</h1>
       <LocationSettings locations={(locations ?? []) as Location[]} inStock={inStock} />
       <StaffSettings staff={(staff ?? []) as Profile[]} ownId={owner.id} />
-    </>
+    </div>
   );
 }

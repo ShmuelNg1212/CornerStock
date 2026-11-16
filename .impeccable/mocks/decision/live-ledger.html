@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Live ledger</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0}
+body{width:1440px;height:900px;overflow:hidden;font:15px/1.4 Inter,sans-serif;color:#172A3A;background:#F6F3EC}
+h1,h2,.g{font-family:"Space Grotesk",sans-serif}
+.num{font-variant-numeric:tabular-nums}
+header{height:64px;background:#172A3A;color:#F6F3EC;display:flex;align-items:center;gap:8px;padding:0 32px}
+.brand{display:flex;align-items:center;gap:10px;font:700 18px "Space Grotesk";margin-right:28px}
+.mark{width:28px;height:28px;position:relative}
+.mark:before{content:"";position:absolute;inset:0;border-left:7px solid #F6F3EC;border-top:7px solid #F6F3EC;width:22px;height:22px}
+.mark:after{content:"";position:absolute;right:0;bottom:0;width:16px;height:16px;border-radius:50%;background:#D45A32}
+.nav{padding:9px 14px;border-radius:8px;color:#F6F3ECb8;font-weight:500}
+.nav.on{background:#F6F3EC1f;color:#fff}
+.loc{margin-left:auto;border:1px solid #F6F3EC40;border-radius:8px;padding:8px 14px;font-weight:500}
+.wrap{display:grid;grid-template-columns:1fr 420px;gap:32px;padding:30px 32px}
+.head{display:flex;align-items:baseline;gap:14px;margin-bottom:6px}
+.head h1{font-size:30px}
+.live{display:inline-flex;align-items:center;gap:7px;color:#1F6B3A;font-weight:600;font-size:13px}
+.live i{width:8px;height:8px;border-radius:50%;background:#1F6B3A}
+.sum{color:#5A6369;margin-bottom:18px}
+.sum b{color:#172A3A}
+.day{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:#5A6369;font-weight:600;margin:16px 0 8px}
+.ev{display:grid;grid-template-columns:64px 104px 1fr auto;align-items:center;gap:16px;background:#fff;border:1px solid #E0D9CA;border-radius:10px;padding:13px 18px;margin-bottom:8px}
+.ev.new{background:#FCF8EE;box-shadow:inset 4px 0 #D7A55B}
+.t{color:#5A6369;font-size:13px}
+.k{font-size:12px;font-weight:600;border-radius:99px;padding:4px 10px;text-align:center}
+.in{background:#E3EFE3;color:#1F6B3A}.out{background:#ECE7DC;color:#172A3A}.mv{background:#F7EBCB;color:#7A5200}
+.ev b{font:600 15px ui-monospace,Menlo,monospace}
+.ev p{color:#5A6369;font-size:13px}
+.who{color:#5A6369;font-size:13px}
+.card{background:#fff;border:1px solid #E0D9CA;border-radius:12px;padding:20px;margin-bottom:16px}
+.big{font:700 56px/1 "Space Grotesk";font-variant-numeric:tabular-nums}
+.card h2{font-size:14px;color:#5A6369;font-family:Inter;font-weight:600;margin-bottom:10px}
+.bar{display:grid;grid-template-columns:96px 1fr 32px;align-items:center;gap:10px;padding:6px 0;font-weight:500}
+.bar i{height:10px;border-radius:2px;background:#172A3A}
+.bar span:last-child{text-align:right;font-weight:600}
+.btn{display:block;text-align:center;background:#B94A25;color:#fff;font:600 17px Inter;border-radius:10px;padding:18px}
+.delta{display:flex;gap:18px;margin-top:10px;color:#5A6369;font-size:14px}
+.delta b{color:#172A3A}
+</style></head><body>
+<header><div class="brand"><span class="mark"></span>CORNERSTOCK</div><div class="nav on">Today</div><div class="nav">Stock</div><div class="nav">Scan labels</div><div class="nav">Settings</div><div class="loc">Sta. Lucia East</div></header>
+<div class="wrap">
+  <section>
+    <div class="head"><h1>Today</h1><span class="live"><i></i>Live</span></div>
+    <p class="sum"><b class="num">6</b> received · <b class="num">3</b> sold · <b class="num">1</b> moved · Monday 16 November</p>
+    <div class="ev new"><span class="t num">3:52 PM</span><span class="k in">Received</span><div><b>PHAI 5520 1184</b><p>Phaze AI · 15 lb · into Sta. Lucia East</p></div><span class="who">Carlo</span></div>
+    <div class="ev"><span class="t num">3:51 PM</span><span class="k in">Received</span><div><b>PHAI 5520 1179</b><p>Phaze AI · 15 lb · into Sta. Lucia East</p></div><span class="who">Carlo</span></div>
+    <div class="ev"><span class="t num">2:14 PM</span><span class="k out">Sold</span><div><b>HYRD 3301 9042</b><p>Hy-Road · 14 lb · Ref. 20418</p></div><span class="who">Mia</span></div>
+    <div class="ev"><span class="t num">1:40 PM</span><span class="k mv">Moved</span><div><b>RHNO 7718 2250</b><p>Rhino · 12 lb · Sta. Lucia East to Stock room</p></div><span class="who">Mia</span></div>
+    <div class="ev"><span class="t num">11:26 AM</span><span class="k out">Sold</span><div><b>JKGH 9004 6612</b><p>Jackal Ghost · 15 lb · Ref. 20411</p></div><span class="who">Ben</span></div>
+    <div class="ev"><span class="t num">10:05 AM</span><span class="k in">Received</span><div><b>PHZ2 4411 0118</b><p>Phaze II · 15 lb · into Sta. Lucia East</p></div><span class="who">Carlo</span></div>
+    <div class="day">Yesterday</div>
+    <div class="ev"><span class="t num">5:48 PM</span><span class="k out">Sold</span><div><b>VNSK 2207 4471</b><p>Venom Shock · 13 lb · Ref. 20402</p></div><span class="who">Ben</span></div>
+  </section>
+  <aside>
+    <span class="btn">Scan label</span>
+    <div class="card" style="margin-top:16px"><h2>In stock · Sta. Lucia East</h2><div class="big">86</div>
+      <div class="delta"><span><b class="num">+6</b> in today</span><span><b class="num">−3</b> out today</span></div></div>
+    <div class="card"><h2>By brand</h2>
+      <div class="bar num"><span>Storm</span><i style="width:100%"></i><span>30</span></div>
+      <div class="bar num"><span>Brunswick</span><i style="width:90%"></i><span>31</span></div>
+      <div class="bar num"><span>Motiv</span><i style="width:56%"></i><span>17</span></div>
+      <div class="bar num"><span>Hammer</span><i style="width:26%"></i><span>8</span></div></div>
+    <div class="card"><h2>Find a ball</h2><div style="border:1px solid #C9C1B0;border-radius:8px;padding:12px 14px;color:#5A6369">Search a model or a serial number</div></div>
+  </aside>
+</div>
+</body></html>

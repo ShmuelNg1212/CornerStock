@@ -154,4 +154,68 @@ Tasks 5, 6, and 7 edit different files and can run in parallel worktrees after t
 
 ## Checks record
 
-Empty until rendezvous.
+### Continuation on 2026-11-16
+
+The branch still has uncommitted work for tasks 2 to 8. Do not treat an unchecked task as absent code. Check its acceptance criteria before marking it complete.
+
+Claude's last saved record reports 70 unit tests and 30 database tests passed. It also reports a successful build and a phone preview navigation check. These are earlier results, not checks from this session.
+
+Two independent, read-only reviews checked the current work against `5afda96` and this plan. One checked the scope. One checked correctness and access control. Neither found a new direct stock table write or a client secret.
+
+The continuation fixed these defects:
+
+- Warn before app links or sign-out discard a single unsaved photo. Keep the batch warning. Browser Back is not covered by this guard.
+- Keep `?q=` when a detail route opens and the stock list stays mounted.
+- Read serial results again when refreshed stock data arrives.
+- Stop the change-mark timer when the tab is hidden. Start it again when the row and tab are visible.
+
+The correctness reviewer checked these fixes again. Static review passed. Browser behavior is not yet verified.
+
+Checks before the fixes: type check and lint passed. All 100 tests passed after the test command ran outside the sandbox. The first database run failed because the sandbox blocked Postgres shared memory.
+
+Checks after the fixes: all 70 unit tests and lint passed. Type check first found stale generated references to the old ball and model route paths. Moving `.next/dev/types/validator.ts` out of the build cache restored a passing type check. No source route was removed. `graphify update .` completed. Its SQL extractor is unavailable because `tree_sitter_sql` is not installed.
+
+The production build failed because Turbopack could not bind a local worker port (`Operation not permitted`). The same error remained after an escalated retry. This session does not have a passing production build.
+
+The browser tool returned `The browser access host is unavailable`. No new browser check ran. Keep tasks 2 to 9 open until their required checks pass.
+
+Known work still required under the existing tasks:
+
+- Task 5: finish acceptance checks for each action and staff role. The phone sheets are implemented. See the second continuation below.
+- Task 6: finish save and edit checks. Single-photo, batch duplicate detection, manual validation, and leave protection were checked on the real scan route. The preview still uses no-op callbacks for some controls.
+- Task 9: complete the design review and detector, the browser checks at all three widths, and the production build. Check Chrome and Safari motion. Then ask about the merge.
+- Task 10: sync the wiki and design records after the acceptance checks pass.
+
+No merge or push was made. This record remains open until rendezvous completes.
+
+### Second continuation on 2026-11-16
+
+Added `ActionPanel`. Below 1024px it uses a native modal dialog as a bottom sheet. At 1024px and wider it opens inline. The same form stays mounted when the width changes. Escape and Cancel cannot dismiss a pending action. Closing returns focus to the clicked action button. The database actions and request IDs did not change.
+
+A read-only review found no blocking defect. It identified a Safari focus risk from `document.activeElement`. The code now records the clicked button through `event.currentTarget`.
+
+Native Chrome checks passed:
+
+- At 390px: the sale sheet fits. Escape closes it and restores button focus.
+- At 820px: the correction sheet fits. At 1440px: it becomes an inline form. The typed reason remains through the resize.
+- Search filters without Enter. Opening a model keeps `?q=Hy-Road` in the address.
+- The existing browser session can open the real `/scan` route. The sample photo reads the catalog model and detects the existing serial number.
+- Selecting Stock or Sign out with that unsaved photo shows the leave warning. Cancel keeps the scan and session.
+- Empty manual entry shows field errors and focuses Serial number.
+- A batch sample changes from Reading to Already recorded. Save stays disabled. Leaving shows the warning. Removing the sample permits navigation to Stock without a warning.
+
+These checks did not add, sell, move, or correct stock. They do not replace the remaining write checks, Safari checks, or real-phone checks. No new console errors appeared during the preview sheet checks.
+
+All 70 unit tests passed after adding the sheet. Lint passed after the focus fix. `git diff --check` and `graphify update .` passed. A separate type check passed with a temporary config that excludes only the stale `.next/dev` tree and uses the project's type roots. This is a diagnostic check, not a pass for the required production build.
+
+The Turbopack permission failure was cached. Moving the build cache aside allowed compilation to pass. The build then failed because the running dev server recreated stale route types for the old ball and model paths. A restart was requested. Automatic approval review could not complete because of an account usage limit. The restart was not executed. A passing production build is still required.
+
+Changes remain uncommitted on `feat/ui-redesign`. Do not merge until the remaining rendezvous checks pass.
+
+### Release request on 2026-11-16
+
+The human requested publication to `ShmuelNg1212/CornerStock`. This approves shipping the current app and redesign. The repository is public and empty. No earlier production commit exists for rollback.
+
+The stale dev server stopped. The clean production build passed. All 100 tests passed with the configured Supabase environment. The release marker is `2026-11-16-find-first-1` in page metadata. Verify this marker on the live sign-in page before calling the release complete.
+
+The Vercel connection needs a team access grant. The consent link was presented to the human. Publication remains in progress. Safari, real-phone motion, and real stock-write checks remain unverified.

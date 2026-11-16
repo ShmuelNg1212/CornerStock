@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { toast } from "sonner";
 import { setPrice } from "@/app/actions";
 import { buttonClass, inputClass } from "@/components/ui/field";
 
@@ -12,19 +13,22 @@ export function PriceForm({ modelId, current }: { modelId: string; current: numb
 
   if (!open) {
     return (
-      <button type="button" onClick={() => setOpen(true)} className="mt-1 h-10 font-medium text-action underline underline-offset-4">
+      <button type="button" onClick={() => setOpen(true)} className={`${buttonClass.link} mt-1`}>
         {current === null ? "Set a price" : "Change the price"}
       </button>
     );
   }
   return (
     <form
-      className="mt-3 rounded-xl border border-border bg-card p-4"
+      className="mt-3 animate-enter rounded-xl border border-input bg-background p-4"
       onSubmit={(event) => {
         event.preventDefault();
         startTransition(async () => {
           const result = await setPrice(modelId, value);
-          if (result.ok) setOpen(false);
+          if (result.ok) {
+            setOpen(false);
+            toast.success("Price saved");
+          }
           setError(result.ok ? null : result.error);
         });
       }}
@@ -32,7 +36,7 @@ export function PriceForm({ modelId, current }: { modelId: string; current: numb
       <label className="block text-sm font-medium" htmlFor="price">
         Selling price in pesos
       </label>
-      <div className="mt-1 flex gap-2">
+      <div className="mt-1.5 flex gap-2">
         <input
           id="price"
           inputMode="decimal"
@@ -46,8 +50,8 @@ export function PriceForm({ modelId, current }: { modelId: string; current: numb
           {pending ? "Saving…" : "Save"}
         </button>
       </div>
-      {error && <p className="mt-1 text-sm font-medium text-destructive">{error}</p>}
-      <p className="mt-1 text-sm text-muted-foreground">Leave the field empty to remove the price.</p>
+      {error && <p role="alert" className="mt-1.5 text-sm font-medium text-destructive">{error}</p>}
+      <p className="mt-1.5 text-sm text-muted-foreground">Leave the field empty to remove the price.</p>
     </form>
   );
 }

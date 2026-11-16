@@ -1,8 +1,10 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { toast } from "sonner";
 import { addLocation, addStaff, updateLocation, updateStaff, type ActionResult } from "@/app/actions";
 import { buttonClass, Field, inputClass } from "@/components/ui/field";
+import { Notice } from "@/components/ui/notice";
 import type { Location, Profile } from "@/lib/types";
 
 function useAction() {
@@ -22,14 +24,9 @@ function useAction() {
   return { error, pending, run };
 }
 
-const ErrorLine = ({ error }: { error: string | null }) =>
-  error ? (
-    <p role="alert" className="rounded-lg bg-danger-surface px-3 py-2 text-sm font-medium text-destructive">
-      {error}
-    </p>
-  ) : null;
+const ErrorLine = ({ error }: { error: string | null }) => (error ? <Notice tone="error">{error}</Notice> : null);
 
-const smallButton = "h-10 rounded-lg border border-input bg-card px-3 text-sm font-medium hover:bg-muted disabled:opacity-60";
+const smallButton = buttonClass.small;
 
 function LocationRow({ location, count }: { location: Location; count: number }) {
   const { error, pending, run } = useAction();
@@ -37,9 +34,9 @@ function LocationRow({ location, count }: { location: Location; count: number })
   return (
     <li className="space-y-2 px-4 py-3">
       {name === null ? (
-        <div className="flex items-center gap-2">
-          <div className="min-w-0 flex-1">
-            <p className="truncate font-semibold">{location.name}</p>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="min-w-40 flex-1">
+            <p className="font-semibold break-words">{location.name}</p>
             <p className="tabular text-sm text-muted-foreground">
               {location.active ? `${count} ${count === 1 ? "ball" : "balls"} in stock` : "Closed. Not in the location selector."}
             </p>
@@ -51,20 +48,23 @@ function LocationRow({ location, count }: { location: Location; count: number })
             type="button"
             className={smallButton}
             disabled={pending}
-            onClick={() => run(() => updateLocation(location.id, { active: !location.active }))}
+            onClick={() => run(() => updateLocation(location.id, { active: !location.active }), () => toast.success(location.active ? "Location closed" : "Location opened"))}
           >
             {location.active ? "Close" : "Open"}
           </button>
         </div>
       ) : (
         <form
-          className="flex gap-2"
+          className="flex animate-enter flex-wrap gap-2"
           onSubmit={(event) => {
             event.preventDefault();
-            run(() => updateLocation(location.id, { name }), () => setName(null));
+            run(() => updateLocation(location.id, { name }), () => {
+              setName(null);
+              toast.success("Location renamed");
+            });
           }}
         >
-          <input value={name} onChange={(e) => setName(e.target.value)} aria-label="Location name" maxLength={80} required className={inputClass} />
+          <input value={name} onChange={(e) => setName(e.target.value)} aria-label="Location name" maxLength={80} required autoFocus className={`${inputClass} min-w-40 flex-1`} />
           <button type="submit" disabled={pending} className={buttonClass.primary}>
             Save
           </button>
@@ -82,7 +82,7 @@ export function LocationSettings({ locations, inStock }: { locations: Location[]
   const { error, pending, run } = useAction();
   const [name, setName] = useState("");
   return (
-    <section className="mt-5" aria-labelledby="locations-heading">
+    <section className="mt-6" aria-labelledby="locations-heading">
       <h2 id="locations-heading" className="text-lg font-semibold">
         Locations
       </h2>
@@ -96,7 +96,10 @@ export function LocationSettings({ locations, inStock }: { locations: Location[]
         className="mt-3 space-y-2"
         onSubmit={(event) => {
           event.preventDefault();
-          run(() => addLocation(name), () => setName(""));
+          run(() => addLocation(name), () => {
+            toast.success(`Location added · ${name.trim()}`);
+            setName("");
+          });
         }}
       >
         <div className="flex gap-2">
@@ -123,9 +126,9 @@ function StaffRow({ person, own }: { person: Profile; own: boolean }) {
   const { error, pending, run } = useAction();
   return (
     <li className="space-y-2 px-4 py-3">
-      <div className="flex items-center gap-2">
-        <div className="min-w-0 flex-1">
-          <p className="truncate font-semibold">
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="min-w-40 flex-1">
+          <p className="font-semibold break-words">
             {person.full_name || "No name"}
             {own && <span className="font-normal text-muted-foreground"> (you)</span>}
           </p>
@@ -166,7 +169,7 @@ export function StaffSettings({ staff, ownId }: { staff: Profile[]; ownId: strin
   const [form, setForm] = useState(empty);
   const [added, setAdded] = useState<string | null>(null);
   return (
-    <section className="mt-8" aria-labelledby="staff-heading">
+    <section className="mt-10" aria-labelledby="staff-heading">
       <h2 id="staff-heading" className="text-lg font-semibold">
         Staff accounts
       </h2>
@@ -177,7 +180,7 @@ export function StaffSettings({ staff, ownId }: { staff: Profile[]; ownId: strin
         ))}
       </ul>
       <form
-        className="mt-3 space-y-3 rounded-xl border border-border bg-card p-4"
+        className="mt-3 space-y-3.5 rounded-xl border border-border bg-card p-4"
         onSubmit={(event) => {
           event.preventDefault();
           setAdded(null);
@@ -198,11 +201,7 @@ export function StaffSettings({ staff, ownId }: { staff: Profile[]; ownId: strin
           <input value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required minLength={8} maxLength={72} autoComplete="new-password" className={`${inputClass} font-mono`} />
         </Field>
         <ErrorLine error={error} />
-        {added && (
-          <p role="status" className="rounded-lg bg-ok-surface px-3 py-2 text-sm font-medium text-ok">
-            Account made for {added}.
-          </p>
-        )}
+        {added && <Notice tone="ok">Account made for {added}.</Notice>}
         <button type="submit" disabled={pending} className={`${buttonClass.primary} w-full`}>
           {pending ? "Adding…" : "Add account"}
         </button>

@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Find first</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0}
+body{width:1440px;height:900px;overflow:hidden;font:15px/1.4 Inter,sans-serif;color:#172A3A;background:#F6F3EC;display:grid;grid-template-columns:216px 1fr 400px}
+h1,h2,.g{font-family:"Space Grotesk",sans-serif}
+.num{font-variant-numeric:tabular-nums}
+.rail{background:#172A3A;color:#F6F3EC;padding:24px 16px;display:flex;flex-direction:column;gap:6px}
+.brand{display:flex;align-items:center;gap:10px;font:700 18px "Space Grotesk";letter-spacing:-.01em;margin-bottom:28px}
+.mark{width:30px;height:30px;position:relative}
+.mark:before{content:"";position:absolute;inset:0;border-left:7px solid #F6F3EC;border-top:7px solid #F6F3EC;width:24px;height:24px}
+.mark:after{content:"";position:absolute;right:0;bottom:0;width:17px;height:17px;border-radius:50%;background:#D45A32}
+.nav{padding:11px 12px;border-radius:8px;color:#D9D5CC;font-weight:500}
+.nav.on{background:#F6F3EC1f;color:#fff;box-shadow:inset 3px 0 #D7A55B}
+.loc{margin-top:auto;border:1px solid #F6F3EC40;border-radius:8px;padding:10px 12px;font-weight:500}
+.loc small{display:block;color:#D7A55B;font-size:12px}
+main{padding:28px 32px;overflow:hidden}
+.search{display:flex;align-items:center;gap:14px;height:68px;background:#fff;border:2px solid #172A3A;border-radius:12px;padding:0 20px;font:600 26px "Space Grotesk"}
+.search i{width:22px;height:22px;border:3px solid #172A3A;border-radius:50%}
+.search span{color:#6B747A;font:400 15px Inter;margin-left:auto}
+.caret{width:2px;height:30px;background:#B94A25}
+.meta{display:flex;justify-content:space-between;align-items:baseline;margin:22px 0 12px;color:#5A6369}
+.meta b{color:#172A3A;font:700 22px "Space Grotesk"}
+.row{display:grid;grid-template-columns:1fr auto 64px;align-items:center;gap:16px;background:#fff;border:1px solid #E0D9CA;border-radius:10px;padding:14px 18px;margin-bottom:8px}
+.row.sel{border-color:#172A3A;box-shadow:inset 4px 0 #172A3A}
+.row.new{box-shadow:inset 4px 0 #D7A55B;background:#FCF8EE}
+.row h2{font-size:18px}
+.row p{color:#5A6369;font-size:13px}
+.chips{display:flex;gap:6px}
+.chip{min-width:58px;text-align:center;border:1px solid #E0D9CA;border-radius:6px;padding:5px 0;font-size:13px;font-weight:600}
+.chip small{display:block;color:#5A6369;font-weight:400;font-size:11px}
+.chip.z{color:#5A6369;border-style:dashed}
+.chip.on{background:#172A3A;color:#fff;border-color:#172A3A}.chip.on small{color:#D7A55B}
+.tot{text-align:right;font:700 22px "Space Grotesk"}
+.sec{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:#5A6369;font-weight:600;margin:18px 0 8px}
+aside{background:#fff;border-left:1px solid #E0D9CA;padding:28px 24px}
+aside h1{font-size:26px}
+.tag{display:inline-block;background:#D7A55B;color:#172A3A;font:700 14px "Space Grotesk";padding:3px 9px;border-radius:4px;margin:8px 0 18px}
+.ball{display:flex;justify-content:space-between;padding:12px 0;border-top:1px solid #E0D9CA}
+.ball b{font:600 15px ui-monospace,Menlo,monospace}
+.ball p{color:#5A6369;font-size:13px}
+.ok{align-self:center;background:#E3EFE3;color:#1F6B3A;border-radius:99px;padding:4px 10px;font-size:12px;font-weight:600}
+.btn{display:block;text-align:center;background:#B94A25;color:#fff;font-weight:600;border-radius:8px;padding:14px;margin-top:20px}
+</style></head><body>
+<nav class="rail">
+  <div class="brand"><span class="mark"></span>CORNERSTOCK</div>
+  <div class="nav on">Stock</div><div class="nav">Scan labels</div><div class="nav">Settings</div>
+  <div class="loc"><small>Location</small>Sta. Lucia East</div>
+</nav>
+<main>
+  <div class="search"><i></i>phaze<div class="caret"></div><span>Model or serial number</span></div>
+  <div class="meta"><span><b class="num">3</b> models match · <span class="num">14</span> balls in Sta. Lucia East</span><span>Live · updated just now</span></div>
+  <div class="row sel"><div><h2>Phaze II</h2><p>Storm · Red / Blue / Purple</p></div>
+    <div class="chips"><span class="chip num">16<small>2</small></span><span class="chip on num">15<small>4</small></span><span class="chip num">14<small>1</small></span><span class="chip z num">13<small>0</small></span></div><div class="tot num">7</div></div>
+  <div class="row new"><div><h2>Phaze AI</h2><p>Storm · Navy / Plum · 1 received a moment ago</p></div>
+    <div class="chips"><span class="chip num">16<small>1</small></span><span class="chip num">15<small>3</small></span><span class="chip z num">14<small>0</small></span></div><div class="tot num">4</div></div>
+  <div class="row"><div><h2>Phaze 4</h2><p>Storm · Purple / Black / Gold</p></div>
+    <div class="chips"><span class="chip num">15<small>2</small></span><span class="chip num">14<small>1</small></span></div><div class="tot num">3</div></div>
+  <div class="sec">Serial numbers</div>
+  <div class="row"><div><h2 style="font:600 16px ui-monospace,Menlo,monospace">PHZ2 4410 7731</h2><p>Phaze II · 15 lb · Sta. Lucia East</p></div><span class="ok">In stock</span><div></div></div>
+</main>
+<aside>
+  <p style="color:#5A6369">Storm</p><h1>Phaze II</h1><span class="tag">15 LB</span>
+  <p class="g" style="font-size:20px;font-weight:700"><span class="num">4</span> in stock</p>
+  <div class="ball"><div><b>PHZ2 4410 7731</b><p class="num">15 lb 2 oz · Top 2.75 · Pin 2–3"</p></div><span class="ok">In stock</span></div>
+  <div class="ball"><div><b>PHZ2 4410 7745</b><p class="num">15 lb 1 oz · Top 3.10 · Pin 3–4"</p></div><span class="ok">In stock</span></div>
+  <div class="ball"><div><b>PHZ2 4411 0092</b><p class="num">15 lb 0 oz · Top 2.40 · Pin 2–3"</p></div><span class="ok">In stock</span></div>
+  <div class="ball"><div><b>PHZ2 4411 0118</b><p class="num">Values not recorded</p></div><span class="ok">In stock</span></div>
+  <span class="btn">Scan label</span>
+</aside>
+</body></html>

@@ -19,7 +19,7 @@ import {
 } from "@/lib/label/rules";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import type { BallModel } from "@/lib/types";
+import type { BallModel, BallStatus } from "@/lib/types";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
 const done: ActionResult = { ok: true };
@@ -56,6 +56,34 @@ export async function setLocation(value: string) {
 // ---------------------------------------------------------------------------
 // Stock
 // ---------------------------------------------------------------------------
+
+export type SerialMatch = {
+  id: string;
+  serial: string;
+  status: BallStatus;
+  location_id: string;
+  model_name: string;
+  weight: number;
+};
+
+/** Finds balls by a part of the serial number, in all locations and all statuses. */
+export async function searchSerials(query: string): Promise<SerialMatch[]> {
+  await requireStaff();
+  const text = query.trim().slice(0, 60);
+  if (text.length < 3) return [];
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("balls")
+    .select("id, serial, status, location_id, ball_models(name, nominal_weight_lb)")
+    .ilike("serial", `%${text.replace(/[%_\\]/g, "\\$&")}%`)
+    .limit(8);
+  type Row = Omit<SerialMatch, "model_name" | "weight"> & { ball_models: { name: string; nominal_weight_lb: number } };
+  return ((data ?? []) as unknown as Row[]).map(({ ball_models, ...ball }) => ({
+    ...ball,
+    model_name: ball_models.name,
+    weight: Number(ball_models.nominal_weight_lb),
+  }));
+}
 
 export type LabelLookup = {
   /** The catalog values for this UPC, or null when the UPC is new. */

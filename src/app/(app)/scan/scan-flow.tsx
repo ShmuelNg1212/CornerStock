@@ -1,387 +1,26 @@
 "use client";
 
-import { Camera, CircleCheck, Images, Keyboard, Layers, LoaderCircle, TriangleAlert, X } from "lucide-react";
-import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
-import { lookupLabel, receiveBall } from "@/app/actions";
-import { buttonClass, Field, inputClass } from "@/components/ui/field";
-import type { LabelBarcodes } from "@/lib/label/barcodes";
-import { readMessage, scanStatus, type ScanStatus } from "@/lib/label/batch";
-import { readLabelPhoto } from "@/lib/label/read-photo";
-import { LABEL_FIELDS, parseGrossWeight, validateLabel, type LabelErrors, type LabelField, type RawLabel } from "@/lib/label/rules";
-import { createClient } from "@/lib/supabase/client";
+import { useRef } from "react";
+import { inputClass } from "@/components/ui/field";
 import type { Location } from "@/lib/types";
+import { ScanBatch } from "./scan-batch";
+import { ScanConfirm } from "./scan-confirm";
+import { ScanReading } from "./scan-reading";
+import { ScanStart } from "./scan-start";
+import { useScan } from "./use-scan";
 
-type Step = "start" | "reading" | "confirm" | "batch";
-type Saved = { ballId: string; summary: string; location: string; photoKept: boolean };
+const hidden = { className: "sr-only", tabIndex: -1, "aria-hidden": true, type: "file", accept: "image/*" } as const;
 
-/** One photo of a batch scan. */
-type BatchItem = {
-  /** Also the request id of the save, so a retry adds the ball one time only. */
-  id: string;
-  preview: string | null;
-  photo: Blob | null;
-  fields: RawLabel;
-  known: boolean;
-  unread: LabelField[];
-  existingBallId: string | null;
-  message: string | null;
-  status: "reading" | ScanStatus | "saving" | "saved";
-  ballId?: string;
-  savedTo?: string;
-  photoKept?: boolean;
-};
-
-const EMPTY: RawLabel = Object.fromEntries(LABEL_FIELDS.map((f) => [f, ""]));
-
-const BALL_FIELDS: { field: LabelField; label: string; hint?: string; mode?: "decimal" | "numeric"; mono?: boolean }[] = [
-  { field: "serial", label: "Serial number", mono: true },
-  { field: "gross_weight", label: "Gross weight", hint: "15 lb 4 oz" },
-  { field: "top_weight", label: "Top weight", mode: "decimal" },
-  { field: "pin_distance", label: "Pin distance", hint: "3-3.5" },
-  { field: "boxed_on", label: "Boxed on", hint: "month/day/year" },
-];
-const MODEL_FIELDS: typeof BALL_FIELDS = [
-  { field: "upc", label: "UPC", hint: "12 digits", mode: "numeric", mono: true },
-  { field: "model_name", label: "Model" },
-  { field: "nominal_weight_lb", label: "Ball weight (lb)", mode: "numeric" },
-  { field: "brand", label: "Brand" },
-  { field: "color", label: "Color" },
-  { field: "fragrance", label: "Fragrance" },
-  { field: "coverstock", label: "Coverstock" },
-  { field: "weight_block", label: "Weight block" },
-  { field: "finish", label: "Finish" },
-  { field: "rg", label: "RG", mode: "decimal" },
-  { field: "diff", label: "Diff", mode: "decimal" },
-  { field: "mass_bias", label: "Mass bias", mode: "decimal" },
-  { field: "product_code", label: "Product code", mono: true },
-];
-
-/** Makes the photo smaller before the upload. A phone photo is 3 to 12 MB; the label needs much less. */
-async function shrink(file: File): Promise<Blob> {
-  try {
-    const bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
-    const scale = Math.min(1, 1800 / Math.max(bitmap.width, bitmap.height));
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.round(bitmap.width * scale);
-    canvas.height = Math.round(bitmap.height * scale);
-    canvas.getContext("2d")!.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-    bitmap.close();
-    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.85));
-    return blob ?? file;
-  } catch {
-    return file;
-  }
-}
-
-/** Reads the barcodes of one label photo and looks them up in the catalog. */
-async function readLabel(file: File) {
-  // Read the barcodes from the full photo. Keep a smaller copy as the record of the label.
-  const [codes, photo] = await Promise.all([readLabelPhoto(file).catch((): LabelBarcodes | null => null), shrink(file)]);
-  const fields: RawLabel = { ...EMPTY, upc: codes?.upc ?? "", serial: codes?.serial ?? "", product_code: codes?.product_code ?? "" };
-  let known = false;
-  let existingBallId: string | null = null;
-  let lookupFailed = false;
-  if (codes?.upc || codes?.serial) {
-    try {
-      const lookup = await lookupLabel({ upc: codes.upc, serial: codes.serial });
-      if (lookup.model) {
-        Object.assign(fields, lookup.model);
-        known = true;
-      }
-      existingBallId = lookup.existingBallId;
-    } catch {
-      lookupFailed = true;
-    }
-  }
-  const unread = (["serial", "upc"] as LabelField[]).filter((f) => !fields[f]);
-  return { codes, photo, fields, known, existingBallId, lookupFailed, unread };
-}
-
-/** Keeps the label photo, then adds the ball. Throws when the connection fails. */
-async function submit(photo: Blob | null, label: RawLabel, locationId: string, requestId: string) {
-  // The photo is a record of the label. A failed upload does not stop the save.
-  let photoPath: string | null = null;
-  if (photo) {
-    const path = `${requestId}.jpg`;
-    const upload = await createClient().storage.from("labels").upload(path, photo, { contentType: "image/jpeg", upsert: false });
-    if (!upload.error || upload.error.message.toLowerCase().includes("exists")) photoPath = path;
-  }
-  const result = await receiveBall({ label, locationId, requestId, photoPath });
-  return { result, photoKept: photoPath !== null || photo === null };
-}
-
-const summaryOf = (label: { model_name?: string | null; nominal_weight_lb?: string | number | null; serial?: string | null }) => `${label.model_name} ${label.nominal_weight_lb} lb · ${label.serial}`;
-
+/** The scan of a ball box label: one photo, a batch of photos, or typed details. */
 export function ScanFlow({ locations, defaultLocationId }: { locations: Location[]; defaultLocationId: string }) {
-  const [step, setStep] = useState<Step>("start");
-  const [fields, setFields] = useState<RawLabel>(EMPTY);
-  const [errors, setErrors] = useState<LabelErrors>({});
-  const [unread, setUnread] = useState<LabelField[]>([]);
-  const [knownModel, setKnownModel] = useState(false);
-  const [editModel, setEditModel] = useState(false);
-  const [existingBallId, setExistingBallId] = useState<string | null>(null);
-  const [locationId, setLocationId] = useState(defaultLocationId || (locations.length === 1 ? locations[0].id : ""));
-  const [message, setMessage] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState<Saved | null>(null);
-  const [preview, setPreview] = useState<string | null>(null);
-  const [batch, setBatch] = useState<BatchItem[]>([]);
-  const [fromBatch, setFromBatch] = useState<string | null>(null);
-  const [batchAdded, setBatchAdded] = useState(0);
-
-  const photo = useRef<Blob | null>(null);
-  // One request id for each ball. A second tap on Save, or a retry after a lost
-  // connection, sends the same id, and the database then adds the ball one time only.
-  const requestId = useRef("");
-  const fileInput = useRef<HTMLInputElement>(null);
+  const scan = useScan({ locations, defaultLocationId });
+  const camera = useRef<HTMLInputElement>(null);
   const batchCamera = useRef<HTMLInputElement>(null);
   const batchLibrary = useRef<HTMLInputElement>(null);
-  const batchRef = useRef<BatchItem[]>([]);
-  // The photos of a batch are read one at a time. This keeps the memory use low on a phone.
-  const readQueue = useRef<Promise<void>>(Promise.resolve());
-  const weightGuess = useRef("");
-  const firstError = useRef<HTMLDivElement>(null);
-
-  useEffect(() => () => void (preview && URL.revokeObjectURL(preview)), [preview]);
-  useEffect(() => {
-    batchRef.current = batch;
-  }, [batch]);
-  useEffect(() => () => batchRef.current.forEach((item) => item.preview && URL.revokeObjectURL(item.preview)), []);
-  const unsaved = batch.filter((item) => item.status !== "saved").length;
-  useEffect(() => {
-    if (!unsaved) return;
-    const warn = (event: BeforeUnloadEvent) => event.preventDefault();
-    window.addEventListener("beforeunload", warn);
-    return () => window.removeEventListener("beforeunload", warn);
-  }, [unsaved]);
-
-  function begin(next: Step) {
-    requestId.current = crypto.randomUUID();
-    weightGuess.current = "";
-    setErrors({});
-    setMessage(null);
-    setExistingBallId(null);
-    setSaved(null);
-    setBatchAdded(0);
-    setStep(next);
-  }
-
-  function reset() {
-    photo.current = null;
-    setPreview(null);
-    setFields(EMPTY);
-    setUnread([]);
-    setKnownModel(false);
-    setEditModel(false);
-    setFromBatch(null);
-    setStep(fromBatch ? "batch" : "start");
-  }
-
-  async function onPhoto(file: File | undefined) {
-    if (!file) return;
-    begin("reading");
-    setPreview(URL.createObjectURL(file));
-    const read = await readLabel(file);
-    photo.current = read.photo;
-    setMessage(readMessage(read.codes, read.lookupFailed));
-    setExistingBallId(read.existingBallId);
-    setFields(read.fields);
-    setKnownModel(read.known);
-    setEditModel(!read.known);
-    setUnread(read.unread);
-    setStep("confirm");
-  }
-
-  const updateItem = (id: string, change: Partial<BatchItem>) =>
-    setBatch((items) => items.map((item) => (item.id === id ? { ...item, ...change } : item)));
-
-  function addPhotos(files: File[]) {
-    if (!files.length) return;
-    const items: BatchItem[] = files.map(() => ({
-      id: crypto.randomUUID(),
-      preview: null,
-      photo: null,
-      fields: EMPTY,
-      known: false,
-      unread: [],
-      existingBallId: null,
-      message: null,
-      status: "reading",
-    }));
-    setBatch((current) => [...current, ...items]);
-    files.forEach((file, i) => {
-      // A failed read must not stop the reads of the next photos.
-      readQueue.current = readQueue.current.then(() =>
-        readItem(items[i].id, file).catch(() =>
-          updateItem(items[i].id, { status: "needs_details", message: "The photo could not be read on this device. Type the details." }),
-        ),
-      );
-    });
-  }
-
-  async function readItem(id: string, file: File) {
-    const read = await readLabel(file);
-    const current = batchRef.current;
-    const index = current.findIndex((item) => item.id === id);
-    if (index < 0) return; // Removed while it was read.
-    const serialsBefore = current.slice(0, index).flatMap((item) => (item.fields.serial ? [item.fields.serial] : []));
-    const status = scanStatus({ ...read, knownModel: read.known, serialsBefore });
-    updateItem(id, {
-      preview: URL.createObjectURL(read.photo),
-      photo: read.photo,
-      fields: read.fields,
-      known: read.known,
-      unread: read.unread,
-      existingBallId: read.existingBallId,
-      message:
-        status === "duplicate" && !read.existingBallId
-          ? "Another photo in this batch has this serial number. If it was misread, correct it."
-          : readMessage(read.codes, read.lookupFailed),
-      status,
-    });
-  }
-
-  function removeItem(item: BatchItem) {
-    if (item.preview) URL.revokeObjectURL(item.preview);
-    setBatch((items) => items.filter((i) => i.id !== item.id));
-  }
-
-  function openItem(item: BatchItem) {
-    requestId.current = item.id;
-    weightGuess.current = "";
-    photo.current = item.photo;
-    setFields(item.fields);
-    setErrors({});
-    setUnread(item.unread);
-    setKnownModel(item.known);
-    setEditModel(!item.known);
-    setExistingBallId(item.existingBallId);
-    setMessage(item.message);
-    setFromBatch(item.id);
-    setStep("confirm");
-  }
-
-  function backToBatch() {
-    if (fromBatch) updateItem(fromBatch, { fields, existingBallId });
-    reset();
-  }
-
-  function finishBatch() {
-    if (unsaved && !window.confirm(`${unsaved} ${unsaved === 1 ? "ball is" : "balls are"} not saved. Leave the batch?`)) return;
-    batch.forEach((item) => item.preview && URL.revokeObjectURL(item.preview));
-    const added = batch.filter((item) => item.status === "saved").length;
-    setBatch([]);
-    setMessage(null);
-    setSaved(null);
-    setBatchAdded(added);
-    setStep("start");
-  }
-
-  async function saveAll() {
-    if (!locationId) {
-      setMessage("Select the location of these balls.");
-      return;
-    }
-    setSaving(true);
-    setMessage(null);
-    const location = locations.find((l) => l.id === locationId)?.name ?? "";
-    for (const item of batchRef.current.filter((i) => i.status === "ready")) {
-      updateItem(item.id, { status: "saving", message: null });
-      try {
-        const { result, photoKept } = await submit(item.photo, item.fields, locationId, item.id);
-        if (result.ok) updateItem(item.id, { status: "saved", ballId: result.ballId, savedTo: location, photoKept });
-        else
-          updateItem(item.id, {
-            status: result.existingBallId ? "duplicate" : "needs_details",
-            message: result.error,
-            existingBallId: result.existingBallId ?? null,
-          });
-      } catch {
-        updateItem(item.id, { status: "ready", message: "Not saved. Check the connection, then tap Save again." });
-      }
-    }
-    setSaving(false);
-  }
-
-  async function save() {
-    const check = validateLabel(fields);
-    if (!locationId) {
-      setMessage("Select the location of this ball.");
-      return;
-    }
-    if (!check.value) {
-      setErrors(check.errors);
-      if (!editModel && MODEL_FIELDS.some((f) => check.errors[f.field])) setEditModel(true);
-      setMessage("Check the marked fields.");
-      requestAnimationFrame(() => firstError.current?.querySelector<HTMLElement>("[aria-invalid=true]")?.focus());
-      return;
-    }
-
-    setSaving(true);
-    setMessage(null);
-    try {
-      const { result, photoKept } = await submit(photo.current, fields, locationId, requestId.current);
-      const location = locations.find((l) => l.id === locationId)?.name ?? "";
-      if (result.ok && fromBatch) {
-        updateItem(fromBatch, { status: "saved", fields, ballId: result.ballId, savedTo: location, photoKept });
-        reset();
-      } else if (result.ok) {
-        setSaved({ ballId: result.ballId, summary: summaryOf(check.value), location, photoKept });
-        reset();
-      } else {
-        setMessage(result.error);
-        setErrors(result.fieldErrors ?? {});
-        setExistingBallId(result.existingBallId ?? null);
-      }
-    } catch {
-      setMessage("The ball was not saved. Check the connection, then tap Save again.");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  const camera = (
-    <input
-      ref={fileInput}
-      type="file"
-      accept="image/*"
-      capture="environment"
-      className="sr-only"
-      tabIndex={-1}
-      aria-hidden="true"
-      onChange={(event) => {
-        void onPhoto(event.target.files?.[0]);
-        event.target.value = "";
-      }}
-    />
-  );
-
-  const batchInputs = (
-    <>
-      {(["camera", "library"] as const).map((kind) => (
-        <input
-          key={kind}
-          ref={kind === "camera" ? batchCamera : batchLibrary}
-          type="file"
-          accept="image/*"
-          capture={kind === "camera" ? "environment" : undefined}
-          multiple={kind === "library"}
-          className="sr-only"
-          tabIndex={-1}
-          aria-hidden="true"
-          onChange={(event) => {
-            addPhotos(Array.from(event.target.files ?? []));
-            event.target.value = "";
-          }}
-        />
-      ))}
-    </>
-  );
 
   const locationSelect = (
-    <select value={locationId} onChange={(event) => setLocationId(event.target.value)} className={inputClass} required>
-      {!locationId && <option value="">Select a location</option>}
+    <select value={scan.locationId} onChange={(event) => scan.setLocationId(event.target.value)} className={inputClass} required>
+      {!scan.locationId && <option value="">Select a location</option>}
       {locations.map((location) => (
         <option key={location.id} value={location.id}>
           {location.name}
@@ -390,351 +29,81 @@ export function ScanFlow({ locations, defaultLocationId }: { locations: Location
     </select>
   );
 
-  if (step === "batch") {
-    const ready = batch.filter((item) => item.status === "ready").length;
-    const count = (status: BatchItem["status"]) => batch.filter((item) => item.status === status).length;
-    const tally = [
-      [count("reading"), "reading"],
-      [ready, "ready"],
-      [count("needs_details"), "to check"],
-      [count("duplicate"), "duplicate"],
-      [count("saved"), "saved"],
-    ]
-      .filter(([n]) => n)
-      .map(([n, label]) => `${n} ${label}`)
-      .join(" · ");
-    return (
-      <>
-        <h1 className="text-2xl font-bold">Scan several labels</h1>
-        <p className="text-muted-foreground">
-          Add one photo for each label. Balls of a model in the catalog save in one tap. Open the other photos to check them.
-        </p>
-        {batchInputs}
-        <div className="mt-4 grid grid-cols-2 gap-2">
-          <button type="button" onClick={() => batchCamera.current?.click()} className={buttonClass.action}>
-            <Camera className="size-5" aria-hidden="true" />
-            Take a photo
-          </button>
-          <button type="button" onClick={() => batchLibrary.current?.click()} className={buttonClass.quiet}>
-            <Images className="size-5" aria-hidden="true" />
-            Add photos
-          </button>
-        </div>
-        <div className="mt-4">
-          <Field label="Location of these balls">{locationSelect}</Field>
-        </div>
-
-        {message && (
-          <p role="alert" className="mt-4 flex items-start gap-2 rounded-lg bg-danger-surface px-3 py-2 font-medium text-destructive">
-            <TriangleAlert className="mt-0.5 size-5 shrink-0" aria-hidden="true" />
-            {message}
-          </p>
-        )}
-
-        {batch.length > 0 ? (
-          <>
-            <p role="status" className="tabular mt-5 text-sm font-medium text-muted-foreground">
-              {tally}
-            </p>
-            <ul className="mt-2 divide-y divide-border rounded-xl border border-border bg-card">
-              {batch.map((item, index) => (
-                <BatchRow key={item.id} item={item} index={index} onOpen={openItem} onRemove={removeItem} disabled={saving} />
-              ))}
-            </ul>
-          </>
-        ) : (
-          <p className="mt-5 rounded-xl border border-dashed border-border p-5 text-center text-muted-foreground">No photos yet.</p>
-        )}
-
-        <div className="sticky bottom-[calc(3.5rem+env(safe-area-inset-bottom))] -mx-4 mt-5 flex gap-2 border-t border-border bg-background px-4 py-3 sm:bottom-0">
-          <button type="button" onClick={() => void saveAll()} disabled={saving || !ready} className={`${buttonClass.action} flex-1`}>
-            {saving ? "Saving…" : ready ? `Save ${ready} ${ready === 1 ? "ball" : "balls"}` : "Save"}
-          </button>
-          <button type="button" onClick={finishBatch} disabled={saving} className={buttonClass.quiet}>
-            Done
-          </button>
-        </div>
-      </>
-    );
-  }
-
-  if (step === "start") {
-    return (
-      <>
-        <h1 className="text-2xl font-bold">Scan label</h1>
-        {batchAdded > 0 && (
-          <div role="status" className="mt-4 flex items-start gap-3 rounded-xl bg-ok-surface p-4 font-semibold text-ok">
-            <CircleCheck className="mt-0.5 size-5 shrink-0" aria-hidden="true" />
-            Added {batchAdded} {batchAdded === 1 ? "ball" : "balls"} from the batch.
-          </div>
-        )}
-        {saved && (
-          <div role="status" className="mt-4 flex items-start gap-3 rounded-xl bg-ok-surface p-4 text-ok">
-            <CircleCheck className="mt-0.5 size-5 shrink-0" aria-hidden="true" />
-            <div className="min-w-0">
-              <p className="font-semibold">Added to {saved.location}</p>
-              <p className="break-words">{saved.summary}</p>
-              {!saved.photoKept && <p className="mt-1 text-sm">The label photo was not kept. The details are saved.</p>}
-              <Link href={`/balls/${saved.ballId}`} className="mt-1 inline-flex h-10 items-center font-medium underline underline-offset-4">
-                View this ball
-              </Link>
-            </div>
-          </div>
-        )}
-        <div className="mt-4 rounded-xl border border-border bg-card p-5">
-          <p className="text-muted-foreground">
-            Take a photo of the white label on the ball box. Hold the phone straight and fill the frame with the label, so the barcodes are sharp.
-          </p>
-          {camera}
-          <button type="button" onClick={() => fileInput.current?.click()} className={`${buttonClass.action} mt-4 h-14 w-full text-lg`}>
-            <Camera className="size-6" aria-hidden="true" />
-            {saved ? "Scan the next label" : "Take a photo of the label"}
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              begin("confirm");
-              setEditModel(true);
-            }}
-            className={`${buttonClass.quiet} mt-2 w-full`}
-          >
-            <Keyboard className="size-5" aria-hidden="true" />
-            Type the details
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              begin("batch");
-              setMessage(null);
-            }}
-            className={`${buttonClass.quiet} mt-2 w-full`}
-          >
-            <Layers className="size-5" aria-hidden="true" />
-            Scan several labels
-          </button>
-        </div>
-      </>
-    );
-  }
-
-  if (step === "reading") {
-    return (
-      <>
-        <h1 className="text-2xl font-bold">Scan label</h1>
-        <div role="status" className="mt-4 flex items-center gap-3 rounded-xl border border-border bg-card p-5">
-          <LoaderCircle className="size-6 shrink-0 animate-spin text-action motion-reduce:animate-none" aria-hidden="true" />
-          <p className="font-medium">Reading the barcodes…</p>
-        </div>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        {preview && <img src={preview} alt="" className="mt-4 max-h-80 rounded-xl border border-border" />}
-      </>
-    );
-  }
-
-  const input = ({ field, label, hint, mode, mono }: (typeof BALL_FIELDS)[number]) => (
-    <Field
-      key={field}
-      label={label}
-      error={errors[field]}
-      hint={unread.includes(field) && !fields[field] ? "Not found in the photo. Type it from the label." : hint}
-    >
+  return (
+    <>
       <input
-        value={fields[field] ?? ""}
+        {...hidden}
+        ref={camera}
+        capture="environment"
         onChange={(event) => {
-          const next = { ...fields, [field]: event.target.value };
-          // The ball weight is the pounds part of the gross weight on most labels. Fill it in
-          // while it is empty or still the value that this rule put there. Staff can change it.
-          if (field === "gross_weight") {
-            const gross = parseGrossWeight(event.target.value);
-            const guess = gross.ok ? String(Math.floor(gross.value / 16)) : "";
-            if (!fields.nominal_weight_lb || fields.nominal_weight_lb === weightGuess.current) {
-              next.nominal_weight_lb = guess;
-              weightGuess.current = guess;
-            }
-          }
-          setFields(next);
-          if (errors[field]) setErrors({ ...errors, [field]: undefined });
-          if (field === "serial") setExistingBallId(null);
+          void scan.onPhoto(event.target.files?.[0]);
+          event.target.value = "";
         }}
-        inputMode={mode}
-        autoCapitalize={mono ? "characters" : undefined}
-        autoCorrect="off"
-        spellCheck={false}
-        aria-invalid={errors[field] ? true : undefined}
-        className={`${inputClass} tabular ${mono ? "font-mono" : ""}`}
       />
-    </Field>
-  );
+      <input
+        {...hidden}
+        ref={batchCamera}
+        capture="environment"
+        onChange={(event) => {
+          scan.addPhotos(Array.from(event.target.files ?? []));
+          event.target.value = "";
+        }}
+      />
+      <input
+        {...hidden}
+        ref={batchLibrary}
+        multiple
+        onChange={(event) => {
+          scan.addPhotos(Array.from(event.target.files ?? []));
+          event.target.value = "";
+        }}
+      />
 
-  const formPreview = fromBatch ? (batch.find((item) => item.id === fromBatch)?.preview ?? null) : preview;
-
-  return (
-    <form
-      onSubmit={(event) => {
-        event.preventDefault();
-        void save();
-      }}
-      noValidate
-    >
-      <h1 className="text-2xl font-bold">Check the details</h1>
-      <p className="text-muted-foreground">
-        {knownModel ? "Type the weights and the pin distance from the label, then save." : "Type the details from the label, then save."}
-      </p>
-
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      {formPreview && <img src={formPreview} alt="The label photo" className="mt-4 max-h-72 rounded-xl border border-border" />}
-
-      {message && (
-        <p role="alert" className="mt-4 flex items-start gap-2 rounded-lg bg-danger-surface px-3 py-2 font-medium text-destructive">
-          <TriangleAlert className="mt-0.5 size-5 shrink-0" aria-hidden="true" />
-          {message}
-        </p>
+      {scan.step === "start" && (
+        <ScanStart
+          saved={scan.saved}
+          batchAdded={scan.batchAdded}
+          onTakePhoto={() => camera.current?.click()}
+          onType={scan.typeDetails}
+          onBatch={scan.startBatch}
+        />
       )}
-      {existingBallId && (
-        <p role="alert" className="mt-4 flex items-start gap-2 rounded-lg bg-warn-surface px-3 py-2 font-medium text-warn">
-          <TriangleAlert className="mt-0.5 size-5 shrink-0" aria-hidden="true" />
-          <span>
-            A ball with this serial number is already recorded.{" "}
-            <Link href={`/balls/${existingBallId}`} className="underline underline-offset-4">
-              View that ball
-            </Link>
-            . If the serial number was misread, correct it below.
-          </span>
-        </p>
+      {scan.step === "reading" && <ScanReading preview={scan.preview} />}
+      {scan.step === "batch" && (
+        <ScanBatch
+          batch={scan.batch}
+          message={scan.message}
+          saving={scan.saving}
+          locationSelect={locationSelect}
+          onCamera={() => batchCamera.current?.click()}
+          onLibrary={() => batchLibrary.current?.click()}
+          onOpen={scan.openItem}
+          onRemove={scan.removeItem}
+          onSaveAll={() => void scan.saveAll()}
+          onDone={scan.finishBatch}
+        />
       )}
-
-      <div ref={firstError}>
-        <fieldset className="mt-5 space-y-3 rounded-xl border border-border bg-card p-4">
-          <legend className="font-heading px-1 text-lg font-semibold">This ball</legend>
-          {input(BALL_FIELDS[0])}
-          <div className="grid grid-cols-2 gap-3">{BALL_FIELDS.slice(1).map(input)}</div>
-          <Field label="Location">{locationSelect}</Field>
-        </fieldset>
-
-        <fieldset className="mt-4 space-y-3 rounded-xl border border-border bg-card p-4">
-          <legend className="font-heading px-1 text-lg font-semibold">Model</legend>
-          {editModel ? (
-            <>
-              {knownModel && (
-                <p className="text-sm text-muted-foreground">This UPC is in the catalog. A save keeps the catalog details of the model.</p>
-              )}
-              {MODEL_FIELDS.slice(0, 2).map(input)}
-              <div className="grid grid-cols-2 gap-3">{MODEL_FIELDS.slice(2).map(input)}</div>
-            </>
-          ) : (
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="font-semibold break-words">
-                  {fields.model_name} · {fields.nominal_weight_lb} lb
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  {[fields.brand, fields.color].filter(Boolean).join(" · ")}
-                  {fields.brand || fields.color ? " · " : ""}
-                  Known model, from the catalog
-                </p>
-                <p className="tabular font-mono text-sm text-muted-foreground">UPC {fields.upc}</p>
-              </div>
-              <button type="button" onClick={() => setEditModel(true)} className="h-10 shrink-0 font-medium text-action underline underline-offset-4">
-                Show all
-              </button>
-            </div>
-          )}
-        </fieldset>
-      </div>
-
-      <div className="sticky bottom-[calc(3.5rem+env(safe-area-inset-bottom))] -mx-4 mt-5 flex gap-2 border-t border-border bg-background px-4 py-3 sm:bottom-0">
-        <button type="submit" disabled={saving} className={`${buttonClass.action} flex-1`}>
-          {saving ? "Saving…" : "Save to stock"}
-        </button>
-        {preview && !fromBatch && (
-          <button type="button" onClick={() => fileInput.current?.click()} disabled={saving} className={buttonClass.quiet}>
-            Retake
-          </button>
-        )}
-        <button type="button" onClick={fromBatch ? backToBatch : reset} disabled={saving} className={buttonClass.quiet}>
-          {fromBatch ? "Back" : "Cancel"}
-        </button>
-      </div>
-      {camera}
-    </form>
-  );
-}
-
-const STATUS_STYLE: Record<BatchItem["status"], { label: string; className: string }> = {
-  reading: { label: "Reading", className: "bg-muted text-muted-foreground" },
-  ready: { label: "Ready", className: "bg-ok-surface text-ok" },
-  needs_details: { label: "Check", className: "bg-warn-surface text-warn" },
-  duplicate: { label: "Duplicate", className: "bg-danger-surface text-destructive" },
-  saving: { label: "Saving", className: "bg-muted text-muted-foreground" },
-  saved: { label: "Saved", className: "bg-ok-surface text-ok" },
-};
-
-function BatchRow({
-  item,
-  index,
-  onOpen,
-  onRemove,
-  disabled,
-}: {
-  item: BatchItem;
-  index: number;
-  onOpen: (item: BatchItem) => void;
-  onRemove: (item: BatchItem) => void;
-  disabled: boolean;
-}) {
-  const { fields, status } = item;
-  const busy = status === "reading" || status === "saving";
-  const title = item.known ? `${fields.model_name} · ${fields.nominal_weight_lb} lb` : status === "reading" ? `Photo ${index + 1}` : "Model not in the catalog";
-  const style = STATUS_STYLE[status];
-  return (
-    <li className="flex items-center gap-3 p-3">
-      <div className="grid size-14 shrink-0 place-items-center overflow-hidden rounded-lg border border-border bg-muted">
-        {item.preview ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={item.preview} alt="" className="size-full object-cover" />
-        ) : (
-          <LoaderCircle className="size-5 animate-spin text-muted-foreground motion-reduce:animate-none" aria-hidden="true" />
-        )}
-      </div>
-      <div className="min-w-0 flex-1">
-        <p className="flex items-center gap-2">
-          <span className="truncate font-semibold">{title}</span>
-          <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold ${style.className}`}>{style.label}</span>
-        </p>
-        <p className="tabular truncate font-mono text-sm text-muted-foreground">{fields.serial || (busy ? "…" : "No serial number")}</p>
-        {status === "saved" ? (
-          <p className="text-sm text-ok">
-            In {item.savedTo}
-            {item.photoKept === false && ". The label photo was not kept"} ·{" "}
-            <Link href={`/balls/${item.ballId}`} className="underline underline-offset-4">
-              View
-            </Link>
-          </p>
-        ) : (
-          item.message && <p className="text-sm text-muted-foreground">{item.message}</p>
-        )}
-        {status === "duplicate" && item.existingBallId && (
-          <Link href={`/balls/${item.existingBallId}`} className="text-sm underline underline-offset-4">
-            View the recorded ball
-          </Link>
-        )}
-      </div>
-      {(status === "needs_details" || status === "duplicate" || status === "ready") && (
-        <button type="button" onClick={() => onOpen(item)} disabled={disabled} className="h-10 shrink-0 px-2 font-medium text-action underline underline-offset-4">
-          Open
-        </button>
+      {scan.step === "confirm" && (
+        <ScanConfirm
+          fields={scan.fields}
+          errors={scan.errors}
+          unread={scan.unread}
+          knownModel={scan.knownModel}
+          editModel={scan.editModel}
+          existingBallId={scan.existingBallId}
+          message={scan.message}
+          saving={scan.saving}
+          preview={scan.preview}
+          canRetake={scan.hasOwnPhoto}
+          fromBatch={scan.fromBatch}
+          locationSelect={locationSelect}
+          onField={scan.setField}
+          onShowModel={scan.showModel}
+          onSave={scan.save}
+          onRetake={() => camera.current?.click()}
+          onCancel={scan.fromBatch ? scan.backToBatch : scan.cancel}
+        />
       )}
-      {status !== "saved" && status !== "saving" && (
-        <button
-          type="button"
-          onClick={() => onRemove(item)}
-          disabled={disabled}
-          aria-label={`Remove photo ${index + 1}`}
-          className="grid size-10 shrink-0 place-items-center rounded-lg text-muted-foreground hover:bg-muted"
-        >
-          <X className="size-5" aria-hidden="true" />
-        </button>
-      )}
-    </li>
+    </>
   );
 }

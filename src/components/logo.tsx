@@ -12,11 +12,12 @@ export function LogoMark({ className, onDark = false }: { className?: string; on
   );
 }
 
-export function Logo({ onDark = false }: { onDark?: boolean }) {
+/** The mark and the wordmark. `compact` hides the wordmark on very narrow phones. */
+export function Logo({ onDark = false, compact = false }: { onDark?: boolean; compact?: boolean }) {
   return (
-    <span className="inline-flex items-center gap-2">
+    <span className="inline-flex items-center gap-2.5">
       <LogoMark className="size-7" onDark={onDark} />
-      <span className="font-heading text-lg font-bold tracking-tight">CORNERSTOCK</span>
+      <span className={`font-heading text-lg font-bold tracking-tight ${compact ? "max-[359px]:sr-only" : ""}`}>CORNERSTOCK</span>
     </span>
   );
 }

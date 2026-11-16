@@ -13,6 +13,15 @@
   --color-warn: var(--warn);
   --color-warn-surface: var(--warn-surface);
   --color-danger-surface: var(--danger-surface);
+  --color-changed: var(--changed);
+  --color-changed-surface: var(--changed-surface);
+  --color-rail: var(--rail);
+  --color-rail-foreground: var(--rail-foreground);
+  --color-rail-muted: var(--rail-muted);
+  --animate-tick: tick var(--dur) var(--ease-snap);
+  --animate-enter: enter var(--dur-slow) var(--ease-snap);
+  --animate-mark: mark var(--dur-slow) var(--ease-snap);
+  --animate-pulse-soft: pulse-soft 1.4s ease-in-out infinite;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-inter);
@@ -70,6 +79,20 @@
   --warn: #7a5200;
   --warn-surface: #f7ebcb;
   --danger-surface: #f6e1dc;
+  /* A row that another device changed. Gold tint, brown text: contrast 6.9. */
+  --changed: #7a5200;
+  --changed-surface: #fbf1da;
+  /* The navy rail and top bar. Secondary text there is tinted from ivory, not gray. */
+  --rail: var(--ink);
+  --rail-foreground: var(--ivory);
+  --rail-muted: #c3cbd1;
+
+  /* Motion. It shows a state change. Exit is faster than entrance. No bounce. */
+  --ease-snap: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-fast: 120ms;
+  --dur: 200ms;
+  --dur-slow: 320ms;
+  --dur-exit: 120ms;
 
   --background: var(--ivory);
   --foreground: var(--ink);
@@ -100,9 +123,20 @@
     -webkit-text-size-adjust: 100%;
     -webkit-tap-highlight-color: transparent;
   }
+  html {
+    scrollbar-color: var(--input) transparent;
+  }
   body {
     @apply bg-background text-foreground font-sans;
     overscroll-behavior-y: none;
+    caret-color: var(--action);
+  }
+  ::selection {
+    background: var(--gold);
+    color: var(--ink);
+  }
+  a {
+    text-underline-offset: 0.2em;
   }
   h1, h2, h3 {
     font-family: var(--font-heading);
@@ -124,4 +158,140 @@
 
 @utility tabular {
   font-variant-numeric: tabular-nums;
+}
+
+/* ---------------------------------------------------------------------------
+   Motion
+   --------------------------------------------------------------------------- */
+
+/* A count that changed moves up into place. */
+@keyframes tick {
+  from {
+    opacity: 0;
+    transform: translateY(0.4em);
+  }
+}
+/* A new row or panel arrives. */
+@keyframes enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+/* The mark of a changed row shows. */
+@keyframes mark {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+}
+@keyframes pulse-soft {
+  50% {
+    opacity: 0.55;
+  }
+}
+@keyframes vt-fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes vt-slide {
+  from {
+    translate: var(--slide-offset) 0;
+  }
+}
+
+/* Taps during a transition go to the live page. */
+::view-transition {
+  pointer-events: none;
+}
+::view-transition-group(*) {
+  animation-duration: var(--dur-slow);
+  animation-timing-function: var(--ease-snap);
+}
+
+/* The shell does not move when the content changes. */
+::view-transition-group(shell-top),
+::view-transition-group(shell-tabs) {
+  animation: none;
+  z-index: 10;
+}
+::view-transition-old(shell-top),
+::view-transition-old(shell-tabs) {
+  display: none;
+}
+::view-transition-new(shell-top),
+::view-transition-new(shell-tabs) {
+  animation: none;
+}
+
+/* Detail screens. Large screens: the pane changes in place with a short fade.
+   Phones: forward moves in from the right, back moves out to the right. */
+::view-transition-old(.nav-forward),
+::view-transition-old(.nav-back) {
+  animation: var(--dur-exit) ease-in both vt-fade reverse;
+}
+::view-transition-new(.nav-forward),
+::view-transition-new(.nav-back) {
+  --slide-offset: 0px;
+  animation:
+    var(--dur) var(--ease-snap) both vt-fade,
+    var(--dur-slow) var(--ease-snap) both vt-slide;
+}
+@media (max-width: 1023px) {
+  ::view-transition-old(.nav-forward) {
+    --slide-offset: -32px;
+    animation:
+      var(--dur-exit) ease-in both vt-fade reverse,
+      var(--dur) ease-in both vt-slide reverse;
+  }
+  ::view-transition-new(.nav-forward) {
+    --slide-offset: 32px;
+  }
+  ::view-transition-old(.nav-back) {
+    --slide-offset: 32px;
+    animation:
+      var(--dur-exit) ease-in both vt-fade reverse,
+      var(--dur) ease-in both vt-slide reverse;
+  }
+  ::view-transition-new(.nav-back) {
+    --slide-offset: -32px;
+  }
+}
+@media (min-width: 1024px) {
+  ::view-transition-new(.nav-forward),
+  ::view-transition-new(.nav-back) {
+    --slide-offset: 12px;
+  }
+}
+
+/* A skeleton gives way to the content. */
+::view-transition-old(.reveal) {
+  animation: var(--dur-exit) ease-in both vt-fade reverse;
+}
+::view-transition-new(.reveal) {
+  animation: var(--dur) var(--ease-snap) var(--dur-exit) both vt-fade;
+}
+
+/* The label photo becomes the thumbnail of the saved row. */
+::view-transition-group(.label-morph) {
+  animation-duration: 420ms;
+}
+
+/* Reduced motion: nothing moves. Color and opacity changes that carry a state stay. */
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation-duration: 0s !important;
+    animation-delay: 0s !important;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

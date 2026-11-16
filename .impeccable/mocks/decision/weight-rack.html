@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Weight rack</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0}
+body{width:1440px;height:900px;overflow:hidden;font:15px/1.4 Inter,sans-serif;color:#172A3A;background:#F6F3EC;display:grid;grid-template-columns:72px 1fr 360px}
+h1,h2,.g{font-family:"Space Grotesk",sans-serif}
+.num{font-variant-numeric:tabular-nums}
+.rail{background:#172A3A;padding:20px 0;display:flex;flex-direction:column;align-items:center;gap:10px}
+.mark{width:30px;height:30px;position:relative;margin-bottom:22px}
+.mark:before{content:"";position:absolute;inset:0;border-left:7px solid #F6F3EC;border-top:7px solid #F6F3EC;width:24px;height:24px}
+.mark:after{content:"";position:absolute;right:0;bottom:0;width:17px;height:17px;border-radius:50%;background:#D45A32}
+.ic{width:44px;height:44px;border-radius:10px;border:2px solid #F6F3EC55}
+.ic.on{background:#F6F3EC;border-color:#F6F3EC;box-shadow:-14px 0 0 -10px #D7A55B}
+main{padding:26px 28px;overflow:hidden}
+.top{display:flex;align-items:flex-end;gap:20px;margin-bottom:18px}
+.top h1{font-size:30px}
+.top p{color:#5A6369}
+.top b{color:#172A3A}
+.find{margin-left:auto;width:300px;height:44px;border:1px solid #C9C1B0;border-radius:8px;background:#fff;padding:11px 14px;color:#5A6369}
+.btn{background:#B94A25;color:#fff;font-weight:600;border-radius:8px;padding:12px 20px}
+table{width:100%;border-collapse:separate;border-spacing:0;background:#fff;border:1px solid #E0D9CA;border-radius:12px;overflow:hidden}
+th{font:700 15px "Space Grotesk";text-align:center;padding:12px 0;background:#172A3A;color:#F6F3EC;width:78px}
+th small{display:block;font:500 11px Inter;color:#D7A55B}
+th:first-child{text-align:left;padding-left:20px;width:auto}
+th:last-child{background:#0F1E2A}
+td{border-top:1px solid #E0D9CA;text-align:center;padding:0;height:52px;font:600 20px "Space Grotesk";font-variant-numeric:tabular-nums}
+td:first-child{text-align:left;padding-left:20px;font:600 16px "Space Grotesk"}
+td:first-child small{display:block;font:400 12px Inter;color:#5A6369}
+td.z{color:#C9C1B0;font-weight:400}
+td.sel{background:#172A3A;color:#fff}
+td.new{background:#FBF1DA;box-shadow:inset 0 -3px #D7A55B}
+td.one{color:#7A5200}
+td:last-child{background:#F6F3EC;font-weight:700}
+.brandrow td{height:30px;background:#ECE7DC;font:600 12px Inter;letter-spacing:.06em;text-transform:uppercase;color:#5A6369;text-align:left;padding-left:20px}
+aside{background:#fff;border-left:1px solid #E0D9CA;padding:26px 22px}
+aside h1{font-size:24px}
+.tag{display:inline-block;background:#D7A55B;font:700 14px "Space Grotesk";padding:3px 9px;border-radius:4px;margin:8px 0 16px}
+.ball{padding:12px 0;border-top:1px solid #E0D9CA}
+.ball b{font:600 15px ui-monospace,Menlo,monospace}
+.ball p{color:#5A6369;font-size:13px}
+</style></head><body>
+<nav class="rail"><span class="mark"></span><span class="ic on"></span><span class="ic"></span><span class="ic"></span></nav>
+<main>
+  <div class="top"><div><h1>Stock</h1><p><b class="num">86</b> balls · <span class="num">19</span> models · Sta. Lucia East</p></div>
+    <div class="find">Search a model or a serial number</div><span class="btn">Scan label</span></div>
+  <table>
+    <tr><th>Model</th><th>16<small>LB</small></th><th>15<small>LB</small></th><th>14<small>LB</small></th><th>13<small>LB</small></th><th>12<small>LB</small></th><th>11<small>LB</small></th><th>10<small>LB</small></th><th>All</th></tr>
+    <tr class="brandrow"><td colspan="9">Storm</td></tr>
+    <tr><td>Phaze II<small>Red / Blue / Purple</small></td><td>2</td><td class="sel">4</td><td class="one">1</td><td class="z">·</td><td class="z">·</td><td class="z">·</td><td class="z">·</td><td>7</td></tr>
+    <tr><td>Phaze AI<small>Navy / Plum</small></td><td class="one">1</td><td class="new">3</td><td class="z">·</td><td class="z">·</td><td class="z">·</td><td class="z">·</td><td class="z">·</td><td>4</td></tr>
+    <tr><td>Hy-Road<small>Black / Ultramarine</small></td><td>3</td><td>5</td><td>4</td><td>2</td><td class="one">1</td><td class="z">·</td><td class="z">·</td><td>15</td></tr>
+    <tr><td>Ion Pro<small>Lapis / Teal</small></td><td class="z">·</td><td>2</td><td>2</td><td class="z">·</td><td class="z">·</td><td class="z">·</td><td class="z">·</td><td>4</td></tr>
+    <tr class="brandrow"><td colspan="9">Motiv</td></tr>
+    <tr><td>Jackal Ghost<small>Solid Black</small></td><td>2</td><td>3</td><td class="one">1</td><td class="z">·</td><td class="z">·</td><td class="z">·</td><td class="z">·</td><td>6</td></tr>
+    <tr><td>Venom Shock<small>Blue / Lime</small></td><td class="z">·</td><td>4</td><td>3</td><td>2</td><td>2</td><td class="z">·</td><td class="z">·</td><td>11</td></tr>
+    <tr class="brandrow"><td colspan="9">Brunswick</td></tr>
+    <tr><td>Rhino<small>Carbon / Lime</small></td><td class="z">·</td><td>2</td><td>3</td><td>3</td><td>4</td><td>2</td><td>2</td><td>16</td></tr>
+    <tr><td>Twist<small>Sky Blue / Pink</small></td><td class="z">·</td><td class="z">·</td><td>2</td><td>2</td><td>3</td><td>3</td><td class="one">1</td><td>11</td></tr>
+    <tr><td>Kingpin Rule<small>Gold / Black</small></td><td>2</td><td>2</td><td class="z">·</td><td class="z">·</td><td class="z">·</td><td class="z">·</td><td class="z">·</td><td>4</td></tr>
+  </table>
+</main>
+<aside>
+  <p style="color:#5A6369">Storm</p><h1>Phaze II</h1><span class="tag">15 LB</span>
+  <p class="g" style="font-size:20px;font-weight:700;margin-bottom:10px"><span class="num">4</span> in stock</p>
+  <div class="ball"><b>PHZ2 4410 7731</b><p class="num">15 lb 2 oz · Top 2.75 · Pin 2–3"</p></div>
+  <div class="ball"><b>PHZ2 4410 7745</b><p class="num">15 lb 1 oz · Top 3.10 · Pin 3–4"</p></div>
+  <div class="ball"><b>PHZ2 4411 0092</b><p class="num">15 lb 0 oz · Top 2.40 · Pin 2–3"</p></div>
+  <div class="ball"><b>PHZ2 4411 0118</b><p>Values not recorded</p></div>
+</aside>
+</body></html>
