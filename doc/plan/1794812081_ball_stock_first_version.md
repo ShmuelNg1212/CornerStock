@@ -15,19 +15,23 @@ In: bowling balls only. Label intake, live stock view, removal from stock, staff
 
 Out, for later plans: shoes, bags, accessories, purchase orders, suppliers, transfers, reservations, CSV import and export, stock counts, offline operation, checkout integration.
 
-## OPEN QUESTIONS
+## Decisions (approved by the human)
 
-Each question has a recommended answer. The plan below assumes the recommended answers.
+1. Stack: Next.js, TypeScript, Tailwind, shadcn/ui, Supabase, Vercel.
+2. One record for each ball, identified by its serial number.
+3. Label reading: one photo goes to the server. A vision model extracts the fields. The server validates the UPC check digit. The staff member confirms before the save.
+4. Two roles: staff and owner.
+5. **Changed by the human:** each location has its own stock. A selector switches between locations and shows what is available in each one. The selector also has an "All locations" option.
+6. A ball leaves stock by its serial number. No checkout link is necessary.
+7. Staff scan the boxes that are in the shop now. No spreadsheet import.
+8. One optional selling price for each model and weight. No cost price.
+9. Online only.
 
-1. **Stack.** Next.js, TypeScript, Tailwind, shadcn/ui, Supabase, Vercel, as the brief recommends? Recommended: yes.
-2. **Ball records.** One record for each ball, identified by its serial number? Recommended: yes. The stock count for a model and weight is then the number of its balls in stock.
-3. **Label reading.** Recommended: the phone sends one photo to the server. A vision model on the server extracts all fields, including the printed serial number and UPC digits. The server validates the UPC check digit. The staff member confirms the fields before the save. This method needs an AI API key and has a small cost for each scan. The alternative is text recognition on the device. It has no cost for each scan, but it is less accurate on varied labels.
-4. **Roles.** Recommended for this version: two roles. Staff can add balls and mark balls as sold. The owner can also correct or remove records and manage staff accounts. The manager role comes later.
-5. **Locations.** Recommended: one location, the Sta. Lucia East Mall shop. Is there a second store or a stockroom that needs separate stock?
-6. **How a ball leaves stock.** Recommended: staff find the ball by serial number (scan or search) and mark it as sold. There is no link to a checkout system in this version. Does the shop have a checkout system now?
-7. **Existing stock.** Recommended: staff scan each box that is in the shop now. No spreadsheet import in this version.
-8. **Prices.** Does this version record a cost and a selling price for each model? Recommended: one optional selling price for each model and weight, visible to all staff. No cost price in this version.
-9. **Offline.** Recommended: online only in this version. A scan without a connection shows a clear message and does not save.
+Agent decisions that follow from decision 5:
+
+- A scanned ball goes into the location that the selector shows. The confirm screen shows this location.
+- Staff can move a ball to another location. The move writes a movement. Without this, a ball in the wrong location cannot be corrected.
+- The owner adds and renames locations. The first location is "Sta. Lucia East Mall".
 
 ## Steps only the human can do
 
@@ -44,7 +48,7 @@ Each question has a recommended answer. The plan below assumes the recommended a
   - Complete when: the build and one sample test pass, and AGENTS.md has the test command.
 
 - [ ] **T2. Database schema.** `tests: first`
-  - Acceptance: tables exist for ball models (UPC is unique; model fields from the label), balls (serial number is unique; gross weight, top weight, pin distance, boxed date, status, label photo), and stock movements (ball, type, actor, timestamp, reason, reference). Stock movements cannot be edited or deleted.
+  - Acceptance: tables exist for ball models (UPC is unique; model fields from the label), locations, balls (serial number is unique; location, gross weight, top weight, pin distance, boxed date, status, label photo), and stock movements (ball, type, actor, timestamp, reason, reference). Stock movements cannot be edited or deleted.
   - Complete when: the migration applies to a clean database and the schema tests pass.
 
 - [ ] **T3. Sign-in and permissions.** `tests: first`
@@ -64,7 +68,7 @@ Each question has a recommended answer. The plan below assumes the recommended a
   - Complete when: tests for the duplicate serial and the repeated submission pass.
 
 - [ ] **T7. Remove a ball from stock.** `tests: first`
-  - Acceptance: staff mark a ball as sold. The owner can reverse this or adjust a record with a reason. Each change writes a movement. Two staff cannot sell the same ball.
+  - Acceptance: staff mark a ball as sold. The owner can reverse this or adjust a record with a reason. Each change writes a movement. Two staff cannot sell the same ball. Staff can move a ball to another location.
   - Complete when: tests for the reversal and the concurrent sale pass.
 
 - [ ] **T8. Live stock data.** `tests: alongside`
@@ -81,7 +85,7 @@ Each question has a recommended answer. The plan below assumes the recommended a
   - Complete when: the sample label goes from photo to saved ball on a real phone.
 
 - [ ] **D3. Stock view.** `tests: alongside`
-  - Acceptance: the view lists models with a count for each weight. A tap on a row shows the individual balls with serial number, gross weight, top weight, and pin distance. Search finds a model name or a serial number. Statuses show a label and an icon.
+  - Acceptance: a location selector switches the view between each location and all locations. The view lists models with a count for each weight in the selected location. A tap on a row shows the individual balls with serial number, gross weight, top weight, and pin distance. Search finds a model name or a serial number. Statuses show a label and an icon.
   - Complete when: `break-ui` finds no layout failure and the view is usable on a phone and on a counter computer.
 
 - [ ] **D4. Ball detail and sell action.** `tests: alongside`

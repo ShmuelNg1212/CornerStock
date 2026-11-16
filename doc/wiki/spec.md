@@ -13,6 +13,9 @@ Source: the brand kit handoff in [../study/1794811328_brand_kit_handoff.md](../s
 - The live view is for staff only. There is no customer view.
 - All ball box labels that the shop receives have a serial number and a UPC.
 - The app is an inventory management system only. It records the per-ball values (top weight, pin distance). It has no function for customers to select a ball.
+- Each location has its own stock. A selector switches between locations.
+- A ball leaves stock by its serial number.
+- First version: see [../plan/1794812081_ball_stock_first_version.md](../plan/1794812081_ball_stock_first_version.md) for the approved decisions.
 
 ## Proposed, not confirmed
 
@@ -62,7 +65,6 @@ Source: the brand kit handoff in [../study/1794811328_brand_kit_handoff.md](../s
 - Which method reads the printed label text: on-device text recognition or a server vision model?
 
 - What is the existing checkout workflow? Is there a checkout system to integrate?
-- How many stock locations are there?
 - What are the exact permissions for owner, manager, and staff?
 - What is the source for the first stock import?
 - Must operations continue during internet outages? Offline stock changes need a synchronization and conflict design.
