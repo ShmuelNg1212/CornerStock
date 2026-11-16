@@ -13,7 +13,7 @@ export const metadata: Metadata = {
   // The startup images are made by scripts/make-startup-images.mjs, one for each iPhone and iPad screen.
   appleWebApp: { capable: true, title: "Cornerstock", statusBarStyle: "black-translucent", startupImage: startupImages },
   robots: { index: false, follow: false },
-  other: { "cornerstock-release": "2026-11-16-fast-1" },
+  other: { "cornerstock-release": "2026-11-16-scan-1" },
 };
 
 export const viewport: Viewport = {
