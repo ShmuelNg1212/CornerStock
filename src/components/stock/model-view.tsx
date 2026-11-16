@@ -3,6 +3,7 @@ import Link from "next/link";
 import { SectionTitle } from "@/components/ui/field";
 import { grossWeight, number, pinDistance, price } from "@/lib/format";
 import type { Ball, BallModel } from "@/lib/types";
+import { ModelDetailsEditor } from "./model-details-editor";
 
 const BACK = ["nav-back"];
 const FORWARD = ["nav-forward"];
@@ -20,6 +21,7 @@ export function ModelView({
   place,
   locationNames,
   priceForm,
+  editable = false,
   base = "",
 }: {
   model: BallModel;
@@ -29,6 +31,8 @@ export function ModelView({
   locationNames?: Record<string, string>;
   /** The owner's price form. */
   priceForm?: React.ReactNode;
+  /** True for the owner, who can change the model details. */
+  editable?: boolean;
   base?: string;
 }) {
   const specs: [string, string][] = [
@@ -43,6 +47,17 @@ export function ModelView({
     ["UPC", model.upc],
     ["Product code", model.product_code ?? "—"],
   ];
+
+  const list = (
+    <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-3.5">
+      {specs.map(([label, value]) => (
+        <div key={label} className="min-w-0">
+          <dt className="text-sm text-muted-foreground">{label}</dt>
+          <dd className="tabular font-medium break-words">{value}</dd>
+        </div>
+      ))}
+    </dl>
+  );
 
   return (
     <>
@@ -95,14 +110,7 @@ export function ModelView({
 
       <section className="mt-7" aria-labelledby="specs-heading">
         <SectionTitle id="specs-heading">Model details</SectionTitle>
-        <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-3.5">
-          {specs.map(([label, value]) => (
-            <div key={label} className="min-w-0">
-              <dt className="text-sm text-muted-foreground">{label}</dt>
-              <dd className="tabular font-medium break-words">{value}</dd>
-            </div>
-          ))}
-        </dl>
+        {editable ? <ModelDetailsEditor model={model}>{list}</ModelDetailsEditor> : list}
       </section>
     </>
   );

@@ -12,6 +12,7 @@ export default async function PreviewModel({ params }: { params: Promise<{ id: s
         model={model}
         balls={ballsOf(model.id)}
         place={locations[0].name}
+        editable
         priceForm={<PriceForm modelId={model.id} current={model.selling_price} />}
       />
     </DetailTransition>

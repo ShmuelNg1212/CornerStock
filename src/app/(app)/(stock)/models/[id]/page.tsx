@@ -29,6 +29,7 @@ export default async function ModelPage({ params }: { params: Promise<{ id: stri
         balls={balls}
         place={all ? "all locations" : (locations.find((l) => l.id === selected)?.name ?? "")}
         locationNames={all ? Object.fromEntries(locations.map((l) => [l.id, l.name])) : undefined}
+        editable={profile.role === "owner"}
         priceForm={profile.role === "owner" ? <PriceForm modelId={model.id} current={model.selling_price} /> : undefined}
       />
     </DetailTransition>

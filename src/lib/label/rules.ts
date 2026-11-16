@@ -177,3 +177,69 @@ export function validateLabel(raw: RawLabel): { value: BallLabel | null; errors:
   if (Object.keys(errors).length > 0) return { value: null, errors };
   return { value: value as BallLabel, errors };
 }
+
+/** The model fields that the owner can change after the first save. UPC and weight identify the model and stay fixed. */
+export const MODEL_DETAIL_FIELDS = [
+  "brand",
+  "model_name",
+  "color",
+  "fragrance",
+  "coverstock",
+  "weight_block",
+  "finish",
+  "rg",
+  "diff",
+  "mass_bias",
+  "product_code",
+] as const satisfies readonly LabelField[];
+
+export type ModelDetailField = (typeof MODEL_DETAIL_FIELDS)[number];
+export type RawModelDetails = Partial<Record<ModelDetailField, string | null>>;
+export type ModelDetailErrors = Partial<Record<ModelDetailField, string>>;
+
+/** The model details in the form of the ball_models columns. */
+export type ModelDetails = {
+  brand: string | null;
+  name: string;
+  color: string | null;
+  fragrance: string | null;
+  coverstock: string | null;
+  weight_block: string | null;
+  finish: string | null;
+  rg: number | null;
+  diff: number | null;
+  mass_bias: number | null;
+  product_code: string | null;
+};
+
+/** Validates the model details with the same rules as a label. `value` is null when a field has an error. */
+export function validateModelDetails(raw: RawModelDetails): { value: ModelDetails | null; errors: ModelDetailErrors } {
+  // Fill the ball fields with valid values so that only the model fields can fail.
+  const { value, errors } = validateLabel({
+    ...raw,
+    serial: "PLACEHOLDER",
+    upc: "887970617601",
+    nominal_weight_lb: "15",
+    gross_weight: "",
+    top_weight: "",
+    pin_distance: "",
+    boxed_on: "",
+  });
+  if (!value) return { value: null, errors: errors as ModelDetailErrors };
+  return {
+    value: {
+      brand: value.brand,
+      name: value.model_name,
+      color: value.color,
+      fragrance: value.fragrance,
+      coverstock: value.coverstock,
+      weight_block: value.weight_block,
+      finish: value.finish,
+      rg: value.rg,
+      diff: value.diff,
+      mass_bias: value.mass_bias,
+      product_code: value.product_code,
+    },
+    errors: {},
+  };
+}

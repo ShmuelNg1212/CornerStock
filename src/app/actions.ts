@@ -13,9 +13,12 @@ import {
   parsePinDistance,
   normalizeSerial,
   validateLabel,
+  validateModelDetails,
   validateUpc,
   type LabelErrors,
+  type ModelDetailErrors,
   type RawLabel,
+  type RawModelDetails,
 } from "@/lib/label/rules";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -238,6 +241,22 @@ export async function setPrice(modelId: string, priceText: string): Promise<Acti
     .from("ball_models")
     .update({ selling_price: price }, { count: "exact" })
     .eq("id", modelId);
+  if (error || count !== 1) return failed(stockErrorMessage(error));
+  revalidatePath("/", "layout");
+  return done;
+}
+
+/** Changes the catalog details of a model. The UPC and the weight stay fixed. */
+export async function updateModel(
+  modelId: string,
+  input: RawModelDetails,
+): Promise<ActionResult & { fieldErrors?: ModelDetailErrors }> {
+  await requireOwner();
+  if (!uuid.safeParse(modelId).success) return failed("This model does not exist.");
+  const { value, errors } = validateModelDetails(input);
+  if (!value) return { ok: false, error: "Check the marked fields.", fieldErrors: errors };
+  const supabase = await createClient();
+  const { error, count } = await supabase.from("ball_models").update(value, { count: "exact" }).eq("id", modelId);
   if (error || count !== 1) return failed(stockErrorMessage(error));
   revalidatePath("/", "layout");
   return done;

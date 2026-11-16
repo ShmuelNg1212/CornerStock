@@ -7,6 +7,7 @@ import {
   parseGrossWeight,
   parsePinDistance,
   validateLabel,
+  validateModelDetails,
   validateUpc,
 } from "./rules";
 
@@ -191,5 +192,52 @@ describe("validateLabel", () => {
 
   it("rejects a nominal weight that is not a ball weight", () => {
     expect(validateLabel({ ...sample, nominal_weight_lb: "25" }).errors.nominal_weight_lb).toBeDefined();
+  });
+});
+
+describe("validateModelDetails", () => {
+  const details = {
+    brand: " Storm ",
+    model_name: "Phaze II",
+    color: "Pearl",
+    fragrance: "",
+    coverstock: "TX-16",
+    weight_block: "Velocity",
+    finish: "1500 Polished",
+    rg: "2.48",
+    diff: "0.051",
+    mass_bias: "",
+    product_code: "",
+  };
+
+  it("trims text and turns empty fields into null", () => {
+    const { value, errors } = validateModelDetails(details);
+    expect(errors).toEqual({});
+    expect(value).toEqual({
+      brand: "Storm",
+      name: "Phaze II",
+      color: "Pearl",
+      fragrance: null,
+      coverstock: "TX-16",
+      weight_block: "Velocity",
+      finish: "1500 Polished",
+      rg: 2.48,
+      diff: 0.051,
+      mass_bias: null,
+      product_code: null,
+    });
+  });
+  it("needs a model name", () => {
+    const { value, errors } = validateModelDetails({ ...details, model_name: "  " });
+    expect(value).toBeNull();
+    expect(errors.model_name).toBeDefined();
+  });
+  it("rejects numbers out of range, as the database does", () => {
+    const { value, errors } = validateModelDetails({ ...details, rg: "3.2", diff: "0.2", mass_bias: "abc" });
+    expect(value).toBeNull();
+    expect(Object.keys(errors).sort()).toEqual(["diff", "mass_bias", "rg"]);
+  });
+  it("rejects text that is too long", () => {
+    expect(validateModelDetails({ ...details, color: "x".repeat(121) }).errors.color).toBeDefined();
   });
 });

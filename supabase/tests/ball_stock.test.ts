@@ -411,4 +411,18 @@ describe("direct table access", () => {
         .rowCount,
     ).toBe(1);
   });
+
+  it("lets only the owner edit the model details, and keeps the UPC and weight fixed", async () => {
+    const edit = "update public.ball_models set name = 'Phaze II Pearl', rg = 2.5 where upc = '887970617601'";
+    expect((await as(staff, (c) => c.query(edit))).rowCount).toBe(0);
+    expect((await as(owner, (c) => c.query(edit))).rowCount).toBe(1);
+    const row = (await admin.query("select name, rg from public.ball_models where upc = '887970617601'")).rows[0];
+    expect(row).toEqual({ name: "Phaze II Pearl", rg: "2.500" });
+    await expect(
+      as(owner, (c) => c.query("update public.ball_models set upc = '887970617618' where upc = '887970617601'")),
+    ).rejects.toThrow(/permission denied/);
+    await expect(
+      as(owner, (c) => c.query("update public.ball_models set nominal_weight_lb = 14 where upc = '887970617601'")),
+    ).rejects.toThrow(/permission denied/);
+  });
 });
