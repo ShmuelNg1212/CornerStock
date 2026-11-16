@@ -185,13 +185,14 @@ export function useScan({ locations, defaultLocationId }: { locations: Location[
   const updateItem = (id: string, change: Partial<BatchItem>) =>
     setBatch((items) => items.map((item) => (item.id === id ? { ...item, ...change } : item)));
 
-  function addPhotos(files: File[]) {
+  /** `codes`: the barcodes that the live camera already read, so a second capture of the same box is skipped at once. */
+  function addPhotos(files: File[], codes: (LabelBarcodes | undefined)[] = []) {
     if (!files.length) return;
-    const items: BatchItem[] = files.map(() => ({
+    const items: BatchItem[] = files.map((_, i) => ({
       id: crypto.randomUUID(),
       preview: null,
       photo: null,
-      fields: EMPTY,
+      fields: { ...EMPTY, serial: codes[i]?.serial ?? "", upc: codes[i]?.upc ?? "" },
       known: false,
       unread: [],
       existingBallId: null,
@@ -317,10 +318,11 @@ export function useScan({ locations, defaultLocationId }: { locations: Location[
         reset();
       } else if (result.ok) {
         const summary = summaryOf(check.value);
+        const serial = check.value.serial;
         const savedPhoto = photo.current ? URL.createObjectURL(photo.current) : null;
         // A transition lets the label photo move into the row of the saved ball.
         startTransition(() => {
-          setSaved({ ballId: result.ballId, summary, location, photoKept, preview: savedPhoto });
+          setSaved({ ballId: result.ballId, serial, summary, location, photoKept, preview: savedPhoto });
           reset();
         });
       } else {

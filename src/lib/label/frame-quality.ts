@@ -137,7 +137,9 @@ export function decideFrame(history: FrameRead[], now: number, skipSerials: read
     if (skipSerials.includes(last.codes.serial!)) return { capture: false, hint: "added" };
     const previous = history.at(-2);
     const still = previous && previous.codes.serial === last.codes.serial && previous.codes.upc === last.codes.upc;
-    return { capture: Boolean(still) && last.sharpness >= FRAME_LIMITS.softBelow, hint: "hold" };
+    // Both codes read, but the frame is soft: say so, or "Hold still" would show with no capture.
+    if (last.sharpness < FRAME_LIMITS.softBelow) return { capture: false, hint: "soft" };
+    return { capture: Boolean(still), hint: "hold" };
   }
 
   // A cause counts only when every frame of the last window has it, and the window is long enough.

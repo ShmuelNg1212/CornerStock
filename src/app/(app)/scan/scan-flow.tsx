@@ -33,8 +33,12 @@ export function ScanFlow({ locations, defaultLocationId }: { locations: Location
   }, []);
 
   const openLive = (mode: "single" | "batch") => {
-    if (problem) (mode === "single" ? camera : batchCamera).current?.click();
-    else (mode === "single" ? setLive : setBatchLive)(true);
+    // A refused or missing camera stays off. A camera that failed once can try again.
+    if (problem && problem !== "failed") (mode === "single" ? camera : batchCamera).current?.click();
+    else {
+      setProblem(null);
+      (mode === "single" ? setLive : setBatchLive)(true);
+    }
   };
 
   const locationSelect = (
@@ -82,6 +86,8 @@ export function ScanFlow({ locations, defaultLocationId }: { locations: Location
         <ScanViewfinder
           mode="single"
           saved={scan.saved}
+          // The box of the ball that was just saved is often still in front of the camera.
+          skipSerials={scan.saved ? [scan.saved.serial] : []}
           onCapture={(file) => void scan.onPhoto(file)}
           onClose={() => setLive(false)}
           onTakePhoto={() => camera.current?.click()}
@@ -93,7 +99,7 @@ export function ScanFlow({ locations, defaultLocationId }: { locations: Location
           mode="batch"
           added={scan.batch.length}
           skipSerials={scan.batch.flatMap((item) => (item.fields.serial ? [item.fields.serial] : []))}
-          onCapture={(file) => scan.addPhotos([file])}
+          onCapture={(file, codes) => scan.addPhotos([file], [codes])}
           onClose={() => setBatchLive(false)}
           onTakePhoto={() => batchCamera.current?.click()}
           onUnavailable={onUnavailable}

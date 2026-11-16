@@ -9,6 +9,10 @@ import type { FrameReply, FrameRequest } from "@/lib/label/frame-worker";
 export type CameraState = "starting" | "live" | "unsupported" | "denied" | "failed";
 
 const NO_CODES: LabelBarcodes = { upc: null, serial: null, product_code: null };
+/** A frame read that takes longer than this counts as failed. A phone reads one in well under a second. */
+const READ_TIMEOUT_MS = 5000;
+/** A camera that gives no picture for this long after the start counts as failed. */
+const PICTURE_TIMEOUT_MS = 5000;
 /** About 5 frames each second. A slow phone reads fewer: the next frame waits for the last reply. */
 const FRAME_GAP_MS = 200;
 
@@ -70,14 +74,24 @@ export function useViewfinder({
     const worker = new Worker(new URL("../../../lib/label/frame-worker.ts", import.meta.url), { type: "module" });
     let nextId = 0;
     const pending = new Map<number, (reply: FrameReply) => void>();
-    worker.onmessage = (event: MessageEvent<FrameReply>) => {
-      pending.get(event.data.id)?.(event.data);
-      pending.delete(event.data.id);
+    const settle = (reply: FrameReply) => {
+      pending.get(reply.id)?.(reply);
+      pending.delete(reply.id);
+    };
+    worker.onmessage = (event: MessageEvent<FrameReply>) => settle(event.data);
+    // A worker that does not load, or that crashes, must not leave the loop waiting with no message.
+    worker.onerror = () => {
+      for (const id of [...pending.keys()]) settle({ id, error: "The frame reader stopped." });
+      if (!stopped) {
+        stopCamera();
+        setState("failed");
+      }
     };
     const read = (frame: ImageData) =>
       new Promise<FrameReply>((resolve) => {
         const id = nextId++;
         pending.set(id, resolve);
+        setTimeout(() => settle({ id, error: "The frame read took too long." }), READ_TIMEOUT_MS);
         const request: FrameRequest = { id, data: frame.data, width: frame.width, height: frame.height };
         worker.postMessage(request, [frame.data.buffer]);
       });
@@ -91,10 +105,17 @@ export function useViewfinder({
       if (videoRef.current) videoRef.current.srcObject = null;
     }
 
+    let liveSince = 0;
     async function tick(mine: number) {
       const video = videoRef.current;
       if (stopped || mine !== session || !video) return;
       if (video.readyState < 2 || !video.videoWidth) {
+        // The video can fail to play, for example in Low Power Mode on an iPhone.
+        if (performance.now() - liveSince > PICTURE_TIMEOUT_MS) {
+          stopCamera();
+          setState("failed");
+          return;
+        }
         timer = setTimeout(() => tick(mine), 100);
         return;
       }
@@ -130,6 +151,8 @@ export function useViewfinder({
         setState("unsupported");
         return;
       }
+      // A second start without a stop before it must not leave the first stream open.
+      stopCamera();
       const mine = ++session;
       setState("starting");
       try {
@@ -149,7 +172,9 @@ export function useViewfinder({
         const video = videoRef.current!;
         video.srcObject = stream;
         await video.play().catch(() => {});
+        if (stopped || mine !== session) return;
         history = [];
+        liveSince = performance.now();
         setHint("aim");
         setState("live");
         tick(mine);

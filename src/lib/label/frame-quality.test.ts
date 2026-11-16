@@ -76,8 +76,8 @@ describe("decideFrame", () => {
     expect(decideFrame([read(0, { codes: { upc: "887970617601", serial: "OTHER1", product_code: null } }), read(200)], 200).capture).toBe(false);
   });
 
-  it("does not capture a soft frame", () => {
-    expect(decideFrame([read(0), read(200, { sharpness: 10 })], 200).capture).toBe(false);
+  it("does not capture a soft frame, and says why", () => {
+    expect(decideFrame([read(0), read(200, { sharpness: 10 })], 200)).toEqual({ capture: false, hint: "soft" });
   });
 
   it("does not capture a serial in the skip list, and says it is added", () => {

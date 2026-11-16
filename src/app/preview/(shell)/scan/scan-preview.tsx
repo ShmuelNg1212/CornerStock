@@ -71,7 +71,7 @@ export function ScanPreview() {
       {(step === "start" || step === "saved") && (
         <ScanStart
           base="/preview"
-          saved={step === "saved" ? { ballId: "b1", summary: "Phaze II 15 lb · PHZ244107731", location: "Sta. Lucia East", photoKept: true, preview: LABEL } : null}
+          saved={step === "saved" ? { ballId: "b1", serial: "PHZ244107731", summary: "Phaze II 15 lb · PHZ244107731", location: "Sta. Lucia East", photoKept: true, preview: LABEL } : null}
           batchAdded={0}
           onTakePhoto={noop}
           onType={noop}
