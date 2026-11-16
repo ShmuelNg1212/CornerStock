@@ -478,3 +478,164 @@ describe("direct table access", () => {
     ).rejects.toThrow(/permission denied/);
   });
 });
+
+describe("catalog file import", () => {
+  const modelValues = (upc = "012345678905") => ({
+    upc, name: "Import Model", nominal_weight_lb: 15, brand: "Storm", color: null,
+    fragrance: null, coverstock: null, weight_block: null, finish: null,
+    rg: null, diff: null, mass_bias: null, product_code: null, selling_price: 12500,
+  });
+  const currentModel = async (upc: string) =>
+    (await admin.query("select to_jsonb(m) as row from public.ball_models m where upc=$1", [upc])).rows[0]?.row ?? null;
+  const currentBall = async (serial: string) =>
+    (await admin.query("select to_jsonb(b) as row from public.balls b where serial=$1", [serial])).rows[0]?.row ?? null;
+  const importBatch = (payload: object, requestId = randomUUID(), user: string | null = owner, client = admin) =>
+    as(user, async (c) => (await c.query("select public.commit_catalog_import($1,$2) as result", [requestId, JSON.stringify(payload)])).rows[0].result, client);
+  const batch = (upc = "012345678905") => ({kind: "catalog", reason: "", models: [{upc, before: null, after: modelValues(upc)}], balls: []});
+  const stockRow = (serial: string, upc: string, before: object | null = null, location = mall) => ({
+    serial, before, label: label({serial, upc, model_name: "Import Model", gross_weight_oz: null, top_weight: null, pin_min: null, pin_max: null, boxed_on: null}), location_id: location,
+  });
+
+  it("creates catalog entries without stock and records an owner-only audit", async () => {
+    expect(await importBatch(batch())).toMatchObject({models_added: 1, balls_added: 0, models_updated: 0});
+    const model = await currentModel("012345678905");
+    expect(model).toMatchObject({name: "Import Model", selling_price: 12500});
+    expect((await admin.query("select count(*) from public.balls where model_id=$1", [model.id])).rows[0].count).toBe("0");
+    expect((await as(owner, c => c.query("select * from public.catalog_import_batches"))).rows.length).toBeGreaterThan(0);
+    expect((await as(staff, c => c.query("select * from public.catalog_import_batches"))).rows).toHaveLength(0);
+  });
+
+  it("rejects staff, inactive accounts, and signed-out callers", async () => {
+    for (const user of [staff, inactive, null]) {
+      await expect(importBatch(batch("036000291452"), randomUUID(), user)).rejects.toThrow(/NOT_AUTHORIZED|permission denied/);
+    }
+  });
+
+  it("creates a missing catalog model and receives a ball in one batch", async () => {
+    const p = {...batch("036000291452"), kind: "stock", balls: [stockRow("IMPORT0001", "036000291452")]};
+    expect(await importBatch(p)).toMatchObject({models_added: 1, balls_added: 1});
+    const b = await currentBall("IMPORT0001");
+    expect(b).toMatchObject({status: "in_stock", location_id: mall, received_by: owner});
+    expect((await movements(b.id)).map(m => m.type)).toEqual(["receive"]);
+    expect((await currentModel("036000291452")).selling_price).toBe(12500);
+  });
+
+  it("replays the same request without a second write and rejects a different payload", async () => {
+    const request = randomUUID();
+    const p = batch("042100005264");
+    const result = await importBatch(p, request);
+    expect(await importBatch(p, request)).toEqual(result);
+    await expect(importBatch({...p, reason: "different"}, request)).rejects.toThrow(/REQUEST_MISMATCH/);
+  });
+
+  it("updates catalog values with a snapshot and refuses stale reviews", async () => {
+    const before = await currentModel("012345678905");
+    const after = {...modelValues(), name: "Changed Model", color: "Blue"};
+    const p = {kind: "catalog", reason: "", models: [{upc: before.upc, before, after}], balls: []};
+    expect(await importBatch(p)).toMatchObject({models_updated: 1});
+    expect(await currentModel(before.upc)).toMatchObject({name: "Changed Model", color: "Blue"});
+    await expect(importBatch(p)).rejects.toThrow(/STALE_REVIEW/);
+  });
+
+  it("corrects and transfers existing stock with a reason and keeps its identity", async () => {
+    const before = await currentBall("IMPORT0001");
+    const model = await currentModel("036000291452");
+    const row = stockRow(before.serial, model.upc, before, warehouse);
+    row.label.top_weight = 2.5;
+    const p = {kind: "stock", reason: "Correct import", models: [{upc: model.upc, before: model, after: modelValues(model.upc)}], balls: [row]};
+    expect(await importBatch(p)).toMatchObject({balls_updated: 1});
+    const b = await currentBall(before.serial);
+    expect(b).toMatchObject({id: before.id, model_id: before.model_id, status: before.status, location_id: warehouse, top_weight: 2.5});
+    const history = await movements(b.id);
+    expect(history.map(m => m.type)).toEqual(["receive", "adjust", "transfer"]);
+    expect(history.slice(1).every(m => m.reason === "Correct import")).toBe(true);
+  });
+
+  it("requires a reason for existing stock changes but not for unchanged rows", async () => {
+    const before = await currentBall("IMPORT0001");
+    const model = await currentModel("036000291452");
+    const row = stockRow(before.serial, model.upc, before, warehouse);
+    row.label.top_weight = 2.5;
+    const p = {kind: "stock", reason: "", models: [{upc: model.upc, before: model, after: modelValues(model.upc)}], balls: [row]};
+    expect(await importBatch(p)).toMatchObject({balls_updated: 0});
+    row.label.top_weight = 3;
+    await expect(importBatch(p)).rejects.toThrow(/REASON_REQUIRED/);
+  });
+
+  it("rolls back earlier catalog changes when a later stock row is invalid", async () => {
+    const p = {...batch("123456789012"), kind: "stock", balls: [stockRow("IMPORT0002", "123456789012", null, randomUUID())]};
+    await expect(importBatch(p)).rejects.toThrow(/LOCATION_NOT_FOUND/);
+    expect(await currentModel("123456789012")).toBeNull();
+    expect(await currentBall("IMPORT0002")).toBeNull();
+  });
+
+  it("rejects invalid direct RPC values, duplicate rows, and identity changes", async () => {
+    await expect(importBatch(batch("012345678906"))).rejects.toThrow(/INVALID_UPC/);
+    const p = batch("123456789012");
+    await expect(importBatch({...p, models: [p.models[0], p.models[0]]})).rejects.toThrow(/DUPLICATE_UPC/);
+    const before = await currentModel("012345678905");
+    await expect(importBatch({kind:"catalog", models:[{upc:before.upc,before,after:{...modelValues(),nominal_weight_lb:14}}],balls:[]})).rejects.toThrow(/IMMUTABLE_IDENTITY/);
+    const b = await currentBall("IMPORT0001");
+    const model = await currentModel("012345678905");
+    await expect(importBatch({kind:"stock",reason:"x",models:[{upc:model.upc,before:model,after:{...modelValues(),name:model.name,color:model.color}}],balls:[stockRow(b.serial,model.upc,b,warehouse)]})).rejects.toThrow(/IMMUTABLE_IDENTITY/);
+  });
+
+  it("rejects stock field ranges, duplicate serials, injected status, and stale stock snapshots", async () => {
+    const before = await currentBall("IMPORT0001");
+    const model = await currentModel("036000291452");
+    const row = stockRow(before.serial, model.upc, before, warehouse);
+    row.label.top_weight = 2.5;
+    const p = {kind:"stock",reason:"Correction",models:[{upc:model.upc,before:model,after:modelValues(model.upc)}],balls:[row]};
+    await expect(importBatch({...p,balls:[row,row]})).rejects.toThrow(/DUPLICATE_SERIAL/);
+    await expect(importBatch({...p,balls:[{...row,label:{...row.label,status:"sold"}}]})).rejects.toThrow(/INVALID_IMPORT/);
+    await expect(importBatch({...p,balls:[{...row,label:{...row.label,top_weight:11}}]})).rejects.toThrow(/INVALID_IMPORT/);
+    await expect(importBatch({...p,balls:[{...row,label:{...row.label,pin_min:4,pin_max:3}}]})).rejects.toThrow(/INVALID_IMPORT/);
+    await expect(importBatch({...p,balls:[{...row,label:{...row.label,boxed_on:"2026-02-30"}}]})).rejects.toThrow();
+    await as(owner,c => c.query("select public.adjust_ball($1,$2,$3,'Other correction')",[before.id,JSON.stringify({top_weight:3}),randomUUID()]));
+    await expect(importBatch(p)).rejects.toThrow(/STALE_REVIEW/);
+  });
+
+  it("rejects changed catalog weights and out-of-range or rounded numeric values", async () => {
+    const before = await currentModel("012345678905");
+    const values = {...modelValues(),name:before.name,color:before.color};
+    for (const change of [{rg:1.9},{rg:2.1234},{diff:0.2},{selling_price:-1},{selling_price:12.345},{nominal_weight_lb:15.5}]) {
+      await expect(importBatch({kind:"catalog",models:[{upc:before.upc,before,after:{...values,...change}}],balls:[]})).rejects.toThrow(/INVALID_IMPORT/);
+    }
+  });
+
+  it("does not move a sold ball and rolls back catalog updates when a transfer fails", async () => {
+    const before = await currentBall("IMPORT0001");
+    await as(owner,c => c.query("select public.sell_ball($1,$2)",[before.id,randomUUID()]));
+    const sold = await currentBall(before.serial);
+    const model = await currentModel("036000291452");
+    const row = stockRow(before.serial,model.upc,sold,mall);
+    row.label.top_weight = 3;
+    await expect(importBatch({kind:"stock",reason:"Correction",models:[{upc:model.upc,before:model,after:{...modelValues(model.upc),name:"Must roll back"}}],balls:[row]})).rejects.toThrow(/WRONG_STATUS/);
+    expect((await currentModel(model.upc)).name).toBe(model.name);
+    expect((await currentBall(before.serial)).status).toBe("sold");
+  });
+
+  it("serializes concurrent retries and binds the result to its owner", async () => {
+    const other = await connect();
+    try {
+      const p = batch("400638133390");
+      const request = randomUUID();
+      const results = await Promise.all([importBatch(p,request),importBatch(p,request,owner,other)]);
+      expect(results[0]).toEqual(results[1]);
+      const secondOwner = await addUser("Import Second Owner");
+      await admin.query("update public.profiles set role='owner' where id=$1",[secondOwner]);
+      await expect(importBatch(p,request,secondOwner)).rejects.toThrow(/REQUEST_MISMATCH/);
+    } finally { await other.end(); }
+  });
+
+  it("allows one of two concurrent catalog creates and refuses the stale one", async () => {
+    const other = await connect();
+    try {
+      const p = batch("725272730706");
+      const outcomes = await Promise.allSettled([importBatch(p), importBatch(p,randomUUID(),owner,other)]);
+      expect(outcomes.filter(o => o.status === "fulfilled")).toHaveLength(1);
+      expect(outcomes.filter(o => o.status === "rejected")).toHaveLength(1);
+      expect((await admin.query("select count(*) from public.ball_models where upc=$1", [p.models[0].upc])).rows[0].count).toBe("1");
+    } finally { await other.end(); }
+  });
+});
