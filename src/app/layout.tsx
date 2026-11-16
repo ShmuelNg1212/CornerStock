@@ -13,7 +13,12 @@ export const metadata: Metadata = {
   // The startup images are made by scripts/make-startup-images.mjs, one for each iPhone and iPad screen.
   appleWebApp: { capable: true, title: "Cornerstock", statusBarStyle: "black-translucent", startupImage: startupImages },
   robots: { index: false, follow: false },
-  other: { "cornerstock-release": "2026-11-16-icon-1" },
+  other: {
+    // Next.js writes only "mobile-web-app-capable". iOS uses the status bar style and the startup
+    // images only with this Apple tag. Without it, the home-screen app has a white status bar.
+    "apple-mobile-web-app-capable": "yes",
+    "cornerstock-release": "2026-11-16-apple-1",
+  },
 };
 
 export const viewport: Viewport = {
