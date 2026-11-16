@@ -11,15 +11,21 @@ export const metadata: Metadata = { title: "Model" };
 
 export default async function ModelPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const [profile, { locations, selected }] = await Promise.all([requireStaff(), getLocations()]);
   const supabase = await createClient();
-
-  const { data: model } = await supabase.from("ball_models").select("*").eq("id", id).maybeSingle<BallModel>();
+  // The reads do not depend on each other, so they run in parallel. Row-level security limits each one.
+  const ballsIn = async (selected: string) => {
+    let query = supabase.from("balls").select("*").eq("model_id", id).eq("status", "in_stock").order("received_at");
+    if (selected !== ALL_LOCATIONS) query = query.eq("location_id", selected);
+    return ((await query).data ?? []) as Ball[];
+  };
+  const locationsRead = getLocations();
+  const [profile, { locations, selected }, { data: model }, balls] = await Promise.all([
+    requireStaff(),
+    locationsRead,
+    supabase.from("ball_models").select("*").eq("id", id).maybeSingle<BallModel>(),
+    locationsRead.then(({ selected }) => ballsIn(selected)),
+  ]);
   if (!model) notFound();
-
-  let ballQuery = supabase.from("balls").select("*").eq("model_id", id).eq("status", "in_stock").order("received_at");
-  if (selected !== ALL_LOCATIONS) ballQuery = ballQuery.eq("location_id", selected);
-  const balls = ((await ballQuery).data ?? []) as Ball[];
 
   const all = selected === ALL_LOCATIONS;
   return (

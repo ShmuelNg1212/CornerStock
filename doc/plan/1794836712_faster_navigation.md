@@ -32,7 +32,7 @@ Closed on 2026-11-16. The human answered: 1 A (`syd1`), 2 yes (`getClaims()`), 3
 - Acceptance: a signed-out visit to `/` goes to `/login`. A signed-in owner sees the stock list. An inactive account goes to `/login?error=inactive`.
 - Complete when: the three checks pass in a local production build.
 
-### [ ] 3. Remove reads that wait without need (`tests: alongside`)
+### [x] 3. Remove reads that wait without need (`tests: alongside`)
 
 - Model page: read the model and its balls in parallel.
 - Ball page: read the ball with its model in one query (`balls` with `ball_models(*)`).

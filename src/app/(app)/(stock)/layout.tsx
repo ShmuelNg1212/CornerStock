@@ -7,17 +7,27 @@ import { groupStock, type StockModel } from "@/lib/stock/group";
 import { createClient } from "@/lib/supabase/server";
 
 async function List() {
-  const { locations, selected } = await getLocations();
   const supabase = await createClient();
-
-  let countQuery = supabase.from("stock_counts").select("model_id, in_stock");
-  if (selected !== ALL_LOCATIONS) countQuery = countQuery.eq("location_id", selected);
-  const counts = ((await countQuery).data ?? []) as { model_id: string; in_stock: number }[];
-
-  const ids = [...new Set(counts.map((row) => row.model_id))];
-  const models = ids.length
-    ? (((await supabase.from("ball_models").select("id, brand, name, color, nominal_weight_lb").in("id", ids)).data ?? []) as StockModel[])
-    : [];
+  const countsIn = async (selected: string) => {
+    let query = supabase.from("stock_counts").select("model_id, in_stock");
+    if (selected !== ALL_LOCATIONS) query = query.eq("location_id", selected);
+    return ((await query).data ?? []) as { model_id: string; in_stock: number }[];
+  };
+  // The catalog is small. Read all models in parallel with the counts; groupStock keeps only the models in stock.
+  const locationsRead = getLocations();
+  const [{ locations, selected }, counts, { data: modelRows }] = await Promise.all([
+    locationsRead,
+    locationsRead.then(({ selected }) => countsIn(selected)),
+    supabase.from("ball_models").select("id, brand, name, color, nominal_weight_lb"),
+  ]);
+  let models = (modelRows ?? []) as StockModel[];
+  // Supabase returns at most 1000 rows. A larger catalog reads only the models in stock.
+  if (models.length >= 1000) {
+    const ids = [...new Set(counts.map((row) => row.model_id))];
+    models = ids.length
+      ? (((await supabase.from("ball_models").select("id, brand, name, color, nominal_weight_lb").in("id", ids)).data ?? []) as StockModel[])
+      : [];
+  }
 
   const place = selected === ALL_LOCATIONS ? "all locations" : (locations.find((l) => l.id === selected)?.name ?? "");
   return (
