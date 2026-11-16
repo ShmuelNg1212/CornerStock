@@ -18,12 +18,11 @@ export default async function ModelPage({ params }: { params: Promise<{ id: stri
     if (selected !== ALL_LOCATIONS) query = query.eq("location_id", selected);
     return ((await query).data ?? []) as Ball[];
   };
-  const locationsRead = getLocations();
   const [profile, { locations, selected }, { data: model }, balls] = await Promise.all([
     requireStaff(),
-    locationsRead,
+    getLocations(),
     supabase.from("ball_models").select("*").eq("id", id).maybeSingle<BallModel>(),
-    locationsRead.then(({ selected }) => ballsIn(selected)),
+    getLocations().then(({ selected }) => ballsIn(selected)),
   ]);
   if (!model) notFound();
 

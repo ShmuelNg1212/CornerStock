@@ -13,21 +13,22 @@ export const metadata: Metadata = { title: "Ball" };
 export default async function BallPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const supabase = await createClient();
+  const ballRead = supabase.from("balls").select("*, ball_models(*)").eq("id", id).maybeSingle<Ball & { ball_models: BallModel | null }>();
   // The reads do not depend on each other, so they run in parallel. Row-level security limits each one.
-  const [profile, { locations: activeLocations }, { data: row }, { data: movements }, { data: people }, { data: allLocations }] =
+  const [profile, { locations: activeLocations }, { data: row }, photo, { data: movements }, { data: people }, { data: allLocations }] =
     await Promise.all([
       requireStaff(),
       getLocations(),
-      supabase.from("balls").select("*, ball_models(*)").eq("id", id).maybeSingle<Ball & { ball_models: BallModel | null }>(),
+      ballRead,
+      ballRead.then(async ({ data }): Promise<{ data: { signedUrl: string } | null }> =>
+        data?.label_photo_path ? supabase.storage.from("labels").createSignedUrl(data.label_photo_path, 600) : { data: null },
+      ),
       supabase.from("stock_movements").select("*").eq("ball_id", id).order("id", { ascending: false }),
       supabase.from("profiles").select("id, full_name"),
       supabase.from("locations").select("id, name, active"),
     ]);
   if (!row?.ball_models) notFound();
   const { ball_models: model, ...ball } = row;
-  const photo = ball.label_photo_path
-    ? await supabase.storage.from("labels").createSignedUrl(ball.label_photo_path, 600)
-    : { data: null };
 
   const personName = (personId: string) =>
     ((people ?? []) as Pick<Profile, "id" | "full_name">[]).find((p) => p.id === personId)?.full_name || "Staff";

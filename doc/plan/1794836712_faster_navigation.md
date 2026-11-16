@@ -50,3 +50,11 @@ Closed on 2026-11-16. The human answered: 1 A (`syd1`), 2 yes (`getClaims()`), 3
 
 - A database move to another region.
 - Caching of stock data. Stock must stay live.
+
+## Rendezvous checks (2026-11-16)
+
+- `npm run typecheck`, `npx eslint .`, `npm test` (74 unit, 31 database), and `npm run build` pass.
+- Local production build: a signed-out visit to `/` and to a ball page goes to `/login`.
+- Local production build: a session cookie with a forged ES256 token goes to `/login` from the proxy. It does not reach `/login?error=inactive`. Thus `getClaims()` checks the signature.
+- `code-review` (medium) found 9 items. Fixed: the stock list now reads each counted model that the catalog read did not return. This does not depend on the API row limit. Fixed: the ball page gets the signed photo URL in parallel with the other reads. Accepted: the revocation gap of `getClaims()` (open question 2). Not changed: the full catalog read, and the action refresh that depends on `revalidatePath`.
+- Not checked: the signed-in pages and the actions. The agent has no account. The human tests on production after the push (open question 3). The agent checks `x-vercel-id` for `syd1` after the push.
