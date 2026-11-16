@@ -32,6 +32,24 @@
         ],
         "createdAt": "2026-11-16T08:04:56.287Z",
         "reason": "user confirmed: warm ivory #F6F3EC is the brand ground, kept on 2026-11-16, see PRODUCT.md Brand Commitments"
+      },
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          "src/app/(app)/scan/scan-viewfinder.tsx"
+        ],
+        "createdAt": "2026-11-16T14:39:35.473Z",
+        "reason": "agent triage: the 4px two-sided borders are the L-shaped corner brackets of the aim frame (the Cornerstock corner mark), not card accents"
+      },
+      {
+        "rule": "border-accent-on-rounded",
+        "value": "*",
+        "files": [
+          "src/app/(app)/scan/scan-viewfinder.tsx"
+        ],
+        "createdAt": "2026-11-16T14:39:35.536Z",
+        "reason": "agent triage: the 4px two-sided borders are the L-shaped corner brackets of the aim frame (the Cornerstock corner mark), not card accents"
       }
     ]
   }

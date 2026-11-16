@@ -4,7 +4,7 @@ import { LABEL_FIELDS, type LabelField, type RawLabel } from "@/lib/label/rules"
 export type Step = "start" | "reading" | "confirm" | "batch";
 
 /** The last ball that a single scan saved. */
-export type Saved = { ballId: string; summary: string; location: string; photoKept: boolean; preview: string | null };
+export type Saved = { ballId: string; serial: string; summary: string; location: string; photoKept: boolean; preview: string | null };
 
 /** One photo of a batch scan. */
 export type BatchItem = {

@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { prepareZXingModule, readBarcodes } from "zxing-wasm/reader";
 import { beforeAll, describe, expect, it } from "vitest";
-import { classifyBarcodes, READER_OPTIONS, toFound } from "./barcodes";
+import { classifyBarcodes, moduleSize, READER_OPTIONS, toFound } from "./barcodes";
 
 describe("classifyBarcodes", () => {
   const serial = { format: "Code39", text: "23VSLE30B047", y: 1236 };
@@ -42,6 +42,11 @@ describe("classifyBarcodes", () => {
     });
   });
 
+  it("takes one code below the UPC that starts with letters as the product code", () => {
+    // Photo 8: the serial barcode has glare. Only the UPC and the product code read.
+    expect(classifyBarcodes([upc, code])).toEqual({ upc: "887970617601", serial: null, product_code: "BBMVSL15L" });
+  });
+
   it("makes the serial number upper case and ignores text that cannot be a serial number", () => {
     expect(classifyBarcodes([{ format: "Code128", text: "ab12cd34", y: 1 }]).serial).toBe("AB12CD34");
     expect(classifyBarcodes([{ format: "QRCode", text: "https://example.com/a?b=1", y: 1 }]).serial).toBeNull();
@@ -49,6 +54,23 @@ describe("classifyBarcodes", () => {
 
   it("returns nothing for a photo with no barcode", () => {
     expect(classifyBarcodes([])).toEqual({ upc: null, serial: null, product_code: null });
+  });
+});
+
+describe("moduleSize", () => {
+  const edge = (width: number) => ({ topLeft: { x: 0, y: 0 }, topRight: { x: width, y: 0 } });
+  it("gives the width of one bar unit of a serial barcode", () => {
+    // 12 characters and 2 stop characters, 16 units each.
+    expect(moduleSize([{ format: "Code39", text: "23VSLE30B047", position: edge(448) }])).toBeCloseTo(2);
+  });
+
+  it("scales a UPC to the bar unit of the serial on the same label", () => {
+    // 95 units. UPC bars are 1.2 times wider than the serial bars on the labels.
+    expect(moduleSize([{ format: "EAN13", text: "0887970778029", position: edge(228) }])).toBeCloseTo(2);
+  });
+
+  it("is null with no barcode", () => {
+    expect(moduleSize([])).toBeNull();
   });
 });
 
