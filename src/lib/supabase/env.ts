@@ -5,4 +5,5 @@ function need(name: string, value: string | undefined): string {
 
 // NEXT_PUBLIC values are in the browser bundle. They are safe to show: row-level security limits what they can do.
 export const supabaseUrl = () => need("NEXT_PUBLIC_SUPABASE_URL", process.env.NEXT_PUBLIC_SUPABASE_URL);
-export const supabaseAnonKey = () => need("NEXT_PUBLIC_SUPABASE_ANON_KEY", process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+export const supabasePublishableKey = () =>
+  need("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY);

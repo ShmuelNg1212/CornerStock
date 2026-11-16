@@ -1,13 +1,13 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
-import { supabaseAnonKey, supabaseUrl } from "@/lib/supabase/env";
+import { supabasePublishableKey, supabaseUrl } from "@/lib/supabase/env";
 
 // Refreshes the session cookie and sends signed-out visitors to the sign-in page.
 // This is a first check only. Pages, actions, and the database do the real checks.
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });
 
-  const supabase = createServerClient(supabaseUrl(), supabaseAnonKey(), {
+  const supabase = createServerClient(supabaseUrl(), supabasePublishableKey(), {
     cookies: {
       getAll: () => request.cookies.getAll(),
       setAll(list) {

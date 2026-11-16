@@ -27,7 +27,7 @@ Do these steps one time.
 3. Open the SQL Editor. Paste all of `supabase/migrations/20261116000000_ball_stock.sql`. Run it one time.
 4. Open Authentication > Users > Add user. Enter the owner's email and a password. Select "Auto Confirm User". The first account becomes the owner.
 5. Get an API key for the Claude API at https://platform.claude.com.
-6. Copy `.env.example` to `.env.local`. Fill in the four values. The Supabase values are in Project Settings > API.
+6. Copy `.env.example` to `.env.local`. Fill in the four values. The Supabase values are in Project Settings > API Keys. Use the publishable key (`sb_publishable_...`) and the secret key (`sb_secret_...`). Do not use the legacy `anon` and `service_role` keys: Supabase removes them at the end of 2026.
 7. Run `npm run dev`. Open http://localhost:3000. Sign in as the owner.
 8. In Settings, add the other locations and the staff accounts.
 
@@ -38,8 +38,8 @@ To test on a phone before the deploy, the phone needs HTTPS for the camera. Use 
 | Name | Where it is used | Secret |
 |---|---|---|
 | `NEXT_PUBLIC_SUPABASE_URL` | Browser and server | No |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Browser and server | No. Row-level security limits it. |
-| `SUPABASE_SERVICE_ROLE_KEY` | Server only: staff account creation | Yes |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Browser and server | No. Row-level security limits it. |
+| `SUPABASE_SECRET_KEY` | Server only: staff account creation | Yes |
 | `ANTHROPIC_API_KEY` | Server only: label reading | Yes |
 | `LABEL_MODEL` | Server only, optional. Default `claude-opus-5-5`. | No |
 
