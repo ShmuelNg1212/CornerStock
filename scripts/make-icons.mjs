@@ -22,3 +22,26 @@ for (const [file, size, source] of out) {
   await sharp(Buffer.from(source), { density: 600 }).resize(size, size).png().toFile(file);
   console.log(file);
 }
+
+// favicon.ico: some tools read only this file, for example the Vercel dashboard for the project icon.
+// An ICO file can hold PNG images. It holds 16, 32, and 48 px.
+const sizes = [16, 32, 48];
+const pngs = await Promise.all(sizes.map((size) => sharp(Buffer.from(svg(6, 12)), { density: 600 }).resize(size, size).png().toBuffer()));
+const header = Buffer.alloc(6 + 16 * sizes.length);
+header.writeUInt16LE(0, 0); // reserved
+header.writeUInt16LE(1, 2); // type: icon
+header.writeUInt16LE(sizes.length, 4);
+let offset = header.length;
+sizes.forEach((size, i) => {
+  const entry = 6 + 16 * i;
+  header.writeUInt8(size, entry); // width
+  header.writeUInt8(size, entry + 1); // height
+  header.writeUInt16LE(1, entry + 4); // color planes
+  header.writeUInt16LE(32, entry + 6); // bits per pixel
+  header.writeUInt32LE(pngs[i].length, entry + 8);
+  header.writeUInt32LE(offset, entry + 12);
+  offset += pngs[i].length;
+});
+const { writeFileSync } = await import("node:fs");
+writeFileSync("src/app/favicon.ico", Buffer.concat([header, ...pngs]));
+console.log("src/app/favicon.ico");
