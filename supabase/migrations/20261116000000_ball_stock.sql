@@ -108,15 +108,22 @@ create view public.stock_counts with (security_invoker = true) as
 -- ---------------------------------------------------------------------------
 
 -- Each new account gets a profile. The first account is the owner.
+-- Later accounts are active only when the owner made them in the app: the app sets
+-- app metadata, which a visitor who signs up by himself cannot set. Thus a self sign-up
+-- gets no access, also if sign-ups are left open in the Supabase project by mistake.
 create function public.handle_new_user() returns trigger
 language plpgsql security definer set search_path = public as $$
+declare
+  v_first boolean;
 begin
   lock table public.profiles in share row exclusive mode;
-  insert into public.profiles (id, full_name, role)
+  v_first := not exists (select 1 from public.profiles);
+  insert into public.profiles (id, full_name, role, active)
   values (
     new.id,
     coalesce(new.raw_user_meta_data ->> 'full_name', ''),
-    case when exists (select 1 from public.profiles) then 'staff'::public.staff_role else 'owner'::public.staff_role end
+    case when v_first then 'owner'::public.staff_role else 'staff'::public.staff_role end,
+    v_first or coalesce((new.raw_app_meta_data ->> 'added_by_owner')::boolean, false)
   );
   return new;
 end;

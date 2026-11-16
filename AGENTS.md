@@ -69,7 +69,7 @@ Each kind of knowledge has one home. Look there first; write there only.
   - Before the push, run the test suite one time under the host's build environment variables. A build that fails safe also fails silently.
   - Before the push, record the previous commit hash for rollback.
   - A release is finished only when a marker unique to the new version shows on the live site. A push that returns is not a finished release.
-  - No deployment doc exists yet. When Vercel is connected, write the exact commands into `doc/wiki/setup.md` and refer to them here.
+  - The commands are in [doc/wiki/setup.md](doc/wiki/setup.md), section "Deploy".
 
 ## Writing
 
@@ -77,7 +77,9 @@ Write docs and plans in ASD-STE100: short sentences, one instruction per sentenc
 
 ## Project facts
 
-- Test command: none yet. No application code exists. Set this line when the app is scaffolded.
+- Test command: `npm test`. It runs the unit tests and the database tests. The database tests need `initdb` on the PATH. Also run `npm run typecheck`, `npx eslint .`, and `npm run build`.
+- Commands and first setup: [doc/wiki/setup.md](doc/wiki/setup.md). Reasons for the structure: [doc/wiki/architecture.md](doc/wiki/architecture.md).
+- Stock changes go through the database functions in `supabase/migrations/`. Do not add a direct table write for stock.
 - Cornerstock is a stock and inventory app for Bowlers Corner, a bowling supply shop at Sta. Lucia East Mall, Philippines. The name is confirmed. Do not restart naming work.
 - Main function, set by the human: seamless recording of bowling ball stock, a live stock view for the whole store, and intake by a scan of the ball box label. Give this priority over other scope. Label fields: [doc/study/1794811730_ball_box_label.md](doc/study/1794811730_ball_box_label.md).
 - The brand direction and the tech stack are recommendations, not confirmed decisions. See [doc/wiki/spec.md](doc/wiki/spec.md) for the confirmed and proposed lists.

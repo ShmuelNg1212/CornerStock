@@ -1,6 +1,6 @@
 # Cornerstock spec
 
-Source: the brand kit handoff in [../study/1794811328_brand_kit_handoff.md](../study/1794811328_brand_kit_handoff.md). No application code exists yet. This page separates confirmed facts from proposals. Move an item to "Confirmed" only after the human approves it.
+Source: the brand kit handoff in [../study/1794811328_brand_kit_handoff.md](../study/1794811328_brand_kit_handoff.md). This page separates confirmed facts from proposals. Move an item to "Confirmed" only after the human approves it.
 
 ## Confirmed
 
@@ -16,6 +16,18 @@ Source: the brand kit handoff in [../study/1794811328_brand_kit_handoff.md](../s
 - Each location has its own stock. A selector switches between locations.
 - A ball leaves stock by its serial number.
 - First version: see [../plan/1794812081_ball_stock_first_version.md](../plan/1794812081_ball_stock_first_version.md) for the approved decisions.
+
+## Built (not yet used with a real Supabase project)
+
+- Staff sign in with an email and a password. The owner makes the accounts.
+- Scan: a photo of the box label, then a confirm screen, then a save into the selected location. Staff can also type the details.
+- A known UPC fills the model details from the catalog.
+- A serial number that is already recorded is refused. The message links to the existing ball.
+- Stock view: models with a count for each weight, for one location or all locations. Search finds a model or a serial number.
+- Ball page: details, label photo, history. Staff mark a ball as sold or move it to another location.
+- Owner only: put a sold ball back in stock, correct the details, remove a ball, set a selling price, manage locations and staff accounts. Each of the first three needs a reason.
+- Label reading uses a Claude vision model on the server.
+- Colors: actions use `#B94A25`, a darker variant of signal orange, because white text on `#D45A32` has a contrast of 4.0. Secondary text uses `#5A6369`.
 
 ## Proposed, not confirmed
 
@@ -62,10 +74,8 @@ Source: the brand kit handoff in [../study/1794811328_brand_kit_handoff.md](../s
 
 ## Open questions
 
-- Which method reads the printed label text: on-device text recognition or a server vision model?
-
 - What is the existing checkout workflow? Is there a checkout system to integrate?
-- What are the exact permissions for owner, manager, and staff?
+- Is a manager role necessary, and with which permissions?
 - What is the source for the first stock import?
 - Must operations continue during internet outages? Offline stock changes need a synchronization and conflict design.
 - Domain and trademark availability for "Cornerstock" are not established. Other retail uses of the name exist.

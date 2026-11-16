@@ -39,23 +39,35 @@ Agent decisions that follow from decision 5:
 - Supply an API key for the vision model.
 - Create a Vercel project when the first deploy is wanted. A GitHub remote is necessary for this.
 
+## Status
+
+Updated after the first execute session.
+
+- T1, T2, T3, T4, T6, T7: complete. Their tests pass.
+- T5: the code and a test exist. The test needs an API key. It has not run.
+- T8, D2, D3, D4, D5: the code exists. No check was possible, because no Supabase project exists.
+- D1: not started. The screens use the brand tokens. The contrast check is in `src/app/globals.css`.
+- R1: not started.
+- Blocked on the human steps in [../wiki/setup.md](../wiki/setup.md): the Supabase project and the API key.
+- Added during execute: an account that signs up by itself gets no access.
+
 ## Tasks
 
 ### Technical
 
-- [ ] **T1. Scaffold the app.** `tests: alongside`
+- [x] **T1. Scaffold the app.** `tests: alongside`
   - Acceptance: a Next.js App Router app with TypeScript, Tailwind, and shadcn/ui builds. A test runner is installed. The brand colors and fonts are theme tokens.
   - Complete when: the build and one sample test pass, and AGENTS.md has the test command.
 
-- [ ] **T2. Database schema.** `tests: first`
+- [x] **T2. Database schema.** `tests: first`
   - Acceptance: tables exist for ball models (UPC is unique; model fields from the label), locations, balls (serial number is unique; location, gross weight, top weight, pin distance, boxed date, status, label photo), and stock movements (ball, type, actor, timestamp, reason, reference). Stock movements cannot be edited or deleted.
   - Complete when: the migration applies to a clean database and the schema tests pass.
 
-- [ ] **T3. Sign-in and permissions.** `tests: first`
+- [x] **T3. Sign-in and permissions.** `tests: first`
   - Acceptance: staff sign in with an account that the owner creates. Row-level security permits only signed-in staff to read stock. Only the owner can correct or remove records. No privileged key is in client code.
   - Complete when: tests show that a signed-out request and a staff request for an owner action are both refused.
 
-- [ ] **T4. Label field rules.** `tests: first`
+- [x] **T4. Label field rules.** `tests: first`
   - Acceptance: pure functions validate the UPC check digit and parse gross weight ("15 LBS 4 OZ"), pin distance ("3-3.5"), top weight, and the boxed date. Bad input gives a clear error for that field.
   - Complete when: the tests pass, with the sample label values as one case.
 
@@ -63,11 +75,11 @@ Agent decisions that follow from decision 5:
   - Acceptance: a server endpoint accepts a label photo from a signed-in staff member and returns the fields in the study's field map. Each field that the model cannot read is empty, not guessed. The API key stays on the server.
   - Complete when: the endpoint returns the correct values for the sample label photo.
 
-- [ ] **T6. Save a ball.** `tests: first`
+- [x] **T6. Save a ball.** `tests: first`
   - Acceptance: one database function creates the ball, creates the model if the UPC is new, and writes the movement, in one transaction. A second save of the same serial number is refused with a message that names the existing ball. A repeated submission does not create a second ball.
   - Complete when: tests for the duplicate serial and the repeated submission pass.
 
-- [ ] **T7. Remove a ball from stock.** `tests: first`
+- [x] **T7. Remove a ball from stock.** `tests: first`
   - Acceptance: staff mark a ball as sold. The owner can reverse this or adjust a record with a reason. Each change writes a movement. Two staff cannot sell the same ball. Staff can move a ball to another location.
   - Complete when: tests for the reversal and the concurrent sale pass.
 

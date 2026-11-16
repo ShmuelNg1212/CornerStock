@@ -5,11 +5,19 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
+  --color-gold: var(--gold);
+  --color-action: var(--action);
+  --color-action-foreground: var(--action-foreground);
+  --color-ok: var(--ok);
+  --color-ok-surface: var(--ok-surface);
+  --color-warn: var(--warn);
+  --color-warn-surface: var(--warn-surface);
+  --color-danger-surface: var(--danger-surface);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-sans);
-  --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-sans);
+  --font-sans: var(--font-inter);
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-heading: var(--font-space-grotesk);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -48,83 +56,72 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/* Cornerstock brand tokens. Mostly ivory and navy; orange and gold are selective.
+   Contrast (WCAG): navy on ivory 13.3, muted on ivory 5.5, white on action 5.2.
+   The brand orange #D45A32 gives only 4.0 with white text, so actions use the darker variant. */
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
-}
+  --ink: #172a3a;
+  --ivory: #f6f3ec;
+  --gold: #d7a55b;
+  --action: #b94a25;
+  --action-foreground: #ffffff;
+  --ok: #1f6b3a;
+  --ok-surface: #e3efe3;
+  --warn: #7a5200;
+  --warn-surface: #f7ebcb;
+  --danger-surface: #f6e1dc;
 
-.dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --background: var(--ivory);
+  --foreground: var(--ink);
+  --card: #ffffff;
+  --card-foreground: var(--ink);
+  --popover: #ffffff;
+  --popover-foreground: var(--ink);
+  --primary: var(--ink);
+  --primary-foreground: #ffffff;
+  --secondary: #ece7dc;
+  --secondary-foreground: var(--ink);
+  --muted: #ece7dc;
+  --muted-foreground: #5a6369;
+  --accent: #ece7dc;
+  --accent-foreground: var(--ink);
+  --destructive: #8a2a1a;
+  --border: #e0d9ca;
+  --input: #c9c1b0;
+  --ring: var(--ink);
+  --radius: 0.625rem;
 }
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
-  body {
-    @apply bg-background text-foreground;
-  }
   html {
-    @apply font-sans;
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
   }
+  body {
+    @apply bg-background text-foreground font-sans;
+    overscroll-behavior-y: none;
+  }
+  h1, h2, h3 {
+    font-family: var(--font-heading);
+    letter-spacing: -0.01em;
+  }
+  /* Taps respond at once, and a long press on a control does not select its text. */
+  a, button, summary, label, select {
+    touch-action: manipulation;
+  }
+  button, summary {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  /* iOS zooms the page when a focused field has text smaller than 16px. */
+  input, select, textarea {
+    font-size: 16px;
+  }
+}
+
+@utility tabular {
+  font-variant-numeric: tabular-nums;
 }

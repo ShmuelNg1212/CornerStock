@@ -16,6 +16,7 @@ let secondStaff: string;
 let inactive: string;
 let mall: string;
 let warehouse: string;
+let addUser: (name: string, addedByOwner?: boolean) => Promise<string>;
 
 async function connect(): Promise<Client> {
   const client = new Client({ connectionString: url });
@@ -86,12 +87,12 @@ beforeAll(async () => {
     await admin.query(readFileSync(path.join(dir, file), "utf8"));
   }
 
-  const addUser = async (name: string) =>
+  addUser = async (name: string, addedByOwner = true) =>
     (
-      await admin.query("insert into auth.users (email, raw_user_meta_data) values ($1, $2) returning id", [
-        `${name}@example.test`,
-        JSON.stringify({ full_name: name }),
-      ])
+      await admin.query(
+        "insert into auth.users (email, raw_user_meta_data, raw_app_meta_data) values ($1, $2, $3) returning id",
+        [`${name}@example.test`, JSON.stringify({ full_name: name }), JSON.stringify(addedByOwner ? { added_by_owner: true } : {})],
+      )
     ).rows[0].id as string;
   owner = await addUser("Owner");
   staff = await addUser("Staff");
@@ -114,6 +115,14 @@ describe("accounts", () => {
     expect(role(owner)).toBe("owner");
     expect(role(staff)).toBe("staff");
     expect(role(secondStaff)).toBe("staff");
+  });
+
+  it("gives no access to an account that the owner did not add", async () => {
+    const stranger = await addUser("Stranger", false);
+    const profile = (await admin.query("select role, active from public.profiles where id = $1", [stranger])).rows[0];
+    expect(profile).toEqual({ role: "staff", active: false });
+    expect((await as(stranger, (c) => c.query("select * from public.balls"))).rows).toHaveLength(0);
+    await expect(receive(stranger)).rejects.toThrow(/NOT_AUTHORIZED/);
   });
 
   it("refuses to remove the last active owner", async () => {
