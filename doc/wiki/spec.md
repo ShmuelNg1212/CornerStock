@@ -24,7 +24,7 @@ Source: the brand kit handoff in [../study/1794811328_brand_kit_handoff.md](../s
   - Type: Space Grotesk for headings and brand. Inter for interface and data. Tabular numerals for quantities and prices.
   - Stock statuses show a label and an icon, not color alone.
   - Voice: short, direct, helpful. Examples: "Receive stock", "3 pairs remaining", "Low stock".
-  - Motion is functional and quick. It shows a state change. Under the reduced-motion setting, nothing moves.
+  - Motion has character. Each motion has a cause: a navigation, a state change, or a touch. Under the reduced-motion setting, nothing moves ([../adr/0002-motion-with-character.md](../adr/0002-motion-with-character.md)).
   - Light theme only.
 
 ## Built
