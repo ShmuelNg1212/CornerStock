@@ -10,6 +10,9 @@ Source: the brand kit handoff in [../study/1794811328_brand_kit_handoff.md](../s
 - Main function: make the recording of bowling ball stock seamless.
 - The whole store sees a live view of the current ball stock.
 - The app scans a ball box label, extracts all the details, and adds the ball to the store stock. See [../study/1794811730_ball_box_label.md](../study/1794811730_ball_box_label.md) for the sample label and its fields.
+- The live view is for staff only. There is no customer view.
+- All ball box labels that the shop receives have a serial number and a UPC.
+- The app is an inventory management system only. It records the per-ball values (top weight, pin distance). It has no function for customers to select a ball.
 
 ## Proposed, not confirmed
 
@@ -56,8 +59,6 @@ Source: the brand kit handoff in [../study/1794811328_brand_kit_handoff.md](../s
 
 ## Open questions
 
-- Who sees the live view: staff only, or customers also?
-- Do all stocked ball makers print a serial number and a UPC on the box?
 - Which method reads the printed label text: on-device text recognition or a server vision model?
 
 - What is the existing checkout workflow? Is there a checkout system to integrate?
