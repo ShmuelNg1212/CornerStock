@@ -125,6 +125,10 @@
   }
   html {
     scrollbar-color: var(--input) transparent;
+    /* The root color is the color of the status bar area. iOS home-screen apps tint the area behind
+       the clock with it. Ivory gave a white haze over the navy top bar. The page itself stays ivory. */
+    background-color: var(--rail);
+    overscroll-behavior-y: none;
   }
   body {
     @apply bg-background text-foreground font-sans;

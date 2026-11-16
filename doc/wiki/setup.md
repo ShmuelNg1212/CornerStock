@@ -17,6 +17,16 @@
 
 The database tests start a temporary Postgres server. They need `initdb` and `pg_ctl` on the PATH (`brew install postgresql@17`). They do not need Docker or a Supabase project.
 
+## Home-screen startup images
+
+iOS shows a startup image while the home-screen app opens. It needs one image for each screen size. The images are in `public/startup/`, and the list is in `src/lib/startup-images.json`. Android makes its own startup screen from the manifest color (`src/app/manifest.ts`) and the icon.
+
+To make the images again, for example after a brand change or for a new iPhone size:
+
+1. Add the screen size to `DEVICES` in `scripts/make-startup-images.mjs`, if needed.
+2. Run `CHROME="<path to Chrome>" npx -y -p playwright-core node scripts/make-startup-images.mjs` from the project folder. If Node cannot find `playwright-core`, copy the script into a folder where it is installed, and run it from the project folder. The script needs the network for the fonts.
+3. Commit `public/startup/` and `src/lib/startup-images.json`.
+
 ## First setup (human steps)
 
 Do these steps one time.
