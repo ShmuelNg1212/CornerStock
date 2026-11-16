@@ -25,7 +25,7 @@ Closed on 2026-11-16. The human answered: 1 A (`syd1`), 2 yes (`getClaims()`), 3
 - Complete when: the header check passes on production.
 - Done in code. The header check runs after the push.
 
-### [ ] 2. Check the session locally (`tests: alongside`)
+### [x] 2. Check the session locally (`tests: alongside`)
 
 - In `src/proxy.ts` and `requireStaff()`: use `supabase.auth.getClaims()`. Use `claims.sub` as the user id.
 - Keep the `profiles` read in `requireStaff()`.

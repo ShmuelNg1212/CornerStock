@@ -21,16 +21,18 @@ export async function proxy(request: NextRequest) {
     },
   });
 
-  const { data } = await supabase.auth.getUser();
+  // getClaims checks the token signature locally with the cached project key. It refreshes an expired session.
+  const { data } = await supabase.auth.getClaims();
+  const signedIn = Boolean(data?.claims.sub);
   const path = request.nextUrl.pathname;
 
-  if (!data.user && path !== "/login") {
+  if (!signedIn && path !== "/login") {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     url.search = "";
     return NextResponse.redirect(url);
   }
-  if (data.user && path === "/login") {
+  if (signedIn && path === "/login") {
     const url = request.nextUrl.clone();
     url.pathname = "/";
     return NextResponse.redirect(url);

@@ -8,13 +8,15 @@ import type { Location, Profile } from "@/lib/types";
 /** The signed-in staff member. Sends other visitors to the sign-in page. */
 export const requireStaff = cache(async (): Promise<Profile> => {
   const supabase = await createClient();
-  const { data: auth } = await supabase.auth.getUser();
-  if (!auth.user) redirect("/login");
+  // A local check of the token signature. The profile read below is the live check of access.
+  const { data: auth } = await supabase.auth.getClaims();
+  const userId = auth?.claims.sub;
+  if (!userId) redirect("/login");
   // Row-level security shows no profile to an inactive account.
   const { data: profile } = await supabase
     .from("profiles")
     .select("id, full_name, role, active")
-    .eq("id", auth.user.id)
+    .eq("id", userId)
     .maybeSingle<Profile>();
   if (!profile) redirect("/login?error=inactive");
   return profile;
