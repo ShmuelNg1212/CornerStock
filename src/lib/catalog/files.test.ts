@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import ExcelJS from "exceljs";
+import JSZip from "jszip";
 import { exportCatalog, mapSheet, readWorkbook, template } from "./files";
 import { CATALOG_FIELDS, STOCK_FIELDS } from "./fields";
 import type { BallModel } from "@/lib/types";
@@ -90,5 +91,43 @@ describe("catalog file import", () => {
     const expanded = new ExcelJS.Workbook();
     expanded.addWorksheet("Stock").getCell("A1").value = "x".repeat(9 * 1024 * 1024);
     await expect(readWorkbook(new Uint8Array(await expanded.xlsx.writeBuffer()), "stock.xlsx")).rejects.toThrow("expands");
+  });
+
+  it("rejects merged cells and oversized worksheet metadata before expanding them", async () => {
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet("Stock");
+    sheet.addRow(["upc"]);
+    const source = await workbook.xlsx.writeBuffer();
+    const merged = await JSZip.loadAsync(source);
+    merged.file("xl/worksheets/sheet1.xml", (await merged.file("xl/worksheets/sheet1.xml")!.async("string"))
+      .replace("</worksheet>", '<mergeCells count="1"><mergeCell ref="A1:BM1"/></mergeCells></worksheet>'));
+    await expect(readWorkbook(await merged.generateAsync({ type: "uint8array" }), "stock.xlsx")).rejects.toThrow("Merged cells");
+    for (const metadata of [
+      '<dimension ref="A1:XFD1048576"/>',
+      '<cols><col min="1" max="16384" width="12"/></cols>',
+      '<sheetData><row r="1" spans="1:16384"><c r="A1" t="inlineStr"><is><t>upc</t></is></c></row></sheetData>',
+    ]) {
+      const zip = await JSZip.loadAsync(source);
+      const xml = await zip.file("xl/worksheets/sheet1.xml")!.async("string");
+      zip.file("xl/worksheets/sheet1.xml", xml.replace(/<dimension[^>]*\/>/, "").replace(/<sheetData>[\s\S]*?<\/sheetData>/, "")
+        .replace("</worksheet>", `${metadata}</worksheet>`));
+      await expect(readWorkbook(await zip.generateAsync({ type: "uint8array" }), "stock.xlsx")).rejects.toThrow(/64 columns|1,000 data rows/);
+    }
+  });
+
+  it("stops CSV parsing at the row limit before processing a malformed tail", async () => {
+    const content = 'upc\n' + '001234567895\n'.repeat(1001) + '"' + 'bad'.repeat(1000);
+    await expect(readWorkbook(bytes(content), "stock.csv")).rejects.toThrow("1,000");
+  });
+
+  it("includes blank and clear instructions in downloadable templates without adding import rows", async () => {
+    const csv = new TextDecoder().decode(await template("catalog", "csv"));
+    expect(csv).toContain("# Cornerstock: Blank cells keep existing values. Use __CLEAR__ to clear an optional value.");
+    const { sheets } = await readWorkbook(bytes(csv + '001234567895,Test,15,,,,,,,,,,,\r\n'), "catalog.csv");
+    expect(sheets[0].rows[0].row).toBe(3);
+    const xlsx = new ExcelJS.Workbook();
+    await xlsx.xlsx.load(await template("stock", "xlsx") as unknown as Parameters<typeof xlsx.xlsx.load>[0]);
+    const note = xlsx.worksheets[0].getCell("A1").note;
+    expect(typeof note === "string" ? note : JSON.stringify(note)).toContain("__CLEAR__");
   });
 });

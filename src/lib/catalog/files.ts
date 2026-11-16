@@ -7,26 +7,38 @@ import type { BallModel } from "@/lib/types";
 import { CATALOG_FIELDS, STOCK_FIELDS, type ColumnMapping, type FileCell, type FileError, type FileFormat, type ImportKind, type ImportRow, type ImportSheet } from "./fields";
 export * from "./fields";
 
+const CSV_INSTRUCTIONS = "# Cornerstock: Blank cells keep existing values. Use __CLEAR__ to clear an optional value.";
+class FileLimitError extends Error {}
+
 export async function readWorkbook(bytes: Uint8Array, filename: string): Promise<{ sheets: ImportSheet[] }> {
   if (bytes.byteLength > 5 * 1024 * 1024) throw new Error("Files must be 5 MB or smaller. Split this file and try again.");
   if (filename.toLowerCase().endsWith(".xlsx")) return readExcel(bytes);
   if (!filename.toLowerCase().endsWith(".csv")) throw new Error("Select a CSV or .xlsx file.");
   let previousEnd = 0;
-  let records: { record: string[]; row: number }[];
+  let previousComments = 0;
+  const records: { record: string[]; row: number }[] = [];
   try {
-    const entries = parse(bytes, {
-      bom: true, raw: true, info: true, relax_column_count: true, max_record_size: 64 * 1024,
-    }) as unknown as { record: string[]; info: { lines: number } }[];
-    records = entries.map((entry) => {
-      const row = previousEnd + 1;
-      previousEnd = entry.info.lines;
-      return { record: entry.record, row };
+    parse(bytes, {
+      bom: true, info: true, relax_column_count: true, max_record_size: 64 * 1024,
+      comment: CSV_INSTRUCTIONS, comment_no_infix: true,
+      on_record: (value) => {
+        const entry = value as unknown as { record: string[]; info: { lines: number; comment_lines: number } };
+        const row = previousEnd + 1 + entry.info.comment_lines - previousComments;
+        previousEnd = entry.info.lines;
+        previousComments = entry.info.comment_lines;
+        if (!entry.record.some((cell) => cell.trim() !== "")) return null;
+        if (records.length >= 1001) throw new FileLimitError("Use at most 1,000 data rows per file. Split this file and try again.");
+        if (entry.record.length > 64) throw new FileLimitError("Use at most 64 columns per file.");
+        if (records.length && entry.record.length !== records[0].record.length) throw new Error("COLUMN_COUNT");
+        records.push({ record: entry.record, row });
+        // Do not retain a second array of parsed records or raw source text.
+        return null;
+      },
     });
-  } catch {
+  } catch (error) {
+    if (error instanceof FileLimitError) throw error;
     throw new Error("This CSV could not be read. Check quoted values and the number of columns.");
   }
-  records = records.filter(({ record }) => record.some((cell) => cell.trim() !== ""));
-  if (records.length > 1001) throw new Error("Use at most 1,000 data rows per file. Split this file and try again.");
   if (!records.length) throw new Error("This file is empty. Add a header row first.");
   if (records[0].record.length > 64) throw new Error("Use at most 64 columns per file.");
   if (records.some(({ record }) => record.length !== records[0].record.length)) throw new Error("Each CSV row must have the same number of columns as the header.");
@@ -85,7 +97,22 @@ async function checkZip(bytes: Uint8Array): Promise<void> {
           xml?.on("opentag", (tag) => {
             const name = tag.name.split(":").pop();
             const address = String(tag.attributes.r ?? "");
-            if (name === "row" && (!/^\d+$/.test(address) || Number(address) > 1001)) throw new Error("Use at most 1,000 data rows per worksheet. Split this file and try again.");
+            if (name === "mergeCell") throw new Error("Merged cells are not supported. Unmerge cells before importing.");
+            if (name === "col") {
+              for (const bound of [tag.attributes.min, tag.attributes.max]) {
+                if (!/^[1-9]\d*$/.test(String(bound)) || Number(bound) > 64) throw new Error("Use at most 64 columns per worksheet.");
+              }
+            }
+            if (name === "row") {
+              if (!/^[1-9]\d*$/.test(address) || Number(address) > 1001) throw new Error("Use at most 1,000 data rows per worksheet. Split this file and try again.");
+              if (tag.attributes.spans && !/^[1-9]\d*:[1-9]\d*$/.test(String(tag.attributes.spans))) throw new Error("Use at most 64 columns per worksheet.");
+              for (const span of String(tag.attributes.spans ?? "1:1").split(":")) {
+                if (Number(span) > 64) throw new Error("Use at most 64 columns per worksheet.");
+              }
+            }
+            for (const attribute of ["ref", "sqref"]) {
+              if (tag.attributes[attribute]) checkRange(String(tag.attributes[attribute]));
+            }
             if (name === "c") {
               const match = address.match(/^([A-Z]+)(\d+)$/);
               if (!match || Number(match[2]) > 1001) throw new Error("Use at most 1,000 data rows per worksheet. Split this file and try again.");
@@ -150,14 +177,23 @@ async function readExcel(bytes: Uint8Array): Promise<{ sheets: ImportSheet[] }> 
   return { sheets };
 }
 
+function checkRange(range: string) {
+  for (const cell of range.split(/[\s:]+/)) {
+    const match = cell.match(/^\$?([A-Z]+)\$?([1-9]\d*)$/);
+    if (!match || Number(match[2]) > 1001) throw new Error("Use at most 1,000 data rows per worksheet. Split this file and try again.");
+    const column = [...match[1]].reduce((total, letter) => total * 26 + letter.charCodeAt(0) - 64, 0);
+    if (column > 64) throw new Error("Use at most 64 columns per worksheet.");
+  }
+}
+
 function csvUnsafe(value: string) {
   return /^[\s]*[=+\-@]/.test(value) || /^[\t\r\n']/.test(value);
 }
 
-async function writeFile(headers: readonly string[], rows: (string | number | null)[][], format: FileFormat): Promise<Uint8Array> {
+async function writeFile(headers: readonly string[], rows: (string | number | null)[][], format: FileFormat, instructions = false): Promise<Uint8Array> {
   if (format === "csv") {
     const quote = (value: string) => `"${value.replaceAll('"', '""')}"`;
-    const content = [headers.map(quote).join(","), ...rows.map((row) => row.map((value, index) => {
+    const content = [headers.map(quote).join(","), ...(instructions ? [CSV_INSTRUCTIONS] : []), ...rows.map((row) => row.map((value, index) => {
       let text = value === null ? "" : String(value);
       if (typeof value === "string" && (headers[index] === "upc" || headers[index] === "serial" || csvUnsafe(text))) text = `'${text}`;
       return quote(text);
@@ -170,6 +206,7 @@ async function writeFile(headers: readonly string[], rows: (string | number | nu
   for (const row of rows) sheet.addRow(row);
   sheet.views = [{ state: "frozen", ySplit: 1 }];
   sheet.getRow(1).font = { bold: true };
+  if (instructions) sheet.getRow(1).eachCell((cell) => { cell.note = "Blank cells keep existing values. Use __CLEAR__ to clear an optional value. Enter UPC and serial numbers as text."; });
   sheet.autoFilter = { from: { row: 1, column: 1 }, to: { row: Math.max(1, rows.length + 1), column: headers.length } };
   sheet.columns.forEach((column, index) => {
     column.width = headers[index] === "model_name" ? 32 : 20;
@@ -183,5 +220,5 @@ export async function exportCatalog(models: BallModel[], format: FileFormat): Pr
 }
 
 export async function template(kind: ImportKind, format: FileFormat): Promise<Uint8Array> {
-  return writeFile(kind === "catalog" ? CATALOG_FIELDS : STOCK_FIELDS, [], format);
+  return writeFile(kind === "catalog" ? CATALOG_FIELDS : STOCK_FIELDS, [], format, true);
 }
