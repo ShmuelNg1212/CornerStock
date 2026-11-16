@@ -11,7 +11,7 @@ export const metadata: Metadata = {
   description: "Bowling ball stock for Bowlers Corner.",
   appleWebApp: { capable: true, title: "Cornerstock", statusBarStyle: "black-translucent" },
   robots: { index: false, follow: false },
-  other: { "cornerstock-release": "2026-11-16-find-first-1" },
+  other: { "cornerstock-release": "2026-11-16-fast-1" },
 };
 
 export const viewport: Viewport = {
