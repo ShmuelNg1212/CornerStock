@@ -42,6 +42,11 @@ describe("classifyBarcodes", () => {
     });
   });
 
+  it("takes one code below the UPC that starts with letters as the product code", () => {
+    // Photo 8: the serial barcode has glare. Only the UPC and the product code read.
+    expect(classifyBarcodes([upc, code])).toEqual({ upc: "887970617601", serial: null, product_code: "BBMVSL15L" });
+  });
+
   it("makes the serial number upper case and ignores text that cannot be a serial number", () => {
     expect(classifyBarcodes([{ format: "Code128", text: "ab12cd34", y: 1 }]).serial).toBe("AB12CD34");
     expect(classifyBarcodes([{ format: "QRCode", text: "https://example.com/a?b=1", y: 1 }]).serial).toBeNull();

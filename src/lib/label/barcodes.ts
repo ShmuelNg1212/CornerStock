@@ -10,13 +10,26 @@ export const READER_OPTIONS: ReaderOptions = {
   maxNumberOfSymbols: 8,
 };
 
-/** One barcode in the photo. `y` is the distance from the top of the photo. */
+/** One barcode in the photo. `y` is the distance from the top of the label, not of the photo. */
 export type FoundBarcode = { format: string; text: string; y: number };
 export type LabelBarcodes = { upc: string | null; serial: string | null; product_code: string | null };
 
 export function toFound(results: ReadResult[]): FoundBarcode[] {
-  return results.filter((r) => r.isValid).map((r) => ({ format: r.format, text: r.text, y: r.position.topLeft.y }));
+  return results
+    .filter((r) => r.isValid)
+    .map((r) => {
+      const { topLeft, topRight, bottomLeft, bottomRight } = r.position;
+      const x = (topLeft.x + topRight.x + bottomLeft.x + bottomRight.x) / 4;
+      const y = (topLeft.y + topRight.y + bottomLeft.y + bottomRight.y) / 4;
+      // The orientation is the turn of the barcode, clockwise. The label turns with it.
+      // Measure along the label's own top-to-bottom line, so an upside-down label keeps its order.
+      const turn = (r.orientation * Math.PI) / 180;
+      return { format: r.format, text: r.text, y: y * Math.cos(turn) - x * Math.sin(turn) };
+    });
 }
+
+/** A product code on the labels starts with letters (BBMVSL15L). A serial number starts with the year (23VSLE30B047). */
+const startsWithLetter = (text: string) => /^[A-Z]/.test(text);
 
 const UPC_FORMATS = ["UPCA", "UPC-A", "EAN13", "EAN-13"];
 
@@ -46,6 +59,10 @@ export function classifyBarcodes(found: FoundBarcode[]): LabelBarcodes {
   }
   others.sort((a, b) => a.y - b.y);
 
+  if (upc !== null && others.length === 1 && others[0].y >= upcY && startsWithLetter(others[0].text)) {
+    // One code below the UPC, with the form of a product code: the serial barcode did not read.
+    return { upc, serial: null, product_code: others[0].text };
+  }
   if (upc === null || others.length < 2) {
     // With no UPC for reference, or only one other code, the upper code is the serial number.
     return { upc, serial: others[0]?.text ?? null, product_code: others[1]?.text ?? null };
