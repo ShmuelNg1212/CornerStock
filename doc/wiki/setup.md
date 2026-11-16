@@ -57,7 +57,7 @@ The GitHub remote is `https://github.com/ShmuelNg1212/CornerStock`. Production i
 
 The first release was verified on 2026-11-16. Deployment `dpl_8kpxM8UBzNUZb2XphkAW9csZwbxY` serves commit `d8027ef`.
 
-The current release was verified on 2026-11-16. Deployment `dpl_A5bzUwDUg1jPq8FJPeSCo2HQ87Kd` serves commit `f086c00` (navigation and motion: floating tab bar, summary tiles, filter pills, swipe back, `motion` library). The release marker is `2026-11-16-lane-1`. The functions run in `syd1`. Rollback commit: `d001291`. The checks after the push: the marker showed after approximately 50 s, and a signed-out visit to `/` and `/account` goes to `/login`. A real scan on a phone was not checked by the agent.
+The current release was verified on 2026-11-17. Commit `92d4265` (fix: no sign-in loop for an account with no access). The release marker is `2026-11-17-no-access-1`. Rollback commit: `f086c00`. The checks after the push: the marker showed after approximately 40 s. A signed-out visit to `/` goes to `/login`. A browser probe on the live site signed in with a temporary account with no access, and with an account that was deactivated while signed in. Both stayed on the sign-in page with the no-access message and no session. The temporary accounts were deleted.
 
 1. Push the repository to GitHub. Import it in Vercel.
 2. Add the environment variables above in Vercel, for Production.
