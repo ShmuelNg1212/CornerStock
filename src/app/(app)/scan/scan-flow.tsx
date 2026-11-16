@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { lookupLabel, receiveBall } from "@/app/actions";
 import { buttonClass, Field, inputClass } from "@/components/ui/field";
 import { readLabelPhoto } from "@/lib/label/read-photo";
-import { LABEL_FIELDS, validateLabel, type LabelErrors, type LabelField, type RawLabel } from "@/lib/label/rules";
+import { LABEL_FIELDS, parseGrossWeight, validateLabel, type LabelErrors, type LabelField, type RawLabel } from "@/lib/label/rules";
 import { createClient } from "@/lib/supabase/client";
 import type { Location } from "@/lib/types";
 
@@ -74,12 +74,14 @@ export function ScanFlow({ locations, defaultLocationId }: { locations: Location
   // connection, sends the same id, and the database then adds the ball one time only.
   const requestId = useRef("");
   const fileInput = useRef<HTMLInputElement>(null);
+  const weightGuess = useRef("");
   const firstError = useRef<HTMLDivElement>(null);
 
   useEffect(() => () => void (preview && URL.revokeObjectURL(preview)), [preview]);
 
   function begin(next: Step) {
     requestId.current = crypto.randomUUID();
+    weightGuess.current = "";
     setErrors({});
     setMessage(null);
     setExistingBallId(null);
@@ -267,7 +269,18 @@ export function ScanFlow({ locations, defaultLocationId }: { locations: Location
       <input
         value={fields[field] ?? ""}
         onChange={(event) => {
-          setFields({ ...fields, [field]: event.target.value });
+          const next = { ...fields, [field]: event.target.value };
+          // The ball weight is the pounds part of the gross weight on most labels. Fill it in
+          // while it is empty or still the value that this rule put there. Staff can change it.
+          if (field === "gross_weight") {
+            const gross = parseGrossWeight(event.target.value);
+            const guess = gross.ok ? String(Math.floor(gross.value / 16)) : "";
+            if (!fields.nominal_weight_lb || fields.nominal_weight_lb === weightGuess.current) {
+              next.nominal_weight_lb = guess;
+              weightGuess.current = guess;
+            }
+          }
+          setFields(next);
           if (errors[field]) setErrors({ ...errors, [field]: undefined });
           if (field === "serial") setExistingBallId(null);
         }}
