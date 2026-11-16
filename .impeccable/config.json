@@ -1,0 +1,38 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "overused-font",
+        "value": "space grotesk",
+        "createdAt": "2026-11-16T08:04:45.744Z",
+        "reason": "user confirmed: brand kit (palette, Space Grotesk, Inter) kept on 2026-11-16, see PRODUCT.md Brand Commitments"
+      },
+      {
+        "rule": "overused-font",
+        "value": "inter",
+        "createdAt": "2026-11-16T08:04:45.765Z",
+        "reason": "user confirmed: brand kit (palette, Space Grotesk, Inter) kept on 2026-11-16, see PRODUCT.md Brand Commitments"
+      },
+      {
+        "rule": "cream-palette",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/*.html"
+        ],
+        "createdAt": "2026-11-16T08:04:56.268Z",
+        "reason": "user confirmed: warm ivory #F6F3EC is the brand ground, kept on 2026-11-16, see PRODUCT.md Brand Commitments"
+      },
+      {
+        "rule": "cream-palette",
+        "value": "*",
+        "files": [
+          "src/app/globals.css"
+        ],
+        "createdAt": "2026-11-16T08:04:56.287Z",
+        "reason": "user confirmed: warm ivory #F6F3EC is the brand ground, kept on 2026-11-16, see PRODUCT.md Brand Commitments"
+      }
+    ]
+  }
+}

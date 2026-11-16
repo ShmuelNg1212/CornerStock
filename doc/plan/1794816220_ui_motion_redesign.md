@@ -51,6 +51,7 @@ Skills: `/impeccable typeset`, `/impeccable layout`.
 - `globals.css`: add the motion tokens (durations 120, 200, 320 ms; one ease-out curve; a faster exit), a type scale with fixed rem steps, and the gold "changed" mark colors. Add the reduced-motion rules one time, here.
 - Primitives in `src/components/ui/`: button (action, primary, quiet; pending and done states), input, search field, weight chip, status badge, row, card, skeleton, sheet, toast host.
 - Each primitive has default, hover, focus, active, disabled, and loading or error where it applies.
+- The sketch shows the selected row and the changed row with a thick colored stripe on the left edge. Do not build that stripe. Show "selected" with a full navy outline and "changed" with a gold tint and a gold dot with a label. Give the search field and each bordered container 12px or more of inner space.
 - Preview route with fixture data, if question 1 is A.
 
 Acceptance: each primitive shows all its states on the preview route at 390, 820, and 1440px. Contrast is 4.5:1 or more for text. Controls are 48px high or more on touch layouts.
