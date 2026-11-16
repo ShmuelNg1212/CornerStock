@@ -25,6 +25,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={`${inter.variable} ${spaceGrotesk.variable} h-full antialiased`}>
       <body className="min-h-dvh">
+        {/* A navy band behind the clock and battery, also on screens with no top bar, such as sign-in. */}
+        <div aria-hidden="true" className="pointer-events-none fixed inset-x-0 top-0 z-50 h-[env(safe-area-inset-top)] bg-rail" />
         {children}
         <Toaster
           position="top-center"
