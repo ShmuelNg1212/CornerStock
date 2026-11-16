@@ -57,7 +57,7 @@ The GitHub remote is `https://github.com/ShmuelNg1212/CornerStock`. Production i
 
 The first release was verified on 2026-11-16. Deployment `dpl_8kpxM8UBzNUZb2XphkAW9csZwbxY` serves commit `d8027ef`.
 
-The current release was verified on 2026-11-16. Deployment `dpl_BFurVkmtESJduCTJ5Lwtbos76fhP` serves commit `bdf8346` (adds `favicon.ico`, which the Vercel dashboard uses as the project icon). The release marker is `2026-11-16-icon-1`. The functions run in `syd1`. Rollback commit: `c4301de`. The checks after the push: the marker, and `/favicon.ico` returns an icon.
+The current release was verified on 2026-11-16. Deployment `dpl_Gp6QuHH7u5JQa7XQ3FnRkYdzsE3K` serves commit `d001291` (adds the `apple-mobile-web-app-capable` tag; Next.js writes only `mobile-web-app-capable`, and iOS needs the Apple tag for the status bar style and the startup images). The release marker is `2026-11-16-apple-1`. The functions run in `syd1`. Rollback commit: `bdf8346`. The checks after the push: the marker, the Apple tag, the status bar style tag, and 31 startup image links. A home-screen app reads these tags only when it is added: remove it and add it again after a change.
 
 1. Push the repository to GitHub. Import it in Vercel.
 2. Add the environment variables above in Vercel, for Production.
