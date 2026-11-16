@@ -43,7 +43,9 @@ Never put a secret in a `NEXT_PUBLIC_` variable.
 
 ## Deploy
 
-The GitHub remote is `https://github.com/ShmuelNg1212/CornerStock`. The first Vercel deployment is in progress.
+The GitHub remote is `https://github.com/ShmuelNg1212/CornerStock`. Production is https://cornerstock.vercel.app. The Vercel project is `cornerstock` in `shmuelng8310-5097s-projects`.
+
+The first release was verified on 2026-11-16. Deployment `dpl_8kpxM8UBzNUZb2XphkAW9csZwbxY` serves commit `d8027ef`. Production permits public access to the app's sign-in page. Vercel protects preview deployments.
 
 1. Push the repository to GitHub. Import it in Vercel.
 2. Add the environment variables above in Vercel, for Production.

@@ -219,3 +219,16 @@ The human requested publication to `ShmuelNg1212/CornerStock`. This approves shi
 The stale dev server stopped. The clean production build passed. All 100 tests passed with the configured Supabase environment. The release marker is `2026-11-16-find-first-1` in page metadata. Verify this marker on the live sign-in page before calling the release complete.
 
 The Vercel connection needs a team access grant. The consent link was presented to the human. Publication remains in progress. Safari, real-phone motion, and real stock-write checks remain unverified.
+
+### First production release verified on 2026-11-16
+
+- Published commit: `d8027ef4621219ed5bc81fb0924091daf4631ca6`.
+- Deployment: `dpl_8kpxM8UBzNUZb2XphkAW9csZwbxY`. Vercel reports Ready.
+- Production URL: https://cornerstock.vercel.app.
+- The human approved public access to production. Preview deployments remain protected by Vercel.
+- The live `/login` response is 200 and contains release marker `2026-11-16-find-first-1` and the sign-in form.
+- Signed-out requests to `/` and `/preview` redirect to `/login`. Neither response contains fixture stock data.
+- The first deployment used incorrect environment variable names. The successful deployment uses the required `NEXT_PUBLIC_` names. The server secret remains private.
+- No earlier production release exists for rollback. Use the verified deployment above as the rollback target for the next release.
+
+Publication is complete. Safari, real-phone motion, and live stock-write checks remain unverified. Do not treat publication as completion of these redesign checks.
