@@ -4,8 +4,9 @@ import { Camera, ChevronLeft, LayoutList, Settings, UserRound } from "lucide-rea
 import { AnimatePresence, m } from "motion/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { BallGlyph } from "@/components/stock/ball-glyph";
+import { backTarget } from "@/lib/back-target";
 import { BALLS_SAVED } from "@/lib/events";
 import { spring } from "@/lib/motion";
 
@@ -16,6 +17,8 @@ export function Nav({ owner, variant, base = "" }: { owner: boolean; variant: "r
   const path = usePathname().slice(base.length) || "/";
   const detail = path.startsWith("/models") || path.startsWith("/balls");
   const stock = path === "/" || detail;
+  // A ball screen goes back to its model; a model screen goes back to the list.
+  const back = useSyncExternalStore(backTarget.subscribe, backTarget.get, () => null);
 
   if (variant === "rail") {
     const items = [
@@ -63,7 +66,7 @@ export function Nav({ owner, variant, base = "" }: { owner: boolean; variant: "r
         <li className="flex justify-center">
           {/* In a detail screen, the Stock item becomes Back. It stays at the thumb. */}
           <TabLink
-            href={`${base}/`}
+            href={detail && back ? back : `${base}/`}
             label={detail ? "Back" : "Stock"}
             current={stock}
             transitionTypes={detail ? BACK : undefined}

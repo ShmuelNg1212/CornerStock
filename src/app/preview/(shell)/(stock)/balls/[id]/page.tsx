@@ -9,7 +9,7 @@ export default async function PreviewBall({ params }: { params: Promise<{ id: st
   const all = ballsOf(model.id);
   const ball = { ...(all.find((b) => b.id === id) ?? all[0]), ...(id === "b9" ? { status: "sold" as const } : {}) };
   return (
-    <DetailTransition>
+    <DetailTransition back={`/preview/models/${model.id}`}>
       <BallView
         base="/preview"
         ball={ball}

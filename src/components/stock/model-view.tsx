@@ -7,6 +7,7 @@ import { ModelDetailsEditor } from "./model-details-editor";
 
 const BACK = ["nav-back"];
 const FORWARD = ["nav-forward"];
+const SWITCH = ["weight-switch"];
 
 /** The values of one ball in a short line, or a clear text when none are recorded. */
 function ballValues(ball: Ball): string {
@@ -22,8 +23,11 @@ export function ModelView({
   locationNames,
   priceForm,
   editable = false,
+  weights,
   base = "",
 }: {
+  /** Each weight of this model with its count. A tap changes the weight in place. */
+  weights?: { modelId: string; weight: number; count: number }[];
   model: BallModel;
   balls: Ball[];
   place: string;
@@ -73,10 +77,44 @@ export function ModelView({
       <p className="text-muted-foreground lg:mt-0">{model.brand ?? "No brand recorded"}</p>
       <h1 className="text-2xl leading-tight font-bold break-words lg:text-[1.75rem]">{model.name}</h1>
       <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1">
-        <span className="font-heading tabular rounded-md bg-gold px-2.5 py-1 text-sm font-bold text-foreground">{Number(model.nominal_weight_lb)} LB</span>
+        {/* On a phone, the weight chip of the list becomes this tag. */}
+        <span
+          style={{ "--vt-name": `weight-${model.id}` } as React.CSSProperties}
+          className="vt-weight font-heading tabular rounded-lg bg-gold px-2.5 py-1 text-sm font-bold text-foreground [view-transition-class:weight-tag]"
+        >
+          {Number(model.nominal_weight_lb)} LB
+        </span>
         <span className="tabular font-heading text-lg font-semibold">{price(model.selling_price)}</span>
       </div>
       {priceForm}
+
+      {weights && weights.length > 1 && (
+        <nav aria-label="Other weights of this model" className="mt-5">
+          <ul className="flex flex-wrap gap-1.5">
+            {weights.map((entry) => {
+              const current = entry.modelId === model.id;
+              return (
+                <li key={entry.modelId}>
+                  <Link
+                    href={`${base}/models/${entry.modelId}`}
+                    transitionTypes={SWITCH}
+                    replace
+                    aria-current={current ? "page" : undefined}
+                    aria-label={`${entry.weight} pounds, ${entry.count} in stock`}
+                    className="tabular flex h-12 min-w-15 flex-col items-center justify-center rounded-xl bg-card px-2.5 leading-tight shadow-(--shadow-card) outline-none transition-[background-color,transform] duration-(--dur-fast) hover:bg-secondary focus-visible:ring-3 focus-visible:ring-ring/40 active:scale-[0.94] aria-[current=page]:bg-primary aria-[current=page]:text-primary-foreground"
+                  >
+                    <span className="font-heading text-base font-bold">
+                      {entry.weight}
+                      <span className="ml-0.5 text-xs font-medium">lb</span>
+                    </span>
+                    <span className="text-xs font-medium opacity-75">×{entry.count}</span>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
+      )}
 
       <section className="mt-7" aria-labelledby="balls-heading">
         <h2 id="balls-heading" className="text-lg font-semibold">

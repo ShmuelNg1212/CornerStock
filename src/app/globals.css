@@ -282,6 +282,15 @@
   }
 }
 
+/* Another weight of the same model: the screen changes in place with a short fade and lift. */
+::view-transition-old(.weight-switch) {
+  animation: var(--dur-exit) ease-in both vt-fade reverse;
+}
+::view-transition-new(.weight-switch) {
+  --slide-offset: 0px;
+  animation: var(--dur) var(--ease-snap) both vt-fade;
+}
+
 /* A skeleton gives way to the content. */
 ::view-transition-old(.reveal) {
   animation: var(--dur-exit) ease-in both vt-fade reverse;

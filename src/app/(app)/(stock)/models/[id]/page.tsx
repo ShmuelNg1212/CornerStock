@@ -26,11 +26,27 @@ export default async function ModelPage({ params }: { params: Promise<{ id: stri
   ]);
   if (!model) notFound();
 
+  // The other weights of the same model, for the weight switcher.
+  let siblings = supabase.from("ball_models").select("id, nominal_weight_lb").eq("name", model.name);
+  siblings = model.brand === null ? siblings.is("brand", null) : siblings.eq("brand", model.brand);
+  const { data: weightModels } = await siblings;
+  const weightIds = ((weightModels ?? []) as Pick<BallModel, "id" | "nominal_weight_lb">[]).map((m) => m.id);
+  let countQuery = supabase.from("stock_counts").select("model_id, in_stock").in("model_id", weightIds);
+  if (selected !== ALL_LOCATIONS) countQuery = countQuery.eq("location_id", selected);
+  const { data: weightCounts } = await countQuery;
+  const countOf = (modelId: string) =>
+    ((weightCounts ?? []) as { model_id: string; in_stock: number }[]).filter((row) => row.model_id === modelId).reduce((sum, row) => sum + row.in_stock, 0);
+  const weights = ((weightModels ?? []) as Pick<BallModel, "id" | "nominal_weight_lb">[])
+    .map((m) => ({ modelId: m.id, weight: Number(m.nominal_weight_lb), count: countOf(m.id) }))
+    .filter((w) => w.count > 0 || w.modelId === model.id)
+    .sort((a, b) => b.weight - a.weight);
+
   const all = selected === ALL_LOCATIONS;
   return (
-    <DetailTransition>
+    <DetailTransition back={"/"}>
       <ModelView
         model={model}
+        weights={weights}
         balls={balls}
         place={all ? "all locations" : (locations.find((l) => l.id === selected)?.name ?? "")}
         locationNames={all ? Object.fromEntries(locations.map((l) => [l.id, l.name])) : undefined}
