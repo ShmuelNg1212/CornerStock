@@ -1,10 +1,8 @@
 "use client";
 
-import { animate, m, useMotionValue, useReducedMotion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { backTarget } from "@/lib/back-target";
-import { spring } from "@/lib/motion";
 
 const EDGE = 28;
 const BACK = ["nav-back"];
@@ -16,8 +14,7 @@ const BACK = ["nav-back"];
  */
 export function SwipeBack({ href, children }: { href: string; children: React.ReactNode }) {
   const router = useRouter();
-  const reduced = useReducedMotion();
-  const x = useMotionValue(0);
+  const box = useRef<HTMLDivElement>(null);
   const [enabled, setEnabled] = useState(false);
   const gesture = useRef<{ id: number; x: number; y: number; t: number; locked: boolean } | null>(null);
 
@@ -38,14 +35,21 @@ export function SwipeBack({ href, children }: { href: string; children: React.Re
     return () => phone.removeEventListener("change", update);
   }, []);
 
-  const settle = () => {
-    if (reduced) x.set(0);
-    else animate(x, 0, spring.sheet);
+  // The finger moves the screen directly. A short swipe returns it with a short ease, or at once under reduced motion.
+  const move = (dx: number) => {
+    if (box.current) box.current.style.transform = dx ? `translateX(${dx}px)` : "";
+  };
+  const settle = (from: number) => {
+    const element = box.current;
+    move(0);
+    if (!element || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    element.animate([{ transform: `translateX(${from}px)` }, { transform: "translateX(0)" }], { duration: 260, easing: "cubic-bezier(0.16, 1, 0.3, 1)" });
   };
 
   return (
-    <m.div
-      style={{ x, touchAction: enabled ? "pan-y" : undefined }}
+    <div
+      ref={box}
+      style={{ touchAction: enabled ? "pan-y" : undefined }}
       onPointerDown={(event) => {
         if (!enabled || event.pointerType !== "touch" || event.clientX > EDGE) return;
         gesture.current = { id: event.pointerId, x: event.clientX, y: event.clientY, t: event.timeStamp, locked: false };
@@ -64,7 +68,7 @@ export function SwipeBack({ href, children }: { href: string; children: React.Re
           g.locked = true;
           event.currentTarget.setPointerCapture(event.pointerId);
         }
-        x.set(Math.max(0, dx));
+        move(Math.max(0, dx));
       }}
       onPointerUp={(event) => {
         const g = gesture.current;
@@ -73,14 +77,15 @@ export function SwipeBack({ href, children }: { href: string; children: React.Re
         const dx = event.clientX - g.x;
         const speed = dx / Math.max(1, event.timeStamp - g.t);
         if (dx > window.innerWidth * 0.35 || speed > 0.6) router.push(href, { transitionTypes: BACK });
-        else settle();
+        else settle(Math.max(0, dx));
       }}
-      onPointerCancel={() => {
-        if (gesture.current?.locked) settle();
+      onPointerCancel={(event) => {
+        const g = gesture.current;
         gesture.current = null;
+        if (g?.locked) settle(Math.max(0, event.clientX - g.x));
       }}
     >
       {children}
-    </m.div>
+    </div>
   );
 }
