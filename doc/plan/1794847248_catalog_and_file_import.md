@@ -1,12 +1,11 @@
 # Plan: catalog and file import
 
-Date: 2026-11-17. Status: awaiting plan approval. Mode: mixed.
+Date: 2026-11-17. Status: approved by the human on 2026-11-17. Mode: mixed.
 Study: [catalog and file import](../study/1794847172_catalog_and_file_import.md).
 
 ## OPEN QUESTIONS
 
-Approve this plan before implementation.
-The product questions below are closed.
+None. The human approved the complete plan on 2026-11-17.
 
 ## Confirmed decisions
 
@@ -130,7 +129,7 @@ Keep the plan as the only active task list.
 
 ## Tasks
 
-- [ ] **T1. File contract and validation.** `tests: first`
+- [x] **T1. File contract and validation.** `tests: first`
   Skills: `tdd`, `codebase-design`.
   Build a file module for parsing, column mapping, validation, and export.
   Reuse label validators. Add model creation and price validation as needed.
@@ -139,7 +138,7 @@ Keep the plan as the only active task list.
   duplicate serials, conflicting UPC rows, and limits have defined results.
   Completion: tests cross the module's public interface and pass.
 
-- [ ] **T2. Catalog writes and transactional imports.** `tests: first`
+- [x] **T2. Catalog writes and transactional imports.** `tests: first`
   Skills: `tdd`, `supabase`.
   Add migrations for owner catalog creation and batch commits.
   Keep existing stock function checks and movement rules.
@@ -156,7 +155,7 @@ Keep the plan as the only active task list.
   Completion: clean migration, permission, rollback, replay, and concurrency
   database tests pass.
 
-- [ ] **T3. Server reads, review, commit, and downloads.** `tests: first`
+- [x] **T3. Server reads, review, commit, and downloads.** `tests: first`
   Skills: `tdd`, `supabase`, `codebase-design`.
   Add authenticated catalog queries and owner actions for create and import.
   Generate the review from server data and recheck it on commit.
@@ -213,5 +212,10 @@ Keep the plan as the only active task list.
 
 ## Checks record
 
-Pending execution. This turn changed documentation only.
-No application tests or code review are required for these planning files.
+Execution in progress.
+
+- T1: nine file tests pass.
+- T2: 49 database tests pass, including 14 import tests.
+- T3: 18 review tests and seven confirmation, pagination, and action tests pass.
+- Unit suite: 173 tests pass.
+- No remote schema changes or deployment have occurred.
