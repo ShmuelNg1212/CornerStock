@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, Space_Grotesk } from "next/font/google";
 import { Toaster } from "sonner";
+import { MotionProvider } from "@/components/motion-provider";
 import startupImages from "@/lib/startup-images.json";
 import "./globals.css";
 
@@ -34,7 +35,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="min-h-dvh">
         {/* A navy band behind the clock and battery, also on screens with no top bar, such as sign-in. */}
         <div aria-hidden="true" className="pointer-events-none fixed inset-x-0 top-0 z-50 h-[env(safe-area-inset-top)] bg-rail" />
-        {children}
+        <MotionProvider>{children}</MotionProvider>
         <Toaster
           position="top-center"
           offset={{ top: "calc(env(safe-area-inset-top) + 0.75rem)" }}
