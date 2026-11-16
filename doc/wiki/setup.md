@@ -57,7 +57,7 @@ The GitHub remote is `https://github.com/ShmuelNg1212/CornerStock`. Production i
 
 The first release was verified on 2026-11-16. Deployment `dpl_8kpxM8UBzNUZb2XphkAW9csZwbxY` serves commit `d8027ef`.
 
-The current release was verified on 2026-11-16. Deployment `dpl_9oBn99BL7ChBsrZx8SieTUUwz8so` serves commit `59878d7`. The release marker is `2026-11-16-fast-1`. The functions run in `syd1`. Rollback commit: `d8027ef`. Production permits public access to the app's sign-in page. Vercel protects preview deployments.
+The current release was verified on 2026-11-16. Deployment `dpl_2vHuGEuVdxGqTioxy1fEC59vfJTf` serves commit `c4301de` (live viewfinder, navy status bar area, startup images). The release marker is `2026-11-16-scan-1`. The functions run in `syd1`. Rollback commit: `59878d7`. The checks after the push: the marker, 31 startup image links on the sign-in page, a startup image file, the navy manifest color, the barcode reader file, and the sign-in redirect of `/scan`. Production permits public access to the app's sign-in page. Vercel protects preview deployments.
 
 1. Push the repository to GitHub. Import it in Vercel.
 2. Add the environment variables above in Vercel, for Production.
