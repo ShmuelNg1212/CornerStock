@@ -1,11 +1,13 @@
 # Plan: faster page changes and actions
 
-Status: waiting for approval. Mode: technical. Branch: `perf/latency`.
+Status: approved on 2026-11-16, in execution. Mode: technical. Branch: `perf/latency`.
 Study: [../study/1794836712_slow_navigation.md](../study/1794836712_slow_navigation.md).
 
 Skills: none of the design skills. `code-review` at rendezvous.
 
 ## OPEN QUESTIONS
+
+Closed on 2026-11-16. The human answered: 1 A (`syd1`), 2 yes (`getClaims()`), 3 the human tests on production after the push.
 
 1. **Function region.** The functions run in Washington, DC. The database is in Sydney.
    - A (recommended): run the functions in `syd1` (Sydney), next to the database. Each database call then takes a few milliseconds. The user in Manila has one longer trip to Sydney for each request, not five.
@@ -15,12 +17,13 @@ Skills: none of the design skills. `code-review` at rendezvous.
 
 ## Tasks
 
-### [ ] 1. Run the functions next to the database (`tests: alongside`)
+### [x] 1. Run the functions next to the database (`tests: alongside`)
 
 - Add `vercel.json` with `"regions": ["syd1"]`.
 - Record the region and the reason in `doc/wiki/architecture.md`.
 - Acceptance: after the deploy, `x-vercel-id` on `/login` ends with a `syd1` function id (`…::syd1::…`).
 - Complete when: the header check passes on production.
+- Done in code. The header check runs after the push.
 
 ### [ ] 2. Check the session locally (`tests: alongside`)
 

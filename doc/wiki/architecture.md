@@ -40,6 +40,12 @@ This page gives the reasons for the structure. Read the code for the structure i
 
 - Each ball has one location. The location selector is a cookie. It filters the stock view and sets the location of a new ball.
 
+## Region
+
+- The Supabase database is in AWS `ap-southeast-2` (Sydney). The Vercel functions run in `syd1` (Sydney), set in `vercel.json`.
+- A page makes several database calls. Each call then stays inside one region. The user has one longer trip to Sydney for each request.
+- A move of the database to another region must also move the function region.
+
 ## Live view
 
 - The app listens for changes to the stock tables and then reloads the page data from the server. The server query stays the one source of the view.
