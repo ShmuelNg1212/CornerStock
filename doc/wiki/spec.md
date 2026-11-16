@@ -23,6 +23,7 @@ Source: the brand kit handoff in [../study/1794811328_brand_kit_handoff.md](../s
 - Scan: a photo of the box label. The app reads the barcodes for the UPC and the serial number. No AI service is used. Then a confirm screen, then a save into the selected location.
 - Staff type the per-ball values (gross weight, top weight, pin distance, boxed date). The human selected this for now. These fields are optional.
 - For a new UPC, staff type the model details one time. Staff can also type all the details with no photo.
+- Batch scan: staff add several label photos, one photo for each label. The app reads them one at a time. A photo with a known UPC and a new serial number is ready. Staff save all ready balls with one tap, into one location. The batch does not record weights or pin distance. Staff add them later on the ball page. A photo with a new UPC, a missing barcode, or a recorded serial number opens the normal confirm screen.
 - A known UPC fills the model details from the catalog.
 - A serial number that is already recorded is refused. The message links to the existing ball.
 - Stock view: models with a count for each weight, for one location or all locations. Search finds a model or a serial number.
