@@ -50,7 +50,11 @@ This page gives the reasons for the structure. Read the code for the structure i
 
 - The app listens for changes to the stock tables and then reloads the page data from the server. The server query stays the one source of the view.
 - The stock list is in a shared layout. It stays mounted when a detail route changes, so the search context remains visible on large screens.
-- React view transitions and CSS show navigation and count changes. No motion library is needed. Reduced motion disables movement.
+- Two motion tools have separate jobs (ADR 0002). React view transitions animate route changes and the weight chip that becomes the weight tag. The `motion` library animates what must keep its place while React changes the list: cards that move during a search, the sliding indicators, sheets with a drag, and rolling digits.
+- Each animated element has one owner: a view transition or `motion`, never both.
+- `motion` loads with `LazyMotion`. Its layout and drag features load after the first paint. The swipe back uses plain transforms and the browser's animation API, not `motion`.
+- `MotionConfig reducedMotion="user"` and one CSS rule stop movement under the reduced-motion setting.
+- The weight chip and the weight tag share a view transition name only below 1024px. Large screens show both at the same time, and a name must be unique.
 
 ## Known limits
 

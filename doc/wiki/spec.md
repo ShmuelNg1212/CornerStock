@@ -40,10 +40,18 @@ Source: the brand kit handoff in [../study/1794811328_brand_kit_handoff.md](../s
 - A known UPC fills the model details from the catalog.
 - Owner only: edit the model details after the first save, on the model page. The UPC and the ball weight identify the model and do not change. A scan of a known UPC does not change the catalog details. Use this edit to correct them.
 - A serial number that is already recorded is refused. The message links to the existing ball.
-- Stock view: models with a count for each weight, for one location or all locations. Search finds a model or a serial number.
-- Model search filters during typing. Serial search starts after a 200 ms pause. The address keeps the query.
-- At 1024px and wider, the stock list stays beside the detail pane. Smaller screens show a top bar, bottom tabs, and one screen at a time.
-- Ball actions open in a modal sheet on smaller screens. They open inline on larger screens.
+- Stock view: a greeting, four summary tiles, the search, the filter pills, and one card for each model with a count for each weight. It shows one location or all locations. Search finds a model or a serial number.
+- Summary tiles: balls in stock, models, balls received today, and balls sold today. "Today" starts at midnight in Manila time. A reversed sale removes a sale only when that ball was sold earlier the same day.
+- Model search filters during typing. Serial search starts after a 200 ms pause.
+- Filter pills: "All", each weight in stock with its ball count, and "Brand", which opens a sheet. The address keeps the query, the weight, and the brand (`?q=`, `?w=`, `?b=`).
+- Large screens: the `/` key goes to the search. `Esc` clears the search.
+- At 1024px and wider, the stock list stays beside the detail pane. The selected model card is navy.
+- Smaller screens: a small top bar with the initials, a floating tab bar, and one screen at a time. The tab bar has Stock, a large Scan button in the center, and Settings (owner) or Account (staff). On a detail screen, Stock becomes Back. Back from a ball opens its model.
+- Smaller screens: a swipe from the left edge goes back on a detail screen. Safari in the browser has its own swipe, so the app does not add one there.
+- The location: a chip on the stock screen opens a sheet with the locations. The rail on large screens keeps its selector. The Account screen also has the locations and sign-out. The owner sees the same panel at the top of Settings.
+- The model screen shows the other weights of the model that are in stock. A tap changes the weight in place.
+- Ball actions open in a modal sheet on smaller screens. A drag down on the handle closes it. They open inline on larger screens. Escape closes both, except while an action runs.
+- After a scan saves a ball, the Stock item of the tab bar shows "+1" for 2 seconds.
 - App links and sign-out warn before discarding unsaved label photos. Browser Back is not covered by this guard.
 - Ball page: details, label photo, history. Staff mark a ball as sold or move it to another location.
 - Owner only: put a sold ball back in stock, correct the details, remove a ball, set a selling price, manage locations and staff accounts. Each of the first three needs a reason.
