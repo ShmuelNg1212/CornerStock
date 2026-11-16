@@ -5,12 +5,19 @@ import { buttonClass } from "@/components/ui/field";
 import { Notice } from "@/components/ui/notice";
 import type { Saved } from "./scan-types";
 
+const CAMERA_MESSAGES = {
+  denied: "The live camera is off for this site. Allow the camera in the browser settings, or take a photo.",
+  unsupported: "This browser cannot show the live camera. Take a photo of the label.",
+  failed: "The camera did not start. Close other apps that use the camera, or take a photo.",
+} as const;
+
 const corner = "pointer-events-none absolute size-7 border-primary transition-transform duration-(--dur) ease-out";
 
 /** The first screen of a scan. The camera action is the main element. */
 export function ScanStart({
   saved,
   batchAdded,
+  cameraProblem = null,
   onTakePhoto,
   onType,
   onBatch,
@@ -18,6 +25,8 @@ export function ScanStart({
 }: {
   saved: Saved | null;
   batchAdded: number;
+  /** Set when the live camera cannot run. The button then opens the phone camera app. */
+  cameraProblem?: "unsupported" | "denied" | "failed" | null;
   onTakePhoto: () => void;
   onType: () => void;
   onBatch: () => void;
@@ -26,6 +35,12 @@ export function ScanStart({
   return (
     <div className="mx-auto max-w-xl lg:mx-0">
       <h1 className="text-2xl font-bold">Scan label</h1>
+
+      {cameraProblem && (
+        <Notice tone="error" className="mt-4">
+          {CAMERA_MESSAGES[cameraProblem]}
+        </Notice>
+      )}
 
       {batchAdded > 0 && (
         <Notice tone="ok" className="mt-4 font-semibold">
@@ -75,9 +90,11 @@ export function ScanStart({
         <span className="grid size-18 place-items-center rounded-full bg-action text-action-foreground">
           <Camera className="size-8" aria-hidden="true" />
         </span>
-        <span className="font-heading mt-5 text-xl font-semibold">{saved ? "Scan the next label" : "Take a photo of the label"}</span>
+        <span className="font-heading mt-5 text-xl font-semibold">{cameraProblem ? (saved ? "Scan the next label" : "Take a photo of the label") : saved ? "Scan the next label" : "Open the camera"}</span>
         <span className="mt-1.5 max-w-xs text-muted-foreground">
-          The white label on the ball box. Hold the phone straight and fill the frame, so the barcodes are sharp.
+          {cameraProblem
+            ? "The white label on the ball box. Hold the phone straight and fill the frame, so the barcodes are sharp."
+            : "Point the camera at the white label on the ball box. The app takes the photo when the barcodes read."}
         </span>
       </button>
 
