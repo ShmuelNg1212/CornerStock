@@ -5,8 +5,9 @@ import { signIn } from "@/app/actions";
 import { buttonClass, Field, inputClass } from "@/components/ui/field";
 import { Notice } from "@/components/ui/notice";
 
-export function LoginForm() {
-  const [error, action, pending] = useActionState(signIn, null);
+export function LoginForm({ notice = null }: { notice?: string | null }) {
+  // The notice shows until the first sign-in attempt replaces it.
+  const [error, action, pending] = useActionState(signIn, notice);
   return (
     <form action={action} className="space-y-4">
       <Field label="Email">

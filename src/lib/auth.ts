@@ -2,6 +2,7 @@ import "server-only";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { cache } from "react";
+import { NO_ACCESS } from "@/lib/auth-route";
 import { createClient } from "@/lib/supabase/server";
 import type { Location, Profile } from "@/lib/types";
 
@@ -18,7 +19,8 @@ export const requireStaff = cache(async (): Promise<Profile> => {
     .select("id, full_name, role, active")
     .eq("id", userId)
     .maybeSingle<Profile>();
-  if (!profile) redirect("/login?error=inactive");
+  // The proxy signs out this session on the sign-in page. See authRoute.
+  if (!profile) redirect(`/login?error=${NO_ACCESS}`);
   return profile;
 });
 

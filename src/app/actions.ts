@@ -5,6 +5,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { ALL_LOCATIONS, LOCATION_COOKIE, requireOwner, requireStaff } from "@/lib/auth";
+import { NO_ACCESS_MESSAGE } from "@/lib/auth-route";
 import { stockErrorMessage } from "@/lib/errors";
 import {
   parseBoxedDate,
@@ -38,8 +39,14 @@ export async function signIn(_: string | null, form: FormData): Promise<string |
   const password = String(form.get("password") ?? "");
   if (!email || !password) return "Write your email and password.";
   const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) return "The email or password is not correct.";
+  // Row-level security shows no profile to an inactive account. Refuse here, before the app redirects.
+  const { data: profile } = await supabase.from("profiles").select("id").eq("id", data.user.id).maybeSingle();
+  if (!profile) {
+    await supabase.auth.signOut({ scope: "local" });
+    return NO_ACCESS_MESSAGE;
+  }
   redirect("/");
 }
 
