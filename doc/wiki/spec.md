@@ -30,10 +30,13 @@ Source: the brand kit handoff in [../study/1794811328_brand_kit_handoff.md](../s
 ## Built
 
 - Staff sign in with an email and a password. The owner makes the accounts.
-- Scan: a photo of the box label. The app reads the barcodes for the UPC and the serial number. No AI service is used. Then a confirm screen, then a save into the selected location.
+- Scan: the live camera opens at once. The app reads the barcodes in the browser, about 5 frames each second, in a Web Worker. It takes the photo when the same UPC and serial number read in 2 frames in a row. No AI service is used. Then a confirm screen, then a save into the selected location. After a save, the camera opens again and skips the serial number that was just saved.
+- Live camera hints: point at the label, hold still, glare (tilt the box, or turn off the torch), move closer, hold the phone still, line up the phone with the label, already added. Two marks show if the serial and the UPC read.
+- Live camera controls: close, shutter (takes the photo now), torch (only where the browser supports it), "Take a photo instead" (the phone camera app). The camera stops when the page is hidden or the camera closes.
+- When the camera permission is refused or the browser has no live camera, the scan uses the phone camera app, with a message.
 - Staff type the per-ball values (gross weight, top weight, pin distance, boxed date). The human selected this for now. These fields are optional.
 - For a new UPC, staff type the model details one time. Staff can also type all the details with no photo.
-- Batch scan: staff add several label photos, one photo for each label. The app reads them one at a time. A photo with a known UPC and a new serial number is ready. Staff save all ready balls with one tap, into one location. The batch does not record weights or pin distance. Staff add them later on the ball page. A photo with a new UPC, a missing barcode, or a recorded serial number opens the normal confirm screen.
+- Batch scan: the live camera stays open. Each new serial number adds one photo. The same serial number again adds nothing. Staff can also add photos from the gallery, one photo for each label. The app reads them one at a time. A photo with a known UPC and a new serial number is ready. Staff save all ready balls with one tap, into one location. The batch does not record weights or pin distance. Staff add them later on the ball page. A photo with a new UPC, a missing barcode, or a recorded serial number opens the normal confirm screen.
 - A known UPC fills the model details from the catalog.
 - Owner only: edit the model details after the first save, on the model page. The UPC and the ball weight identify the model and do not change. A scan of a known UPC does not change the catalog details. Use this edit to correct them.
 - A serial number that is already recorded is refused. The message links to the existing ball.
