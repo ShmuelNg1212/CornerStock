@@ -72,7 +72,7 @@ The GitHub remote is `https://github.com/ShmuelNg1212/CornerStock`. Production i
 
 The first release was verified on 2026-11-16. Deployment `dpl_8kpxM8UBzNUZb2XphkAW9csZwbxY` serves commit `d8027ef`.
 
-The current release was pushed on 2026-11-17. Commit `281eb87` (sell from a scan of a recorded serial number). The release marker is `2026-11-17-sell-on-scan-1`. Rollback commit: `db2e58e`. The release has no database change. Before the push, the agent ran `npm test` and `npm run build` with the production values. The checks after the push: the marker showed after approximately 40 s. A signed-out visit to `/scan` goes to `/login`. The agent did not sign in on the live site. The signed-in flow was verified on staging with the same code.
+The current release was pushed on 2026-11-17. Commit `c615fda` (scan reliability: faster reads, a capture rule across frames, a 1440p stream, a `?debug=1` panel). The release marker is `2026-11-17-scan-reliability-1`. Rollback commit: `281eb87`. The release has no database change. Before the push, the agent ran `npm test` and `npm run build` with the production values. The checks after the push: the marker showed after approximately 50 s. A signed-out visit to `/scan` goes to `/login`. The agent did not sign in on the live site. The scan was verified with a fake camera on the local preview. The real phone check is task 8 of the plan.
 
 1. Push the repository to GitHub. Import it in Vercel.
 2. Add the environment variables above in Vercel, for Production.
