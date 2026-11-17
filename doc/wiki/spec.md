@@ -31,7 +31,8 @@ Source: the brand kit handoff in [../study/1794811328_brand_kit_handoff.md](../s
 
 - Staff sign in with an email and a password. The owner makes the accounts.
 - An account with no access (inactive, or no profile) cannot sign in. The sign-in page shows "This account does not have access. Ask the owner." When the owner deactivates a signed-in account, its next page load signs it out and shows the same message.
-- Scan: the live camera opens at once. The app reads the barcodes in the browser, about 5 frames each second, in a Web Worker. It takes the photo when the same UPC and serial number read in 2 frames in a row. No AI service is used. Then a confirm screen, then a save into the selected location. After a save, the camera opens again and skips the serial number that was just saved.
+- Scan: the live camera opens at once. The app reads the barcodes in the browser, about 5 frames each second, in a Web Worker. It takes the photo when the same UPC and serial number read in 2 frames in a row. No AI service is used. Then a confirm screen, then a save into the selected location.
+- The serial number and the product code use the same barcode type. The scan sorts them by form first: a serial number starts with the 2-digit year (23VSLE30B047), a product code starts with letters (BBMVSL15L). A code with the product code form never becomes the serial number. The position on the label decides only between codes of the same form. These forms come from Storm-group labels. After a save, the camera opens again and skips the serial number that was just saved.
 - Live camera hints: point at the label, hold still, glare (tilt the box, or turn off the torch), move closer, hold the phone still, line up the phone with the label, already added. Two marks show if the serial and the UPC read.
 - Live camera controls: close, shutter (takes the photo now), torch (only where the browser supports it), "Take a photo instead" (the phone camera app). The camera stops when the page is hidden or the camera closes.
 - When the camera permission is refused or the browser has no live camera, the scan uses the phone camera app, with a message.
@@ -40,7 +41,7 @@ Source: the brand kit handoff in [../study/1794811328_brand_kit_handoff.md](../s
 - Batch scan: the live camera stays open. Each new serial number adds one photo. The same serial number again adds nothing. Staff can also add photos from the gallery, one photo for each label. The app reads them one at a time. A photo with a known UPC and a new serial number is ready. Staff save all ready balls with one tap, into one location. The batch does not record weights or pin distance. Staff add them later on the ball page. A photo with a new UPC, a missing barcode, or a recorded serial number opens the normal confirm screen.
 - A known UPC fills the model details from the catalog.
 - Owner only: edit the model details after the first save, on the model page. The UPC and the ball weight identify the model and do not change. A scan of a known UPC does not change the catalog details. Use this edit to correct them.
-- Catalog: all staff browse every model and weight, also with no stock. Search finds a model name, brand, UPC, or product code. Staff see read-only details.
+- Catalog: all staff browse every model and weight, also with no stock. Search finds a model name, brand, UPC, or product code, with the forgiving rules of the stock search. Staff see read-only details.
 - Owner only: add a model to the catalog before any ball arrives. The UPC, model name, and ball weight are required. An existing UPC is refused on its field. Adding a model receives no ball.
 - Owner only: export the complete catalog as CSV or Excel (`.xlsx`). Templates for both import types are on the import page.
 - Owner only: import a catalog file or a stock file (CSV or `.xlsx`, up to 5 MB and 1,000 data rows). The steps are File, Columns, Review, and Result. The rules are in [../adr/0003-catalog-and-stock-file-imports.md](../adr/0003-catalog-and-stock-file-imports.md).
@@ -49,13 +50,16 @@ Source: the brand kit handoff in [../study/1794811328_brand_kit_handoff.md](../s
 - The complete batch saves together, or nothing saves. If a record changes after the review, the save stops and asks for a new review.
 - The Catalog item is in the rail on large screens. On a phone, Stock and Account have a "Browse catalog" link, and the Stock tab stays current on catalog screens.
 - A serial number that is already recorded is refused. The message links to the existing ball.
+- A serial number that is a product code is refused: "This is the product code. Scan or type the serial number." The confirm screen, the server, and the database check it. The scan moves a read serial number that the catalog knows as a product code into the product code field.
 - Stock view: a greeting, four summary tiles, the search, the filter pills, and one card for each model with a count for each weight. It shows one location or all locations. Search finds a model or a serial number.
 - Summary tiles: balls in stock, models, balls received today, and balls sold today. "Today" starts at midnight in Manila time. A reversed sale removes a sale only when that ball was sold earlier the same day.
 - Model search filters during typing. Serial search starts after a 200 ms pause.
+- Model search forgives: it ignores case, accents, spaces, and punctuation ("hyroad" finds Hy-Road). `!` and `|` read as the letter i ("iq" finds !Q Tour). A word of 5 or more letters can have one typing error. A word with a digit (a UPC, a code) must match exactly.
 - Filter pills: "All", each weight in stock with its ball count, and "Brand", which opens a sheet. The address keeps the query, the weight, and the brand (`?q=`, `?w=`, `?b=`).
 - Large screens: the `/` key goes to the search. `Esc` clears the search.
 - At 1024px and wider, the stock list stays beside the detail pane. The selected model card is navy.
 - Smaller screens: a small top bar with the initials, a floating tab bar, and one screen at a time. The tab bar has Stock, a large Scan button in the center, and Settings (owner) or Account (staff). On a detail screen, Stock becomes Back. Back from a ball opens its model.
+- The home-screen app on iOS has a solid status bar above the page. A `black-translucent` bar gets a grey system blur on iOS 26.1 and later.
 - Smaller screens: a swipe from the left edge goes back on a detail screen. Safari in the browser has its own swipe, so the app does not add one there.
 - The location: a chip on the stock screen opens a sheet with the locations. The rail on large screens keeps its selector. The Account screen also has the locations and sign-out. The owner sees the same panel at the top of Settings.
 - The model screen shows the other weights of the model that are in stock. A tap changes the weight in place.

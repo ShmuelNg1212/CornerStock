@@ -74,4 +74,6 @@ This page gives the reasons for the structure. Read the code for the structure i
 - An import takes 1,000 data rows and 5 MB at most. A larger file must be split.
 - An `.xlsx` file whose rows or cells have no address cannot be read by the Excel reader. The app asks for a resave in Excel.
 - The UPC field accepts 12 digits (UPC-A) only. A label with only an EAN-13 code that does not start with 0 is not supported.
-- The reader takes the barcode above the UPC as the serial number. This order comes from one sample label.
+- The reader sorts the serial number and the product code by the form of the text, then by the position (serial above the UPC). The forms come from Storm-group labels. A maker whose serial numbers start with letters gets an empty serial field, and staff type it.
+- The database refuses a new or changed serial number that is equal to the product code of a model (trigger `balls_serial_not_product_code`). A product code that changes later is not checked against the balls.
+- The iOS status bar style is read when the app is added to the home screen. A change to it needs a new install.
