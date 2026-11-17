@@ -69,10 +69,23 @@ None. Answers from the human (2026-11-17):
 - Acceptance: `npm test` passes. A browser probe on the stock screen: "iq" shows the !Q Tour row.
 - Completion: probe recorded in this plan.
 
-## Rendezvous checks (to fill)
+## Rendezvous checks (2026-11-17)
 
-- [ ] `npm test`, `npm run typecheck`, `npx eslint .`, `npm run build`
-- [ ] Probe: stock search "iq" and "hyroad" behind sign-in, on staging
-- [ ] Probe: scan flow with photo 08 shows no serial and the product code warning
-- [ ] Probe: preview shell, owner to staff, third tab shows one icon
-- [ ] Human device check for task 1 after deploy and a fresh home-screen install
+- [x] `npm test`: 218 unit tests and 51 database tests pass. `npm run typecheck` and `npx eslint .` are clean. `npm run build` passes.
+- [x] Review: two read-only reviewers (standards, spec). Round 1 fixes (commit 6e3f979):
+  - The search gave one wrong digit to codes (a UPC with one wrong digit matched another UPC). Now a word with a digit must match exactly. Test added.
+  - A moved product code was erased when the catalog model had no product code. Fixed in `readLabel`.
+  - The read message and the field error now use the same text.
+- [x] Accepted, not changed:
+  - The database trigger checks the catalog, not the label's own product code when the model already exists. The server action refuses that case with `validateLabel`.
+  - An owner can change a model's product code to the serial of an existing ball. The trigger checks only ball writes. This is rare and owner-only.
+  - The compact search matches across word boundaries ("hyroad" needs this).
+- [x] Probe (staging, staff account, WebKit at 390 px, real scan flow), 10 of 10 pass:
+  - Photo 08 leaves the serial number empty, and the product code is BBMRTQ15L.
+  - A typed serial equal to the product code shows "This is the product code. Scan or type the serial number." No ball is written.
+  - A real serial saves. Photo 09 reads its serial number.
+  - The stock search finds "!Q Tour 78/U" for "iq" and "IQ TOUR", and "Hy-Road" for "hyroad" and "hy road". The old search fails all four.
+- [x] Probe (preview shell): see task 5.
+- [ ] Migration `20261117120000_serial_not_product_code.sql` on staging and production. The human runs it in the SQL Editor before the push.
+- [ ] Release marker: set at the push.
+- [ ] Human device check after deploy: a fresh home-screen install shows a solid status bar with no grey gradient, and the staff tab bar shows one icon.
