@@ -98,7 +98,10 @@ export function ScanConfirm({
       <div className="lg:sticky lg:top-7">
         <h1 className="text-2xl font-bold">Check the details</h1>
         <p className="mt-1 text-muted-foreground">
-          {knownModel ? "Type the weights and the pin distance from the label, then save." : "Type the details from the label, then save."}
+          {sells
+            ? "This ball is already in stock. Mark it as sold, or correct the serial number to add a new ball."
+            : knownModel
+              ? "Type the weights and the pin distance from the label, then save." : "Type the details from the label, then save."}
         </p>
 
         {preview && (
