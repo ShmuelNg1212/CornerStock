@@ -53,7 +53,21 @@ The live scan captures a normal ball box label in 2 seconds or less, held at a c
   - Acceptance: the scan reaches the confirm screen with the UPC and the serial filled, with no tap. The same label held for 5 seconds in the batch gives 1 item, not many.
   - Done when: both checks pass, and the time to capture shows in the overlay and is recorded here.
 
-- [ ] **6. Real phone check.** Human step, after the release.
+- [ ] **6. A 1440p stream.** `tests: first`. Added on 2026-11-17 with the approval of the human.
+  - Ask for an ideal stream of 2560 × 1440. A phone that cannot give it falls back to a smaller stream.
+  - Raise the reader frame size to 2560 px on the long side, so the larger stream is not scaled down.
+  - The stream is not stored. The label photo is still shrunk to 1800 px before the upload.
+  - Acceptance: a unit test shows that a 1440 × 2560 frame keeps its size, and a 2160 × 3840 frame becomes 1440 × 2560. A fixture test shows that the serial of photo 2 at the photo framing reads at 1440 px wide and not at 1080 px wide. A probe with a 1440 × 2560 video at the photo framing captures.
+  - Done when: `npm test` passes and the probe captures.
+
+- [ ] **7. "Move closer" before "glare".** `tests: first`. Added on 2026-11-17 with the approval of the human.
+  - When the barcodes that read are too small, the hint is "far", also when a white patch shows glare.
+  - Acceptance: a unit test with a partial read, a module size of 1.5 px, and a glare patch gives "far". The glare tests of photos 4, 5, and 8 still pass.
+  - Done when: `npm test` passes.
+
+- Not done: a new shape of the aim frame (study option, rendezvous of 2026-11-17). The human wants the aim frame to show the full label, for a later vision model.
+
+- [ ] **8. Real phone check.** Human step, after the release.
   - Open `/scan?debug=1` on the staff phone. Scan 10 different boxes.
   - Record for each box: captured (yes or no), the time to capture, and the stream size and module size from the panel.
   - Acceptance: 9 of 10 boxes capture in 2 seconds or less, with little adjustment of the phone.

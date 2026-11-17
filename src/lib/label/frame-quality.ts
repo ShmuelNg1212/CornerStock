@@ -178,8 +178,9 @@ export function decideFrame(
   const lasts = (test: (f: FrameRead) => boolean) =>
     window.length > 0 && window[0].at <= now - FRAME_LIMITS.hintHoldMs && window.every(test);
 
-  if (lasts(frameHasGlare)) return wait("glare");
+  // Distance first: small bars do not read, with or without glare, and a closer label also moves out of a reflection.
   if (lasts((f) => partial(f) && tooFar(f))) return wait("far");
+  if (lasts(frameHasGlare)) return wait("glare");
   if (lasts((f) => found(f.codes) === 0 && f.sharpness < FRAME_LIMITS.softBelow)) return wait("soft");
 
   const lastCode = history.findLast((f) => found(f.codes) > 0);

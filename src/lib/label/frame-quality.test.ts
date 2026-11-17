@@ -139,6 +139,12 @@ describe("decideFrame", () => {
     expect(decideFrame(frames, 1000).hint).toBe("far");
   });
 
+  it("asks to move closer, not glare, when the barcodes are too small and a white patch shows", () => {
+    const far = { codes: { upc: "887970778029", serial: null, product_code: null }, moduleSize: 1.5, glareShare: 0.05 };
+    const frames = [0, 200, 400, 600, 800, 1000].map((at) => read(at, far));
+    expect(decideFrame(frames, 1000).hint).toBe("far");
+  });
+
   it("shows the soft hint when frames with no barcode stay soft", () => {
     const frames = [0, 300, 600, 900, 1200].map((at) => read(at, { codes: none, sharpness: 10 }));
     expect(decideFrame(frames, 1200).hint).toBe("soft");
