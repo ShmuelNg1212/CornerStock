@@ -72,7 +72,7 @@ The GitHub remote is `https://github.com/ShmuelNg1212/CornerStock`. Production i
 
 The first release was verified on 2026-11-16. Deployment `dpl_8kpxM8UBzNUZb2XphkAW9csZwbxY` serves commit `d8027ef`.
 
-The current release was pushed on 2026-11-17. Commit `585ed83` (owner feedback: solid status bar, tab bar icons, serial and product code checks, forgiving search). The release marker is `2026-11-17-owner-feedback-1`. Rollback commit: `b35fcba`. Before the push, the human ran `20261117120000_serial_not_product_code.sql` on staging and production. The checks after the push: the marker showed after approximately 50 s. The live sign-in page has `apple-mobile-web-app-status-bar-style` set to `default`. A signed-out visit to `/` goes to `/login`. The agent did not sign in on the live site. The scan and search flow was verified on staging with the same code.
+The current release was pushed on 2026-11-17. Commit `db2e58e` (store activity log, catalog edit record, five-slot phone tab bar). The release marker is `2026-11-17-activity-log-1`. Rollback commit: `585ed83`. Before the push, the agent applied `20261117140000_activity_log.sql` to staging and production with the Supabase connection, and ran `npm test` and `npm run build` with the production values. The checks after the push: the marker showed after approximately 55 s. A signed-out visit to `/activity` goes to `/login`. The agent did not sign in on the live site. The signed-in flow was verified on staging with the same code.
 
 1. Push the repository to GitHub. Import it in Vercel.
 2. Add the environment variables above in Vercel, for Production.
@@ -84,4 +84,4 @@ The current release was pushed on 2026-11-17. Commit `585ed83` (owner feedback: 
 
 The sign-in HTML contains a `cornerstock-release` meta tag. Check this tag on the live site after deployment.
 
-A change to the database is a new file in `supabase/migrations/`. Run it on staging first, then on production in the SQL Editor, before the push that needs it. A file can have a timestamp earlier than a file that already ran. Run it by hand all the same.
+A change to the database is a new file in `supabase/migrations/`. Run it on staging first, then on production, before the push that needs it. Use the SQL Editor, or the agent applies it with the Supabase connection. A file can have a timestamp earlier than a file that already ran. Run it by hand all the same.

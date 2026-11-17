@@ -88,3 +88,5 @@ None. Answers from the human (2026-11-17):
   - The feed reads the `reference` of an `adjust` row as JSON. Only `adjust_ball` writes these rows, and it writes JSON.
   - On the preview route, the Catalog tab and a catalog-edit row go to a page that does not exist. The preview is for development only.
 - [ ] Not run: `simplify`, `security-review`, `break-ui`, and `/impeccable critique`. The preview fixture has a long model name, a long staff name, and no actor name. The read path uses `security invoker` and the existing read policies.
+- [x] Release (2026-11-17, human said "ship"): migration applied to production before the push. `anon` cannot run `activity_feed`. `npm test` and `npm run build` pass with the production values. Pushed `585ed83..db2e58e`. Marker `2026-11-17-activity-log-1` live after approximately 55 s. Rollback commit: `585ed83`.
+- [ ] Human device check: the five-slot tab bar and the Activity page on a real phone.
