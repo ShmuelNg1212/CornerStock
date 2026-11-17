@@ -4,17 +4,17 @@ Study: [../study/1794911487_low_stock_and_stock_count.md](../study/1794911487_lo
 
 Mode: mixed. Technical part first (tasks 1 to 4), then the design pass (task 5). Skills: `tdd` (tasks 1 to 3), `domain-modeling` (ADR for the minimum rule), `/impeccable shape` then `/impeccable` (task 5), `mobile-native` (phone screens). Rendezvous: `code-review`, `simplify`, `/impeccable critique` and `audit`, `break-ui` (long model names, large counts).
 
-## OPEN QUESTIONS
+## Answers from the human (2026-11-17)
 
-1. One minimum for each model and weight, which applies to each location (recommended)? Or a different minimum for each location?
-2. Who sets the minimum: the owner only (recommended, same as other catalog edits), or all staff?
-3. An alert in the app only (recommended)? Or also a message to the owner (email or push)? A message needs a new service and is a separate plan.
+1. One minimum for each model and weight. It applies to each location.
+2. The owner only sets the minimum.
+3. An alert in the app only. No email or push.
 
 ## Goal
 
 The owner sees in the stock view which models and weights are low or out of stock, in each location.
 
-## Rules (to confirm, then record in an ADR)
+## Rules (confirmed; record in an ADR in task 1)
 
 - A model-weight has an optional minimum (0 to 99). No minimum means no alert.
 - In one location: in stock less than the minimum is "Low". 0 in stock with a minimum of 1 or more is "Out".
@@ -55,8 +55,8 @@ The owner sees in the stock view which models and weights are low or out of stoc
 
 ## Out of scope
 
-- A message to the owner outside the app (question 3).
-- A different minimum for each location (question 1), unless the human selects it.
+- A message to the owner outside the app (answer 3).
+- A different minimum for each location (answer 1).
 - Purchase orders or a suggested order quantity.
 
 ## Completion
