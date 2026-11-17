@@ -1,7 +1,9 @@
+import { PRODUCT_CODE_AS_SERIAL } from "@/lib/label/rules";
 /** Turns a database error into a message for staff. */
 export function stockErrorMessage(error: { message?: string; code?: string } | null): string {
   const text = error?.message ?? "";
   if (text.includes("DUPLICATE_SERIAL")) return "This serial number is already recorded.";
+  if (text.includes("SERIAL_IS_PRODUCT_CODE")) return PRODUCT_CODE_AS_SERIAL;
   if (text.includes("NOT_AUTHORIZED") || error?.code === "42501") return "Your account cannot do this.";
   if (text.includes("WRONG_STATUS")) return "This ball changed a moment ago. Check its current status.";
   if (text.includes("BALL_NOT_FOUND")) return "This ball is not in the records.";

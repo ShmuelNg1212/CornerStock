@@ -171,6 +171,9 @@ export async function receiveBall(input: {
   });
   if (error) {
     const existingBallId = error.message.includes("DUPLICATE_SERIAL") ? (error.details ?? undefined) : undefined;
+    if (error.message.includes("SERIAL_IS_PRODUCT_CODE")) {
+      return { ok: false, error: "Check the marked fields.", fieldErrors: { serial: stockErrorMessage(error) } };
+    }
     return { ok: false, error: stockErrorMessage(error), existingBallId };
   }
   revalidatePath("/", "layout");

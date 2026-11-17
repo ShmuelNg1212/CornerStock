@@ -40,7 +40,7 @@ None. Answers from the human (2026-11-17):
 - Acceptance: a unit test for the move. A browser probe: a scan of a known model whose product code reads as the serial does not save.
 - Completion: probe recorded in this plan.
 
-### [ ] 4. Refuse a product code as a serial in the database — `tests: first`
+### [x] 4. Refuse a product code as a serial in the database — `tests: first`
 - New migration: `receive_ball` and the ball correction function raise an error when the serial is equal to the `product_code` of the label or of any model.
 - The server action shows the error as a field error on the serial number.
 - Acceptance: a database test that a call with `serial = product_code` fails and writes no ball and no movement.

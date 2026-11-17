@@ -195,6 +195,27 @@ describe("accounts", () => {
 });
 
 describe("receive_ball", () => {
+  it("refuses a serial number that is the product code of a model, and writes nothing", async () => {
+    const before = Number((await admin.query("select count(*) from public.balls")).rows[0].count);
+    const movesBefore = Number((await admin.query("select count(*) from public.stock_movements")).rows[0].count);
+    const own = await receive(staff, { serial: "BBMVSL15L" }).catch((e) => e);
+    expect(String(own.message)).toContain("SERIAL_IS_PRODUCT_CODE");
+    // The product code of another model in the catalog, in lower case.
+    await admin.query("insert into public.ball_models (upc, name, nominal_weight_lb, product_code) values ('887970778029', 'Other', 14, 'BBMGRN14L')");
+    const other = await receive(staff, { serial: "bbmgrn14l".toUpperCase() }).catch((e) => e);
+    expect(String(other.message)).toContain("SERIAL_IS_PRODUCT_CODE");
+    expect(Number((await admin.query("select count(*) from public.balls")).rows[0].count)).toBe(before);
+    expect(Number((await admin.query("select count(*) from public.stock_movements")).rows[0].count)).toBe(movesBefore);
+  });
+
+  it("refuses a correction that changes a serial number to a product code", async () => {
+    const id = await receive(staff);
+    const error = await as(owner, (c) =>
+      c.query("select public.adjust_ball($1, $2, $3, $4)", [id, JSON.stringify({ serial: "BBMVSL15L" }), randomUUID(), "Typo"]),
+    ).catch((e) => e);
+    expect(String(error.message)).toContain("SERIAL_IS_PRODUCT_CODE");
+  });
+
   it("creates the model, the ball, and one movement", async () => {
     const id = await receive(staff, { serial: "23VSLE30B047" });
     const ball = (await admin.query("select * from public.balls where id = $1", [id])).rows[0];
