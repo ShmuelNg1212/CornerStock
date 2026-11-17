@@ -17,7 +17,7 @@ None. Answers from the human (2026-11-17):
 
 ## Tasks
 
-### [ ] 1. Remove the iOS haze with a solid status bar — `tests: alongside`
+### [x] 1. Remove the iOS haze with a solid status bar — `tests: alongside`
 - Set `statusBarStyle` to `"default"` in `src/app/layout.tsx`.
 - Remove the navy safe-area band in `layout.tsx` and the safe-area top padding in `shell.tsx` only if they then show a double gap.
 - Change the release marker.
@@ -86,6 +86,6 @@ None. Answers from the human (2026-11-17):
   - A real serial saves. Photo 09 reads its serial number.
   - The stock search finds "!Q Tour 78/U" for "iq" and "IQ TOUR", and "Hy-Road" for "hyroad" and "hy road". The old search fails all four.
 - [x] Probe (preview shell): see task 5.
-- [ ] Migration `20261117120000_serial_not_product_code.sql` on staging and production. The human runs it in the SQL Editor before the push.
-- [ ] Release marker: set at the push.
-- [ ] Human device check after deploy: a fresh home-screen install shows a solid status bar with no grey gradient, and the staff tab bar shows one icon.
+- [x] Migration `20261117120000_serial_not_product_code.sql` on staging and production. The human ran it before the push.
+- [x] Release marker `2026-11-17-owner-feedback-1`. Live after approximately 50 s (commit `585ed83`).
+- [x] Human device check after deploy (2026-11-17): the haze is gone, and the staff tab bar shows one icon.
