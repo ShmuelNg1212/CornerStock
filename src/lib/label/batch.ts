@@ -1,5 +1,6 @@
 // Rules for the result of one label photo. The single scan and the batch scan use them.
 import type { LabelBarcodes } from "./barcodes";
+import type { BallStatus } from "@/lib/types";
 import { PRODUCT_CODE_AS_SERIAL } from "./rules";
 
 /** The message to show after a photo read, or null when the read is complete. */
@@ -39,4 +40,17 @@ export function scanStatus(input: {
   if (codes?.serial && (input.existingBallId || input.serialsBefore.includes(codes.serial))) return "duplicate";
   if (!codes?.serial || !codes.upc || input.lookupFailed || !input.knownModel) return "needs_details";
   return "ready";
+}
+
+/** A ball with the scanned serial number that is already in the records. */
+export type ExistingBall = { id: string; status: BallStatus | null; location: string | null };
+
+/** What the scan says about a recorded ball, and if staff can mark it sold from the scan. */
+export function existingBallNotice(ball: ExistingBall): { text: string; canSell: boolean } {
+  if (ball.status === "in_stock") {
+    return { text: `This ball is already in stock${ball.location ? ` at ${ball.location}` : ""}.`, canSell: true };
+  }
+  if (ball.status === "sold") return { text: "This ball is already sold.", canSell: false };
+  if (ball.status === "removed") return { text: "This ball was removed from stock.", canSell: false };
+  return { text: "A ball with this serial number is already recorded.", canSell: false };
 }

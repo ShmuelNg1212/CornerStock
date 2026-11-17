@@ -129,6 +129,7 @@ export function ScanFlow({ locations, defaultLocationId }: { locations: Location
           onCamera={() => openLive("batch")}
           onLibrary={() => batchLibrary.current?.click()}
           onOpen={scan.openItem}
+          onSell={(item) => void scan.sellItem(item)}
           onRemove={scan.removeItem}
           onSaveAll={() => void scan.saveAll()}
           onDone={scan.finishBatch}
@@ -141,9 +142,11 @@ export function ScanFlow({ locations, defaultLocationId }: { locations: Location
           unread={scan.unread}
           knownModel={scan.knownModel}
           editModel={scan.editModel}
-          existingBallId={scan.existingBallId}
+          existingBall={scan.existingBall}
           message={scan.message}
           saving={scan.saving}
+          selling={scan.selling}
+          onSell={(reference) => void scan.sell(reference)}
           preview={scan.preview}
           canRetake={scan.hasOwnPhoto}
           fromBatch={scan.fromBatch}

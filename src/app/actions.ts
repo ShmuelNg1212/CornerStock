@@ -7,6 +7,7 @@ import { z } from "zod";
 import { ALL_LOCATIONS, LOCATION_COOKIE, requireOwner, requireStaff } from "@/lib/auth";
 import { NO_ACCESS_MESSAGE } from "@/lib/auth-route";
 import { stockErrorMessage } from "@/lib/errors";
+import type { ExistingBall } from "@/lib/label/batch";
 import {
   parseBoxedDate,
   parseDecimal,
@@ -95,11 +96,15 @@ export async function searchSerials(query: string): Promise<SerialMatch[]> {
   }));
 }
 
+const EXISTING_BALL = "id, status, location:locations(name)";
+type ExistingBallRow = { id: string; status: BallStatus; location: { name: string } | null };
+const existingBallOf = (row: ExistingBallRow): ExistingBall => ({ id: row.id, status: row.status, location: row.location?.name ?? null });
+
 export type LabelLookup = {
   /** The catalog values for this UPC, or null when the UPC is new. */
   model: RawLabel | null;
   /** Set when a ball with this serial number is already recorded. */
-  existingBallId: string | null;
+  existingBall: ExistingBall | null;
   /** True when the read serial number is the product code of a model in the catalog. */
   serialIsProductCode: boolean;
 };
@@ -108,7 +113,7 @@ export type LabelLookup = {
 export async function lookupLabel(input: { upc: string | null; serial: string | null }): Promise<LabelLookup> {
   await requireStaff();
   const supabase = await createClient();
-  const result: LabelLookup = { model: null, existingBallId: null, serialIsProductCode: false };
+  const result: LabelLookup = { model: null, existingBall: null, serialIsProductCode: false };
 
   const upc = input.upc ? validateUpc(input.upc) : null;
   if (upc?.ok) {
@@ -135,11 +140,11 @@ export async function lookupLabel(input: { upc: string | null; serial: string | 
   const serial = input.serial ? normalizeSerial(input.serial) : null;
   if (serial?.ok) {
     const [{ data: ball }, { data: models }] = await Promise.all([
-      supabase.from("balls").select("id").eq("serial", serial.value).maybeSingle<{ id: string }>(),
+      supabase.from("balls").select(EXISTING_BALL).eq("serial", serial.value).maybeSingle<ExistingBallRow>(),
       // The product code is the same on every box of a model. A match means the wrong barcode was read.
       supabase.from("ball_models").select("id").ilike("product_code", serial.value.replace(/[%_\\]/g, "\\$&")).limit(1),
     ]);
-    result.existingBallId = ball?.id ?? null;
+    result.existingBall = ball ? existingBallOf(ball) : null;
     result.serialIsProductCode = (models?.length ?? 0) > 0;
   }
   return result;
@@ -147,7 +152,7 @@ export async function lookupLabel(input: { upc: string | null; serial: string | 
 
 export type ReceiveResult =
   | { ok: true; ballId: string }
-  | { ok: false; error: string; fieldErrors?: LabelErrors; existingBallId?: string };
+  | { ok: false; error: string; fieldErrors?: LabelErrors; existingBall?: ExistingBall };
 
 export async function receiveBall(input: {
   label: RawLabel;
@@ -170,11 +175,16 @@ export async function receiveBall(input: {
     p_label_photo_path: input.photoPath,
   });
   if (error) {
-    const existingBallId = error.message.includes("DUPLICATE_SERIAL") ? (error.details ?? undefined) : undefined;
     if (error.message.includes("SERIAL_IS_PRODUCT_CODE")) {
       return { ok: false, error: "Check the marked fields.", fieldErrors: { serial: stockErrorMessage(error) } };
     }
-    return { ok: false, error: stockErrorMessage(error), existingBallId };
+    let existingBall: ExistingBall | undefined;
+    if (error.message.includes("DUPLICATE_SERIAL") && error.details) {
+      // The status tells the scan if it can offer the sale. Without it, the scan offers only a link.
+      const { data: ball } = await supabase.from("balls").select(EXISTING_BALL).eq("id", error.details).maybeSingle<ExistingBallRow>();
+      existingBall = ball ? existingBallOf(ball) : { id: error.details, status: null, location: null };
+    }
+    return { ok: false, error: stockErrorMessage(error), existingBall };
   }
   revalidatePath("/", "layout");
   return { ok: true, ballId: data as string };
