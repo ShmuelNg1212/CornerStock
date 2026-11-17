@@ -201,7 +201,7 @@ Keep the plan as the only active task list.
   Keep finished code on its feature branch until approved to ship,
   because a push to main deploys production.
 
-- [ ] **S1. Sync docs.** `tests: alongside` (documentation check)
+- [x] **S1. Sync docs.** `tests: alongside` (documentation check)
   Skills: `writing-for-agents`, `domain-modeling`.
   Update spec.md and architecture.md for the approved behavior.
   Update setup.md with migration and file instructions.

@@ -40,6 +40,14 @@ Source: the brand kit handoff in [../study/1794811328_brand_kit_handoff.md](../s
 - Batch scan: the live camera stays open. Each new serial number adds one photo. The same serial number again adds nothing. Staff can also add photos from the gallery, one photo for each label. The app reads them one at a time. A photo with a known UPC and a new serial number is ready. Staff save all ready balls with one tap, into one location. The batch does not record weights or pin distance. Staff add them later on the ball page. A photo with a new UPC, a missing barcode, or a recorded serial number opens the normal confirm screen.
 - A known UPC fills the model details from the catalog.
 - Owner only: edit the model details after the first save, on the model page. The UPC and the ball weight identify the model and do not change. A scan of a known UPC does not change the catalog details. Use this edit to correct them.
+- Catalog: all staff browse every model and weight, also with no stock. Search finds a model name, brand, UPC, or product code. Staff see read-only details.
+- Owner only: add a model to the catalog before any ball arrives. The UPC, model name, and ball weight are required. An existing UPC is refused on its field. Adding a model receives no ball.
+- Owner only: export the complete catalog as CSV or Excel (`.xlsx`). Templates for both import types are on the import page.
+- Owner only: import a catalog file or a stock file (CSV or `.xlsx`, up to 5 MB and 1,000 data rows). The steps are File, Columns, Review, and Result. The rules are in [../adr/0003-catalog-and-stock-file-imports.md](../adr/0003-catalog-and-stock-file-imports.md).
+- The import review shows the additions, the before-and-after values, the unchanged rows, and the errors by source row and field. Errors of the same kind show as one line with their rows. Confirm stays off while an error remains.
+- A stock import receives new balls, adds missing catalog entries, and corrects or moves existing balls. A change to an existing ball needs a reason. The reason shows in the ball history.
+- The complete batch saves together, or nothing saves. If a record changes after the review, the save stops and asks for a new review.
+- The Catalog item is in the rail on large screens. On a phone, Stock and Account have a "Browse catalog" link, and the Stock tab stays current on catalog screens.
 - A serial number that is already recorded is refused. The message links to the existing ball.
 - Stock view: a greeting, four summary tiles, the search, the filter pills, and one card for each model with a count for each weight. It shows one location or all locations. Search finds a model or a serial number.
 - Summary tiles: balls in stock, models, balls received today, and balls sold today. "Today" starts at midnight in Manila time. A reversed sale removes a sale only when that ball was sold earlier the same day.
@@ -53,7 +61,8 @@ Source: the brand kit handoff in [../study/1794811328_brand_kit_handoff.md](../s
 - The model screen shows the other weights of the model that are in stock. A tap changes the weight in place.
 - Ball actions open in a modal sheet on smaller screens. A drag down on the handle closes it. They open inline on larger screens. Escape closes both, except while an action runs.
 - After a scan saves a ball, the Stock item of the tab bar shows "+1" for 2 seconds.
-- App links and sign-out warn before discarding unsaved label photos. Browser Back is not covered by this guard.
+- App links and sign-out warn before discarding unsaved label photos. Browser Back is not covered by this guard on the scan screen.
+- On the import screen, app links, sign-out, browser Back, and a page close warn before discarding a file that is not saved.
 - Ball page: details, label photo, history. Staff mark a ball as sold or move it to another location.
 - Owner only: put a sold ball back in stock, correct the details, remove a ball, set a selling price, manage locations and staff accounts. Each of the first three needs a reason.
 - Colors: actions use `#B94A25`, a darker variant of signal orange, because white text on `#D45A32` has a contrast of 4.0. Secondary text uses `#5A6369`.
@@ -83,7 +92,7 @@ Source: the brand kit handoff in [../study/1794811328_brand_kit_handoff.md](../s
 4. Separate on-hand, reserved, and available quantities.
 5. Low-stock threshold for each variant.
 6. Purchase orders and supplier records.
-7. Barcode entry, fast search, CSV import and export, physical stock counts.
+7. Barcode entry, fast search, CSV import and export, physical stock counts. CSV and `.xlsx` import and export are built for balls (see "Built").
 8. Owner, manager, and staff roles.
 
 ### Inventory integrity
@@ -99,6 +108,6 @@ Source: the brand kit handoff in [../study/1794811328_brand_kit_handoff.md](../s
 
 - What is the existing checkout workflow? Is there a checkout system to integrate?
 - Is a manager role necessary, and with which permissions?
-- What is the source for the first stock import?
+- Which file is the source for the first stock import? The app now accepts CSV and `.xlsx` files.
 - Must operations continue during internet outages? Offline stock changes need a synchronization and conflict design.
 - Domain and trademark availability for "Cornerstock" are not established. Other retail uses of the name exist.

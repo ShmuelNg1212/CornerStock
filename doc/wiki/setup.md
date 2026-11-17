@@ -33,7 +33,7 @@ Do these steps one time.
 
 1. Create a Supabase project at https://supabase.com/dashboard.
 2. In the project, open Authentication > Sign In / Providers. Set "Allow new users to sign up" to off. Keep the Email provider on.
-3. Open the SQL Editor. Paste all of `supabase/migrations/20261116000000_ball_stock.sql`. Run it one time.
+3. Open the SQL Editor. Run each file in `supabase/migrations/` one time, in filename order. Paste all of one file, then run it.
 4. Open Authentication > Users > Add user. Enter the owner's email and a password. Select "Auto Confirm User". The first account becomes the owner.
 5. Copy `.env.example` to `.env.local`. Fill in the three values. The Supabase values are in Project Settings > API Keys. Use the publishable key (`sb_publishable_...`) and the secret key (`sb_secret_...`). Do not use the legacy `anon` and `service_role` keys: Supabase removes them at the end of 2026.
 6. Run `npm run dev`. Open http://localhost:3000. Sign in as the owner.
@@ -72,7 +72,7 @@ The GitHub remote is `https://github.com/ShmuelNg1212/CornerStock`. Production i
 
 The first release was verified on 2026-11-16. Deployment `dpl_8kpxM8UBzNUZb2XphkAW9csZwbxY` serves commit `d8027ef`.
 
-The current release was pushed on 2026-11-17. Commit `b35fcba` (catalog management and file imports). The release marker is `2026-11-17-catalog-import-1`. Rollback commit: `92d4265`. Before the push, `20261116164702_catalog_import.sql` was run on production. The import table and function were present, and the function refused a call without an owner. The checks after the push: the marker showed after approximately 50 s. Signed-out visits to `/`, `/catalog`, `/catalog/import`, `/catalog/new`, and the catalog and template downloads go to `/login`. A signed-in check on the live site was not done. The complete flow, including saves, was verified on staging with the same build.
+The current release was pushed on 2026-11-17. Commit `b35fcba` (catalog management and file imports). The release marker is `2026-11-17-catalog-import-1`. Rollback commit: `92d4265`. Before the push, `20261116164702_catalog_import.sql` was run on production. The import table and function were present, and the function refused a call without an owner. The checks after the push: the marker showed after approximately 50 s. Signed-out visits to `/`, `/catalog`, `/catalog/import`, `/catalog/new`, and the catalog and template downloads go to `/login`. The agent did not sign in on the live site. The owner then confirmed that the live app has all the new features. The complete flow, including saves, was verified on staging with the same build.
 
 1. Push the repository to GitHub. Import it in Vercel.
 2. Add the environment variables above in Vercel, for Production.
@@ -84,4 +84,4 @@ The current release was pushed on 2026-11-17. Commit `b35fcba` (catalog manageme
 
 The sign-in HTML contains a `cornerstock-release` meta tag. Check this tag on the live site after deployment.
 
-A change to the database is a new file in `supabase/migrations/`. Run it in the SQL Editor before the push that needs it.
+A change to the database is a new file in `supabase/migrations/`. Run it on staging first, then on production in the SQL Editor, before the push that needs it. A file can have a timestamp earlier than a file that already ran. Run it by hand all the same.
