@@ -1,10 +1,11 @@
 // Rules for the result of one label photo. The single scan and the batch scan use them.
 import type { LabelBarcodes } from "./barcodes";
+import { PRODUCT_CODE_AS_SERIAL } from "./rules";
 
 /** The message to show after a photo read, or null when the read is complete. */
 export function readMessage(codes: LabelBarcodes | null, lookupFailed: boolean, serialWasProductCode = false): string | null {
   if (!codes) return "The photo could not be read on this device. Type the details.";
-  if (serialWasProductCode) return "The code read as the serial number is the product code. Take the photo again, or type the serial number.";
+  if (serialWasProductCode) return PRODUCT_CODE_AS_SERIAL;
   if (!codes.upc && !codes.serial) return "No barcode was found in the photo. Take the photo again, closer and straight, or type the details.";
   if (!codes.serial) return "The serial number barcode was not found. Take the photo again, or type the serial number.";
   if (!codes.upc) return "The UPC barcode was not found. Take the photo again, or type the 12 digits below the barcode.";

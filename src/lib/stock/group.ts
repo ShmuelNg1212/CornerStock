@@ -37,7 +37,6 @@ export function groupStock(models: StockModel[], counts: { model_id: string; in_
 
 /** The groups whose brand and name match the search. See `matches` for the forgiving rules. */
 export function filterGroups(groups: StockGroup[], query: string): StockGroup[] {
-  if (!query.trim()) return groups;
   return groups.filter((group) => matches(`${group.brand ?? ""} ${group.name}`, query));
 }
 

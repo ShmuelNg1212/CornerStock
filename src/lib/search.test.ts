@@ -43,6 +43,11 @@ describe("matches", () => {
     expect(matches("Roto Grip Hustle", "rodo")).toBe(false);
   });
 
+  it("does not accept a wrong digit in a code", () => {
+    expect(matches("Solid Lock 887970617601 BBMVSL15L", "887970617602")).toBe(false);
+    expect(matches("Solid Lock 887970617601 BBMVSL15L", "bbmvsl14l")).toBe(false);
+  });
+
   it("does not accept two wrong letters", () => {
     expect(matches("Storm Phaze II", "pxaxe")).toBe(false);
   });

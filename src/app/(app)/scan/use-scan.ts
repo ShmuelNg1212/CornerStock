@@ -50,7 +50,8 @@ async function readLabel(file: File) {
       lookupFailed = true;
     }
   }
-  const fields: RawLabel = { ...EMPTY, upc: codes?.upc ?? "", serial: codes?.serial ?? "", product_code: codes?.product_code ?? "", ...model };
+  // Catalog values win, but an empty catalog product code keeps the code that was read.
+  const fields: RawLabel = { ...EMPTY, upc: codes?.upc ?? "", serial: codes?.serial ?? "", ...model, product_code: model?.product_code || codes?.product_code || "" };
   const unread = (["serial", "upc"] as LabelField[]).filter((f) => !fields[f]);
   return { codes, photo, fields, known, existingBallId, lookupFailed, serialWasProductCode, unread };
 }

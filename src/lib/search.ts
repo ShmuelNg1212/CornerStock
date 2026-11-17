@@ -24,7 +24,7 @@ function withinOne(a: string, b: string): boolean {
   return a.length > b.length ? a.slice(i + 1) === b.slice(i) : a.slice(i) === b.slice(i + 1);
 }
 
-/** A word of 5 or more letters can have one typing error. A shorter word must match exactly. */
+/** A word of 5 or more letters can have one typing error. A shorter word, or a word with digits (a UPC, a code), must match exactly. */
 const TYPO_MIN = 5;
 
 /**
@@ -41,6 +41,7 @@ export function matches(text: string, query: string): boolean {
     (word) =>
       compact.includes(word) ||
       (word.length >= TYPO_MIN &&
+        /^[a-z]+$/.test(word) &&
         // The whole word, or the start of a word that the staff member is still typing.
         have.some((w) => [w, ...[-1, 0, 1].map((extra) => w.slice(0, word.length + extra))].some((part) => withinOne(word, part)))),
   );
