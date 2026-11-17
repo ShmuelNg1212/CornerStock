@@ -9,10 +9,12 @@ Branch: `feat/activity-log`. One commit for each task.
 
 ## OPEN QUESTIONS
 
-1. Who can see the activity page: the owner only, or all staff? Staff can already read each ball's history. Recommendation: all staff, because the data is already visible to them.
-2. Do you want catalog model edits (name, price, details) in the log too? This needs a new database table and a migration (task 2). Recommendation: yes.
-3. Is a page enough, or do you also want a notification (an unread count, or a push message to the owner's phone)? Recommendation: the page only in this plan. A push message is a separate plan.
-4. Where does the page open on a phone? A: a link on the Stock screen, as "Browse catalog" is now. B: a fourth tab. Recommendation: A. On large screens, the page gets a rail item in both cases.
+None. Answers from the human (2026-11-17):
+
+1. All staff can see the activity page.
+2. Yes, record catalog model edits. The agent applies the migration on staging with the Supabase connection. Production gets the migration before the push that needs it.
+3. A page only. No notification in this plan.
+4. Catalog and Activity become phone tabs. The phone bar is: Stock, Catalog, Scan (centre button), Activity, Settings or Account. The tabs must stay clear and not crowded down to a 320 px wide screen.
 
 ## Tasks
 
@@ -24,7 +26,7 @@ Branch: `feat/activity-log`. One commit for each task.
 - Tests: a type filter returns only that type. Page two starts after the last row of page one with no gap and no repeat. A signed-out caller gets no rows.
 - Completion: `npm test` passes with the new database tests.
 
-### [ ] 2. Record catalog model edits — `tests: first` (only if question 2 is yes)
+### [ ] 2. Record catalog model edits — `tests: first`
 - Add `public.catalog_changes` (model, actor, time, old values, new values). Updates and deletes are refused, as for movements.
 - Move the model edit into `public.update_model(...)`, a database function that writes the model and the change row in one transaction.
 - `updateModel` in `src/app/actions.ts` calls the function. Remove the direct table write.
@@ -49,11 +51,13 @@ Branch: `feat/activity-log`. One commit for each task.
 - Acceptance: a browser probe on staging, signed in, shows a sale made in the same session at the top of the list.
 - Completion: probe screenshot at phone and desktop width.
 
-### [ ] 5. Entry points — `tests: alongside`
+### [ ] 5. Entry points: rail item and four phone tabs — `tests: alongside`
 - Rail: add "Activity" after "Catalog".
-- Phone: as chosen in question 4.
-- Acceptance: on a 390 px wide screen, the tab bar is unchanged (if option A) and the link opens the page.
-- Completion: probe at 390 px and 1280 px.
+- Phone: five slots in `src/components/nav.tsx`: Stock, Catalog, Scan, Activity, and Settings or Account. Scan stays the raised centre button.
+- Remove the Catalog link from Stock and Account ("Browse catalog"). The Stock tab is no longer current on catalog screens.
+- Remove `min-w-18` from the tab link, so five slots fit. Each tab keeps a touch target of 44 px or more.
+- Acceptance: at 320 px, 390 px, and 430 px width, no label is cut or touches another label. The owner view and the staff view both show one icon in each slot.
+- Completion: probe screenshots at 320 px, 390 px, and 1280 px, for the owner and for staff.
 
 ## Out of scope
 
