@@ -17,6 +17,13 @@ This page gives the reasons for the structure. Read the code for the structure i
 - A trigger on `ball_models` records each catalog edit in `catalog_changes`, so the edit form and the import need no separate log code. The table is permanent, as `stock_movements` is.
 - The activity page reads one function, `activity_feed`. It runs as the caller, so the read policies decide what it shows. It pages by time with a cursor, not by offset, so new rows do not shift the pages.
 
+## Stock count
+
+- A count changes no stock. Only a correction changes stock, and each correction calls an existing stock function. Thus the count adds no new way to change stock.
+- The finish keeps the result in `count_lines`. A past result must not change when the stock changes later. `count_result` adds `action` and `corrected` from the current stock, so the screen offers only a correction that can still run.
+- `correct_count_line` decides the correction on the server from the current stock. The client sends only the count, the serial, and a request id.
+- A scan takes a share lock on the count and the finish takes an update lock. Scans from several phones run side by side, and the finish waits for them.
+
 ## Repeated and concurrent actions
 
 - The client makes one request id for each user action. The functions store it on the movement. A repeated submission with the same id does nothing.

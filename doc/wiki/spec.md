@@ -79,6 +79,13 @@ Source: the brand kit handoff in [../study/1794811328_brand_kit_handoff.md](../s
 - On the import screen, app links, sign-out, browser Back, and a page close warn before discarding a file that is not saved.
 - Ball page: details, label photo, history. The history uses the activity words (Added, Sold, Sale cancelled, Moved, Edited, Removed). Staff mark a ball as sold or move it to another location.
 - Owner only: put a sold ball back in stock, correct the details, remove a ball, set a selling price, manage locations and staff accounts. Each of the first three needs a reason.
+- Stock count (rules: [../adr/0005-stock-count-rules.md](../adr/0005-stock-count-rules.md)). "Count stock" on the stock screen opens `/count`. "Stock counts" on the Activity screen opens the same screen.
+  - A count covers one whole location. Each location has one open count. Staff on other phones who start a count of the same location join it.
+  - The camera reads the serial barcode alone. The UPC is not necessary. A serial can also be typed. Each scan shows its status with an icon and words: in this location, recorded in another location, recorded as sold, recorded as removed, or not in the records. A serial counts one time.
+  - "Finish the count" asks first, and waits for scans that are still being checked. The finish compares the scans with the in-stock balls of the location at that time. "Cancel the count" also asks first. Neither changes stock.
+  - The result shows the totals, then "Missing", "Unexpected", and a closed "Found" list. The result is kept. A line shows "Resolved" when the stock now agrees with it.
+  - Corrections, one tap each: "Move here" for a ball in another location (all staff); "Mark removed" for a missing ball (owner); "Put back in stock" for a sold ball, with a reason (owner); "Add" opens the scan for a ball that is not recorded. A ball recorded as removed has no correction from the count. The reason of each correction names the count date and location, and shows in the activity log.
+  - "Past counts" lists the finished counts: location, time, who finished it, and the totals. A row opens the result.
 - Colors: actions use `#B94A25`, a darker variant of signal orange, because white text on `#D45A32` has a contrast of 4.0. Secondary text uses `#5A6369`.
 
 ## Proposed, not confirmed
@@ -106,7 +113,7 @@ Source: the brand kit handoff in [../study/1794811328_brand_kit_handoff.md](../s
 4. Separate on-hand, reserved, and available quantities.
 5. Low-stock threshold for each variant. Built for balls (see "Built").
 6. Purchase orders and supplier records.
-7. Barcode entry, fast search, CSV import and export, physical stock counts. CSV and `.xlsx` import and export are built for balls (see "Built"). The stock count is planned: [../plan/1794911487_stock_count.md](../plan/1794911487_stock_count.md).
+7. Barcode entry, fast search, CSV import and export, physical stock counts. CSV and `.xlsx` import and export are built for balls (see "Built"). The stock count is built (see "Built").
 8. Owner, manager, and staff roles.
 
 ### Inventory integrity
