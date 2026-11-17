@@ -2,13 +2,20 @@
 import type { LabelBarcodes } from "./barcodes";
 
 /** The message to show after a photo read, or null when the read is complete. */
-export function readMessage(codes: LabelBarcodes | null, lookupFailed: boolean): string | null {
+export function readMessage(codes: LabelBarcodes | null, lookupFailed: boolean, serialWasProductCode = false): string | null {
   if (!codes) return "The photo could not be read on this device. Type the details.";
+  if (serialWasProductCode) return "The code read as the serial number is the product code. Take the photo again, or type the serial number.";
   if (!codes.upc && !codes.serial) return "No barcode was found in the photo. Take the photo again, closer and straight, or type the details.";
   if (!codes.serial) return "The serial number barcode was not found. Take the photo again, or type the serial number.";
   if (!codes.upc) return "The UPC barcode was not found. Take the photo again, or type the 12 digits below the barcode.";
   if (lookupFailed) return "The catalog was not checked. Check the connection. You can continue and type the details.";
   return null;
+}
+
+/** When the catalog knows the read serial number as a product code, the value moves to the product code. */
+export function withoutProductCodeSerial(codes: LabelBarcodes, serialIsProductCode: boolean): LabelBarcodes {
+  if (!serialIsProductCode) return codes;
+  return { ...codes, serial: null, product_code: codes.product_code ?? codes.serial };
 }
 
 export type ScanStatus = "ready" | "needs_details" | "duplicate";

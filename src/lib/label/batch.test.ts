@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { readMessage, scanStatus } from "./batch";
+import { readMessage, scanStatus, withoutProductCodeSerial } from "./batch";
 
 const codes = { upc: "887970617601", serial: "23VSLE30B047", product_code: "BBMVSL15L" };
 
@@ -52,5 +52,25 @@ describe("scanStatus", () => {
 
   it("is a duplicate when an earlier photo in the batch has the same serial number", () => {
     expect(scanStatus({ ...base, serialsBefore: ["23VSLE30B047"] })).toBe("duplicate");
+  });
+});
+
+describe("withoutProductCodeSerial", () => {
+  const codes = { upc: "887970617601", serial: "BBMVSL15L", product_code: null };
+  it("moves a serial number that the catalog knows as a product code", () => {
+    expect(withoutProductCodeSerial(codes, true)).toEqual({ upc: "887970617601", serial: null, product_code: "BBMVSL15L" });
+  });
+  it("keeps a product code that was read", () => {
+    expect(withoutProductCodeSerial({ ...codes, product_code: "BBMVSL15L" }, true).product_code).toBe("BBMVSL15L");
+  });
+  it("changes nothing when the serial number is not a product code", () => {
+    expect(withoutProductCodeSerial(codes, false)).toBe(codes);
+  });
+});
+
+describe("readMessage after a moved serial number", () => {
+  it("tells the staff member that the scanned value was the product code", () => {
+    const codes = { upc: "887970617601", serial: null, product_code: "BBMVSL15L" };
+    expect(readMessage(codes, false, true)).toMatch(/product code/);
   });
 });

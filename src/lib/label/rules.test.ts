@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  PRODUCT_CODE_AS_SERIAL,
   formatGrossWeight,
   normalizeSerial,
   parseBoxedDate,
@@ -192,6 +193,18 @@ describe("validateLabel", () => {
 
   it("rejects a nominal weight that is not a ball weight", () => {
     expect(validateLabel({ ...sample, nominal_weight_lb: "25" }).errors.nominal_weight_lb).toBeDefined();
+  });
+});
+
+describe("validateLabel with a product code in the serial number", () => {
+  const base = { upc: "887970617601", model_name: "Solid Lock", nominal_weight_lb: "15" };
+  it("refuses a serial number that is the product code", () => {
+    const { value, errors } = validateLabel({ ...base, serial: "bbmvsl15l", product_code: "BBMVSL15L" });
+    expect(value).toBeNull();
+    expect(errors.serial).toBe(PRODUCT_CODE_AS_SERIAL);
+  });
+  it("accepts a different serial number", () => {
+    expect(validateLabel({ ...base, serial: "23VSLE30B047", product_code: "BBMVSL15L" }).value).not.toBeNull();
   });
 });
 

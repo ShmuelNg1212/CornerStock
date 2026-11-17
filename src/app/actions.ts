@@ -100,13 +100,15 @@ export type LabelLookup = {
   model: RawLabel | null;
   /** Set when a ball with this serial number is already recorded. */
   existingBallId: string | null;
+  /** True when the read serial number is the product code of a model in the catalog. */
+  serialIsProductCode: boolean;
 };
 
 /** Looks up what the shop already knows about a scanned UPC and serial number. */
 export async function lookupLabel(input: { upc: string | null; serial: string | null }): Promise<LabelLookup> {
   await requireStaff();
   const supabase = await createClient();
-  const result: LabelLookup = { model: null, existingBallId: null };
+  const result: LabelLookup = { model: null, existingBallId: null, serialIsProductCode: false };
 
   const upc = input.upc ? validateUpc(input.upc) : null;
   if (upc?.ok) {
@@ -132,8 +134,13 @@ export async function lookupLabel(input: { upc: string | null; serial: string | 
 
   const serial = input.serial ? normalizeSerial(input.serial) : null;
   if (serial?.ok) {
-    const { data: ball } = await supabase.from("balls").select("id").eq("serial", serial.value).maybeSingle<{ id: string }>();
+    const [{ data: ball }, { data: models }] = await Promise.all([
+      supabase.from("balls").select("id").eq("serial", serial.value).maybeSingle<{ id: string }>(),
+      // The product code is the same on every box of a model. A match means the wrong barcode was read.
+      supabase.from("ball_models").select("id").ilike("product_code", serial.value.replace(/[%_\\]/g, "\\$&")).limit(1),
+    ]);
     result.existingBallId = ball?.id ?? null;
+    result.serialIsProductCode = (models?.length ?? 0) > 0;
   }
   return result;
 }

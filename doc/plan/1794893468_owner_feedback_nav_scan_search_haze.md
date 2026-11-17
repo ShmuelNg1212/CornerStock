@@ -32,7 +32,7 @@ None. Answers from the human (2026-11-17):
 - Acceptance: `npm test` passes, with the new cases.
 - Completion: the fixture test reads photo 08 and gives `product_code: "BBMRTQ15L"`, `serial: null`.
 
-### [ ] 3. Check the serial against the catalog — `tests: first`
+### [x] 3. Check the serial against the catalog — `tests: first`
 - `lookupLabel` also returns `serialIsProductCode: true` when the scanned serial is equal to the `product_code` of any model.
 - `readLabel` in `use-scan.ts` then moves the value to the product code, clears the serial, and shows: "This is the product code. Scan or type the serial number."
 - The confirm screen shows the same warning when a typed or edited serial is equal to the product code field.

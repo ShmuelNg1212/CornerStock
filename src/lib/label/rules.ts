@@ -130,6 +130,8 @@ function parseNominalWeight(text: string): Parsed<number> {
 
 export type LabelErrors = Partial<Record<LabelField, string>>;
 
+export const PRODUCT_CODE_AS_SERIAL = "This is the product code. Scan or type the serial number.";
+
 /** Validates all the fields. `value` is null when one or more fields have an error. */
 export function validateLabel(raw: RawLabel): { value: BallLabel | null; errors: LabelErrors } {
   const errors: LabelErrors = {};
@@ -173,6 +175,12 @@ export function validateLabel(raw: RawLabel): { value: BallLabel | null; errors:
     pin_max: pin?.max ?? null,
     boxed_on: optional("boxed_on", parseBoxedDate),
   };
+
+  // The product code is the same on every box of a model. As a serial number, it blocks the next box.
+  const code = value.product_code ? normalizeSerial(value.product_code) : null;
+  if (value.serial && code?.ok && code.value === value.serial) {
+    errors.serial = PRODUCT_CODE_AS_SERIAL;
+  }
 
   if (Object.keys(errors).length > 0) return { value: null, errors };
   return { value: value as BallLabel, errors };

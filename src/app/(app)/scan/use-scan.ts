@@ -4,7 +4,7 @@ import { startTransition, useEffect, useRef, useState } from "react";
 import { lookupLabel, receiveBall } from "@/app/actions";
 import { announceSaved } from "@/lib/events";
 import type { LabelBarcodes } from "@/lib/label/barcodes";
-import { readMessage, scanStatus } from "@/lib/label/batch";
+import { readMessage, scanStatus, withoutProductCodeSerial } from "@/lib/label/batch";
 import { readLabelPhoto } from "@/lib/label/read-photo";
 import { parseGrossWeight, validateLabel, type LabelErrors, type LabelField, type RawLabel } from "@/lib/label/rules";
 import { createClient } from "@/lib/supabase/client";
@@ -31,25 +31,28 @@ async function shrink(file: File): Promise<Blob> {
 /** Reads the barcodes of one label photo and looks them up in the catalog. */
 async function readLabel(file: File) {
   // Read the barcodes from the full photo. Keep a smaller copy as the record of the label.
-  const [codes, photo] = await Promise.all([readLabelPhoto(file).catch((): LabelBarcodes | null => null), shrink(file)]);
-  const fields: RawLabel = { ...EMPTY, upc: codes?.upc ?? "", serial: codes?.serial ?? "", product_code: codes?.product_code ?? "" };
+  const [read, photo] = await Promise.all([readLabelPhoto(file).catch((): LabelBarcodes | null => null), shrink(file)]);
+  let codes = read;
   let known = false;
   let existingBallId: string | null = null;
   let lookupFailed = false;
+  let serialWasProductCode = false;
+  let model: RawLabel | null = null;
   if (codes?.upc || codes?.serial) {
     try {
       const lookup = await lookupLabel({ upc: codes.upc, serial: codes.serial });
-      if (lookup.model) {
-        Object.assign(fields, lookup.model);
-        known = true;
-      }
-      existingBallId = lookup.existingBallId;
+      model = lookup.model;
+      known = model !== null;
+      serialWasProductCode = lookup.serialIsProductCode;
+      codes = withoutProductCodeSerial(codes, lookup.serialIsProductCode);
+      existingBallId = serialWasProductCode ? null : lookup.existingBallId;
     } catch {
       lookupFailed = true;
     }
   }
+  const fields: RawLabel = { ...EMPTY, upc: codes?.upc ?? "", serial: codes?.serial ?? "", product_code: codes?.product_code ?? "", ...model };
   const unread = (["serial", "upc"] as LabelField[]).filter((f) => !fields[f]);
-  return { codes, photo, fields, known, existingBallId, lookupFailed, unread };
+  return { codes, photo, fields, known, existingBallId, lookupFailed, serialWasProductCode, unread };
 }
 
 /** Keeps the label photo, then adds the ball. Throws when the connection fails. */
@@ -164,7 +167,7 @@ export function useScan({ locations, defaultLocationId }: { locations: Location[
     setPreview(URL.createObjectURL(file));
     const read = await readLabel(file);
     photo.current = read.photo;
-    setMessage(readMessage(read.codes, read.lookupFailed));
+    setMessage(readMessage(read.codes, read.lookupFailed, read.serialWasProductCode));
     setExistingBallId(read.existingBallId);
     setFields(read.fields);
     setKnownModel(read.known);
@@ -228,7 +231,7 @@ export function useScan({ locations, defaultLocationId }: { locations: Location[
       message:
         status === "duplicate" && !read.existingBallId
           ? "Another photo in this batch has this serial number. If it was misread, correct it."
-          : readMessage(read.codes, read.lookupFailed),
+          : readMessage(read.codes, read.lookupFailed, read.serialWasProductCode),
       status,
     });
   }
