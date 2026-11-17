@@ -419,26 +419,27 @@ function Pills({
   const pill =
     "relative flex h-12 shrink-0 items-center gap-1.5 rounded-full px-4 text-sm font-medium lg:h-10 lg:px-3.5 outline-none transition-[color,transform] duration-(--dur-fast) focus-visible:ring-3 focus-visible:ring-ring/40 active:scale-[0.96]";
   const options = [{ weight: null as number | null, label: "All", count: null as number | null }, ...weights.map((w) => ({ weight: w.weight, label: `${w.weight} lb`, count: w.count }))];
+  const weightPill = (option: (typeof options)[number]) => {
+    const current = option.weight === active.weight;
+    return (
+      <button
+        key={option.label}
+        type="button"
+        aria-pressed={current}
+        onClick={() => onWeight(option.weight)}
+        className={cn(pill, current ? "text-primary-foreground" : "bg-card text-foreground ring-1 ring-border hover:bg-muted")}
+      >
+        {/* The navy pill slides to the chosen weight. The cause is the tap. */}
+        {current && <m.span layoutId="weight-pill" transition={spring.tab} className="absolute inset-0 rounded-full bg-primary" />}
+        <span className="relative font-heading font-bold">{option.label}</span>
+        {option.count !== null && <span className={cn("tabular relative text-xs", current ? "text-gold" : "text-muted-foreground")}>{option.count}</span>}
+      </button>
+    );
+  };
   return (
     <div className="-mx-4 mt-2.5 flex gap-1.5 overflow-x-auto px-4 pb-1 [scrollbar-width:none] lg:mx-0 lg:flex-wrap lg:overflow-visible lg:px-0 [&::-webkit-scrollbar]:hidden" role="group" aria-label="Filter by weight, low stock, and brand">
-      {options.map((option) => {
-        const current = option.weight === active.weight;
-        return (
-          <button
-            key={option.label}
-            type="button"
-            aria-pressed={current}
-            onClick={() => onWeight(option.weight)}
-            className={cn(pill, current ? "text-primary-foreground" : "bg-card text-foreground ring-1 ring-border hover:bg-muted")}
-          >
-            {/* The navy pill slides to the chosen weight. The cause is the tap. */}
-            {current && <m.span layoutId="weight-pill" transition={spring.tab} className="absolute inset-0 rounded-full bg-primary" />}
-            <span className="relative font-heading font-bold">{option.label}</span>
-            {option.count !== null && <span className={cn("tabular relative text-xs", current ? "text-gold" : "text-muted-foreground")}>{option.count}</span>}
-          </button>
-        );
-      })}
-      <span className="mx-0.5 w-px shrink-0 self-stretch bg-border" aria-hidden="true" />
+      {weightPill(options[0])}
+      {/* The low-stock pill comes right after "All", so a phone shows it with no scroll. */}
       {low > 0 && (
         <button
           type="button"
@@ -451,6 +452,8 @@ function Pills({
           <span className="tabular text-xs">{low}</span>
         </button>
       )}
+      {options.slice(1).map(weightPill)}
+      <span className="mx-0.5 w-px shrink-0 self-stretch bg-border" aria-hidden="true" />
       {active.brand ? (
         <span className={cn(pill, "bg-primary pr-1 text-primary-foreground")}>
           <button type="button" onClick={onBrand} className="font-heading rounded-full font-bold outline-none focus-visible:ring-3 focus-visible:ring-white/50">
@@ -585,7 +588,7 @@ function ModelCard({
                 aria-label={`${entry.weight} pounds, ${entry.count} in stock${statusWords(entry)}`}
                 data-status={entry.status === "ok" ? undefined : entry.status}
                 style={{ "--vt-name": `weight-${entry.modelId}` } as React.CSSProperties}
-                className="vt-weight tabular flex h-12 min-w-15 flex-col items-center justify-center rounded-xl bg-background px-2.5 leading-tight data-[status=low]:bg-warn-surface data-[status=low]:text-warn data-[status=out]:border data-[status=out]:border-dashed data-[status=out]:border-warn/60 data-[status=out]:bg-transparent outline-none transition-[background-color,transform] duration-(--dur-fast) [view-transition-class:weight-tag] hover:bg-secondary focus-visible:ring-3 focus-visible:ring-ring/40 active:scale-[0.94] aria-[current=true]:bg-gold aria-[current=true]:text-foreground lg:group-data-selected/card:bg-white/10 lg:group-data-selected/card:hover:bg-white/20 lg:group-data-selected/card:aria-[current=true]:bg-gold"
+                className="vt-weight tabular flex h-12 min-w-15 flex-col items-center justify-center rounded-xl bg-background px-2.5 leading-tight data-[status=low]:bg-warn-surface data-[status=low]:text-warn data-[status=out]:border data-[status=out]:border-dashed data-[status=out]:border-warn/60 data-[status=out]:bg-transparent data-[status=out]:text-warn aria-[current=true]:data-[status]:bg-gold aria-[current=true]:data-[status]:text-foreground outline-none transition-[background-color,transform] duration-(--dur-fast) [view-transition-class:weight-tag] hover:bg-secondary focus-visible:ring-3 focus-visible:ring-ring/40 active:scale-[0.94] aria-[current=true]:bg-gold aria-[current=true]:text-foreground lg:group-data-selected/card:bg-white/10 lg:group-data-selected/card:hover:bg-white/20 lg:group-data-selected/card:aria-[current=true]:bg-gold"
               >
                 <span className="font-heading text-base font-bold">
                   {entry.weight}
@@ -609,7 +612,7 @@ const statusWords = (entry: WeightEntry) =>
 function ChipCount({ entry }: { entry: WeightEntry }) {
   if (entry.status === "out")
     return (
-      <span className="flex items-center gap-0.5 text-xs font-semibold text-warn">
+      <span className="flex items-center gap-0.5 text-xs font-semibold">
         <CircleSlash className="size-3" aria-hidden="true" />
         Out
       </span>

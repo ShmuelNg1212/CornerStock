@@ -101,7 +101,9 @@ function ball(id: string, serial: string, modelId: string, values: Partial<Ball>
   };
 }
 
-export const ballsOf = (modelId: string): Ball[] => [
+/** Four sample balls for a model. The low-stock samples get their own count, so the model page shows the mark. */
+export const ballsOf = (modelId: string): Ball[] => sampleBalls(modelId).slice(0, low.find((row) => row.model_id === modelId)?.in_stock ?? 4);
+const sampleBalls = (modelId: string): Ball[] => [
   ball("b1", "PHZ244107731", modelId),
   ball("b2", "PHZ244107745", modelId, { gross_weight_oz: 241, top_weight: 3.1, pin_min: 3, pin_max: 4 }),
   ball("b3", "PHZ244110092", modelId, { gross_weight_oz: 240, top_weight: 2.4, location_id: "loc-room" }),
