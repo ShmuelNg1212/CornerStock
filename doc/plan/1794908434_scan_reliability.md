@@ -67,7 +67,7 @@ The live scan captures a normal ball box label in 2 seconds or less, held at a c
 
 - Not done: a new shape of the aim frame (study option, rendezvous of 2026-11-17). The human wants the aim frame to show the full label, for a later vision model.
 
-- [ ] **8. Real phone check.** Human step, after the release.
+- [x] **8. Real phone check.** Human step, after the release.
   - Open `/scan?debug=1` on the staff phone. Scan 10 different boxes.
   - Record for each box: captured (yes or no), the time to capture, and the stream size and module size from the panel.
   - Acceptance: 9 of 10 boxes capture in 2 seconds or less, with little adjustment of the phone.
@@ -96,6 +96,11 @@ The live scan captures a normal ball box label in 2 seconds or less, held at a c
 - Standards review (read-only agent): no violation, no correctness bug. Fixed: the duplicate empty-codes constant (now `NO_CODES` in `barcodes.ts`), a shadowed name in the hook, a long comment line. The diagnostic counters now run only with `?debug=1`.
 - Spec review (read-only agent): fixed: the shutter with a failed photo read showed "No barcode was found" and not "The photo could not be read". `mergeLabelCodes` now gives the photo read when the live camera read no code. Test added first. Fixed: the panel now shows the codes of the capture window (row "window"). Kept: "added" now also shows on a frame that reads only a saved serial.
 - Probe after the fixes: the panel shows the "window" row. The 1440 px stream captures; the 1080 px stream at the photo framing shows "far".
+
+## Real phone check (2026-11-17)
+
+- The human scanned on the staff phone after the release and reported: "works good".
+- The per-box values (time to capture, stream size, module size) were not recorded.
 
 ## Completion
 
