@@ -6,6 +6,7 @@ import { useState } from "react";
 import { BallGlyph } from "@/components/stock/ball-glyph";
 import { buttonClass, inputClass } from "@/components/ui/field";
 import { price } from "@/lib/format";
+import { matches } from "@/lib/search";
 import type { BallModel } from "@/lib/types";
 
 export function CatalogList({
@@ -16,13 +17,9 @@ export function CatalogList({
   owner: boolean;
 }) {
   const [query, setQuery] = useState("");
-  const needle = query.trim().toLocaleLowerCase();
+  const needle = query.trim();
   const filtered = models
-    .filter((model) =>
-      [model.name, model.brand, model.upc, model.product_code].some((value) =>
-        value?.toLocaleLowerCase().includes(needle),
-      ),
-    )
+    .filter((model) => matches([model.name, model.brand, model.upc, model.product_code].filter(Boolean).join(" "), needle))
     .sort(
       (a, b) =>
         a.name.localeCompare(b.name) ||

@@ -53,10 +53,10 @@ None. Answers from the human (2026-11-17):
 - Acceptance: in the preview shell, a change from owner to staff shows only the Account icon. At 320, 375, and 430 px wide, no icon or label overlaps another or the scan button.
 - Completion: probe screenshots before and after the role change, at the three widths.
 
-### [ ] 6. Make the search forgiving — `tests: first`
+### [x] 6. Make the search forgiving — `tests: first`
 - New `src/lib/search.ts` with `matches(text, query)`:
   - Fold case and accents (NFKD).
-  - Fold look-alikes: `!` and `|` and `1` → `i` only in the letter position, `0` → `o` only next to letters.
+  - Fold look-alikes: `!`, `|`, and `¡` → `i`. (Changed in execute: digits are not folded. Model names have real digits, for example "78/U", and a fold gives false matches.)
   - Remove spaces and punctuation, then also try a compact match ("hyroad" finds "Hy-Road", "iqtour" finds "!Q Tour").
   - Allow one wrong, missing, or extra letter for each word of 5 or more letters.
 - Use `matches` in `filterGroups` and in `catalog-list.tsx`.

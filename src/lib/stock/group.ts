@@ -1,4 +1,5 @@
 // Turns the models and the stock counts into the rows of the stock list.
+import { matches } from "@/lib/search";
 import type { BallModel } from "@/lib/types";
 
 export type StockModel = Pick<BallModel, "id" | "brand" | "name" | "color" | "nominal_weight_lb">;
@@ -34,14 +35,10 @@ export function groupStock(models: StockModel[], counts: { model_id: string; in_
   return list;
 }
 
-/** The groups whose brand and name contain each word of the search. */
+/** The groups whose brand and name match the search. See `matches` for the forgiving rules. */
 export function filterGroups(groups: StockGroup[], query: string): StockGroup[] {
-  const words = query.toLowerCase().split(/\s+/).filter(Boolean);
-  if (!words.length) return groups;
-  return groups.filter((group) => {
-    const text = `${group.brand ?? ""} ${group.name}`.toLowerCase();
-    return words.every((word) => text.includes(word));
-  });
+  if (!query.trim()) return groups;
+  return groups.filter((group) => matches(`${group.brand ?? ""} ${group.name}`, query));
 }
 
 export const stockTotal = (groups: StockGroup[]) => groups.reduce((sum, group) => sum + group.total, 0);

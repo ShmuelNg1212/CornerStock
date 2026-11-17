@@ -82,6 +82,15 @@ describe("filterGroups", () => {
     { model_id: "c12", in_stock: 1 },
   ]);
 
+  it("forgives punctuation and look-alike letters", () => {
+    const loose = groupStock([model("q", "!Q Tour 78/U", 14), model("h", "Hy-Road", 15)], [
+      { model_id: "q", in_stock: 1 },
+      { model_id: "h", in_stock: 1 },
+    ]);
+    expect(filterGroups(loose, "iq").map((g) => g.name)).toEqual(["!Q Tour 78/U"]);
+    expect(filterGroups(loose, "hyroad").map((g) => g.name)).toEqual(["Hy-Road"]);
+  });
+
   it("returns all groups for an empty search", () => {
     expect(filterGroups(groups, "  ")).toHaveLength(3);
   });
