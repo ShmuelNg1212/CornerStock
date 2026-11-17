@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, CircleCheck, Flashlight, FlashlightOff, Focus, Hand, LoaderCircle, Minus, RotateCw, ScanLine, SunDim, X, ZoomIn } from "lucide-react";
+import { Check, CircleCheck, Flashlight, FlashlightOff, Focus, Hand, LoaderCircle, Minus, RotateCw, ScanLine, SunDim, TriangleAlert, X, ZoomIn } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import type { LabelBarcodes } from "@/lib/label/barcodes";
@@ -74,10 +74,14 @@ function DebugPanel({ stats, hint }: { stats: ViewfinderStats | null; hint: Fram
   );
 }
 
+/** The status of the last count scan, from the parent. It shows in place of the hint. */
+export type CountNotice = { key: number; serial: string; text: string; tone: "ok" | "warn" | "checking" };
+
 /**
  * The live camera of the scan. It covers the screen on a phone, like the camera app.
  * Single mode: the first capture goes to the confirm screen. Batch mode: the camera stays
- * open, and each new serial number adds one ball.
+ * open, and each new serial number adds one ball. Count mode: the camera stays open, the
+ * serial alone captures, and the parent shows the status of each scan.
  */
 export function ScanViewfinder({
   mode,
@@ -89,8 +93,17 @@ export function ScanViewfinder({
   onTakePhoto,
   onUnavailable,
   base = "",
+  title,
+  counter,
+  notice = null,
 }: {
-  mode: "single" | "batch";
+  mode: "single" | "batch" | "count";
+  /** Count mode: the title in the top bar. */
+  title?: string;
+  /** Count mode: the totals at the left of the shutter. */
+  counter?: string;
+  /** Count mode: the status of the last scan. */
+  notice?: CountNotice | null;
   /** Single mode: the ball that the last scan saved. */
   saved?: Saved | null;
   /** Batch mode: the number of photos in the batch. */
@@ -106,9 +119,11 @@ export function ScanViewfinder({
   const [flash, setFlash] = useState<{ key: number; serial: string } | null>(null);
   // The server render has no address, so it gives false. The client then reads the address.
   const debug = useSyncExternalStore(noSubscribe, readDebug, () => false);
+  const count = mode === "count";
   const { videoRef, state, hint: frameHint, codes, torch, toggleTorch, shutter, stats } = useViewfinder({
     skipSerials,
     debug,
+    mode: count ? "count" : "intake",
     onCapture: (file, codes) => {
       if (mode === "batch" && codes.serial) setFlash({ key: Date.now(), serial: codes.serial });
       onCapture(file, codes);
@@ -139,11 +154,13 @@ export function ScanViewfinder({
     frameHint === "glare" && torch.on
       ? { text: "Glare on the label. Turn off the torch or tilt the box.", icon: SunDim }
       : state === "live"
-        ? HINTS[frameHint]
+        ? count && frameHint === "added"
+          ? { text: "Already counted. Point at the next label.", icon: CircleCheck }
+          : HINTS[frameHint]
         : { text: "Starting the camera…", icon: LoaderCircle };
   const HintIcon = hint.icon;
   const someRead = Boolean(codes.upc || codes.serial);
-  const captured = flash !== null;
+  const captured = count ? notice !== null && notice.tone !== "checking" : flash !== null;
   // Corners: ivory while it looks, gold when a barcode reads, green on a capture.
   const tone = captured ? "border-ok" : someRead ? "border-gold" : "border-white/85";
   const inward = captured ? "scale-[0.86]" : someRead ? "scale-[0.94]" : "";
@@ -154,7 +171,7 @@ export function ScanViewfinder({
     <div
       role="dialog"
       aria-modal="true"
-      aria-label={mode === "batch" ? "Scan several labels with the camera" : "Scan a label with the camera"}
+      aria-label={count ? "Count with the camera" : mode === "batch" ? "Scan several labels with the camera" : "Scan a label with the camera"}
       className="fixed inset-0 z-40 flex h-dvh touch-none flex-col overscroll-none bg-rail text-rail-foreground select-none"
     >
       {/* Top: close, title, torch, on a solid bar, so the controls read over any label. */}
@@ -162,7 +179,7 @@ export function ScanViewfinder({
         <button type="button" onClick={onClose} aria-label="Close the camera" className={round}>
           <X className="size-6" aria-hidden="true" />
         </button>
-        <p className="font-heading text-base font-semibold">{mode === "batch" ? "Scan several labels" : "Scan label"}</p>
+        <p className="font-heading min-w-0 truncate text-base font-semibold">{count ? title : mode === "batch" ? "Scan several labels" : "Scan label"}</p>
         {torch.available ? (
           <button
             type="button"
@@ -209,7 +226,25 @@ export function ScanViewfinder({
       {/* Bottom tray: the hint, the barcodes, the shutter. */}
       <div className="relative z-10 flex flex-col items-center gap-3 bg-rail px-4 pt-3 pb-[calc(0.5rem+env(safe-area-inset-bottom))]">
         <div className="flex min-h-12 w-full max-w-md items-center justify-center">
-          {flash ? (
+          {count && notice ? (
+            <p
+              key={notice.key}
+              role="status"
+              className={`inline-flex max-w-full items-center gap-2 rounded-full px-4 py-2 font-semibold ${
+                notice.tone === "checking" ? "bg-white/10" : `animate-mark ${notice.tone === "ok" ? "bg-ok-surface text-ok" : "bg-warn-surface text-warn"}`
+              }`}
+            >
+              {notice.tone === "checking" ? (
+                <LoaderCircle className="size-5 shrink-0 animate-spin" aria-hidden="true" />
+              ) : notice.tone === "ok" ? (
+                <CircleCheck className="size-5 shrink-0" aria-hidden="true" />
+              ) : (
+                <TriangleAlert className="size-5 shrink-0" aria-hidden="true" />
+              )}
+              <span className="tabular shrink-0 font-mono">{notice.serial}</span>
+              <span className="min-w-0 truncate">{notice.text}</span>
+            </p>
+          ) : flash ? (
             <p key={flash.key} role="status" className="inline-flex animate-mark items-center gap-2 rounded-full bg-ok-surface px-4 py-2 font-semibold text-ok">
               <CircleCheck className="size-5 shrink-0" aria-hidden="true" />
               Added <span className="tabular font-mono">{flash.serial}</span>
@@ -223,7 +258,7 @@ export function ScanViewfinder({
         </div>
         <div className="flex gap-2" aria-label="Barcodes">
           <CodeMark label="Serial" read={Boolean(codes.serial)} />
-          <CodeMark label="UPC" read={Boolean(codes.upc)} />
+          {!count && <CodeMark label="UPC" read={Boolean(codes.upc)} />}
         </div>
 
         <div className="grid w-full max-w-md grid-cols-3 items-center">
@@ -233,6 +268,7 @@ export function ScanViewfinder({
                 {added} {added === 1 ? "ball" : "balls"}
               </p>
             )}
+            {count && <p className="tabular text-sm font-semibold">{counter}</p>}
           </div>
           <button
             type="button"
@@ -244,7 +280,7 @@ export function ScanViewfinder({
             <span className="size-14 rounded-full bg-white" />
           </button>
           <div className="justify-self-end">
-            {mode === "batch" && (
+            {mode !== "single" && (
               <button type="button" onClick={onClose} className="h-12 rounded-full bg-white px-5 font-semibold text-rail outline-none active:scale-95 focus-visible:ring-3 focus-visible:ring-gold">
                 Done
               </button>
@@ -252,7 +288,7 @@ export function ScanViewfinder({
           </div>
         </div>
         <button type="button" onClick={onTakePhoto} className="h-11 rounded-md px-3 text-sm font-medium text-rail-foreground/85 underline underline-offset-4 outline-none hover:text-rail-foreground focus-visible:ring-3 focus-visible:ring-gold">
-          Take a photo instead
+          {count ? "Type a serial number" : "Take a photo instead"}
         </button>
       </div>
     </div>

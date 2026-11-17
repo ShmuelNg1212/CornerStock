@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowDownToLine, ChevronDown, Layers, MapPin, Search, Tag, TriangleAlert, X } from "lucide-react";
+import { ArrowDownToLine, ChevronDown, ClipboardCheck, Layers, MapPin, Search, Tag, TriangleAlert, X } from "lucide-react";
 import { AnimatePresence, m, useReducedMotion } from "motion/react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
@@ -140,7 +140,7 @@ export function StockList({ groups, place, locationNames, today, base = "", fixt
   return (
     <div className="pb-4 lg:pb-0">
       <h1 className="sr-only">Stock</h1>
-      <Greeting />
+      <Greeting base={base} />
 
       <Tiles total={total} models={inStock} today={today} low={lows} lowOn={Boolean(active.low)} onLow={toggleLow} />
 
@@ -314,18 +314,24 @@ export function StockList({ groups, place, locationNames, today, base = "", fixt
 }
 
 /** "Good morning" in Manila time, and the name of the staff member. */
-function Greeting() {
+function Greeting({ base }: { base: string }) {
   const account = useAccount();
   if (!account) return null;
   const hour = manilaHour(new Date());
   const part = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
   const first = account.name.trim().split(/\s+/)[0] || "there";
   return (
-    <div className="mb-3">
-      <p className="text-xs font-medium tracking-wide sm:text-sm text-muted-foreground uppercase" suppressHydrationWarning>
-        {part}
-      </p>
-      <p className="font-heading text-2xl leading-tight font-bold break-words sm:text-[1.75rem]">{first}</p>
+    <div className="mb-3 flex items-end gap-3">
+      <div className="min-w-0 flex-1">
+        <p className="text-xs font-medium tracking-wide sm:text-sm text-muted-foreground uppercase" suppressHydrationWarning>
+          {part}
+        </p>
+        <p className="font-heading text-2xl leading-tight font-bold break-words sm:text-[1.75rem]">{first}</p>
+      </div>
+      <Link href={`${base}/count`} className={`${buttonClass.small} shrink-0`}>
+        <ClipboardCheck className="size-4" aria-hidden="true" />
+        Count stock
+      </Link>
     </div>
   );
 }

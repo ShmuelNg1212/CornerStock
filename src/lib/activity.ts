@@ -51,7 +51,7 @@ export function activityDetail(row: ActivityRow): string {
     case "sell":
       return [row.from_location && `From ${row.from_location}`, row.reference && `Ref. ${row.reference}`].filter(Boolean).join(" · ");
     case "transfer":
-      return `${row.from_location ?? "—"} → ${row.to_location ?? "—"}`;
+      return [`${row.from_location ?? "—"} → ${row.to_location ?? "—"}`, row.reason].filter(Boolean).join(" · ");
     default:
       return row.reason ?? "";
   }
