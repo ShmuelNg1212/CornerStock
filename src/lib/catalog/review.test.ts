@@ -7,7 +7,7 @@ const model: BallModel = {
   id: "model-a", upc: "887970617601", name: "Summit", nominal_weight_lb: 15,
   brand: "Storm", color: "Blue", fragrance: null, coverstock: null,
   weight_block: null, finish: null, rg: null, diff: null, mass_bias: null,
-  product_code: null, selling_price: 12500,
+  product_code: null, selling_price: 12500, min_in_stock: null,
 };
 const ball: Ball = {
   id: "ball-a", serial: "ABC123", model_id: model.id, location_id: location.id,
@@ -20,6 +20,25 @@ const row = (values: Record<string, string | undefined>, line = 2) => ({ row: li
 const state = { models: [model], balls: [ball], locations: [location] };
 
 describe("import review", () => {
+  it("sets, keeps, and clears the minimum of the low-stock alert", () => {
+    const withMin = { ...state, models: [{ ...model, min_in_stock: 2 }] };
+    const set = buildReview("catalog", [row({ upc: model.upc, min_in_stock: "3" })], state, options);
+    expect(set.errors).toEqual([]);
+    expect(set.payload.models[0].after).toMatchObject({ min_in_stock: 3 });
+    const kept = buildReview("catalog", [row({ upc: model.upc })], withMin, options);
+    expect(kept.payload.models[0].after).toMatchObject({ min_in_stock: 2 });
+    expect(kept.summary).toMatchObject({ unchanged: 1 });
+    const cleared = buildReview("catalog", [row({ upc: model.upc, min_in_stock: "__CLEAR__" })], withMin, options);
+    expect(cleared.payload.models[0].after).toMatchObject({ min_in_stock: null });
+  });
+
+  it("refuses a minimum above 99 or with decimals, on its field", () => {
+    for (const text of ["100", "1.5"]) {
+      const result = buildReview("catalog", [row({ upc: model.upc, min_in_stock: text })], state, options);
+      expect(result.errors.map((e) => e.field), text).toContain("min_in_stock");
+    }
+  });
+
   it("merges compatible model details across stock rows without duplicate model writes", () => {
     const result = buildReview("stock", [
       row({ upc: model.upc, serial: "NEW123", color: "Green" }),

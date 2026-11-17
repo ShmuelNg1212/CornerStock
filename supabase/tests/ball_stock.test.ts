@@ -749,3 +749,116 @@ describe("activity feed", () => {
     await expect(as(owner, (c) => c.query("insert into public.catalog_changes (model_id, old_values, new_values) select id, '{}', '{}' from public.ball_models limit 1"))).rejects.toThrow(/permission denied/);
   });
 });
+
+describe("low stock", () => {
+  /** A UPC-A with a correct check digit, from 11 digits. */
+  const upcOf = (eleven: string) => {
+    let sum = 0;
+    for (let i = 0; i < 11; i++) sum += Number(eleven[i]) * (i % 2 === 0 ? 3 : 1);
+    return eleven + ((10 - (sum % 10)) % 10);
+  };
+  const lowRows = async (user: string | null, modelId: string) =>
+    as(user, async (c) => (await c.query("select location_id, in_stock, min_in_stock from public.low_stock where model_id = $1", [modelId])).rows);
+  const modelOf = async (upc: string) => (await admin.query("select id from public.ball_models where upc = $1", [upc])).rows[0].id as string;
+  const setMin = (user: string, upc: string, min: number | null) =>
+    as(user, (c) => c.query("update public.ball_models set min_in_stock = $1 where upc = $2", [min, upc]));
+
+  it("lists a location with fewer balls than the minimum, and not a location with enough", async () => {
+    const upc = upcOf("10000000001");
+    await receive(staff, { upc, model_name: "Low Here" }, mall);
+    for (let i = 0; i < 3; i++) await receive(staff, { upc, model_name: "Low Here" }, warehouse);
+    await setMin(owner, upc, 2);
+    const rows = await lowRows(staff, await modelOf(upc));
+    expect(rows.find((r) => r.location_id === mall)).toEqual({ location_id: mall, in_stock: 1, min_in_stock: 2 });
+    expect(rows.find((r) => r.location_id === warehouse)).toBeUndefined();
+  });
+
+  it("lists an active location with no ball as 0 in stock, and leaves out an inactive location", async () => {
+    const upc = upcOf("10000000002");
+    await receive(staff, { upc, model_name: "Out There" }, mall);
+    await setMin(owner, upc, 1);
+    const empty = (await admin.query("insert into public.locations (name) values ('Empty Shelf') returning id")).rows[0].id;
+    const closed = (await admin.query("insert into public.locations (name, active) values ('Closed Shelf', false) returning id")).rows[0].id;
+    const rows = await lowRows(staff, await modelOf(upc));
+    expect(rows.find((r) => r.location_id === empty)).toEqual({ location_id: empty, in_stock: 0, min_in_stock: 1 });
+    expect(rows.find((r) => r.location_id === closed)).toBeUndefined();
+    expect(rows.find((r) => r.location_id === mall)).toBeUndefined();
+  });
+
+  it("counts only balls in stock: a sold ball does not count", async () => {
+    const upc = upcOf("10000000003");
+    const id = await receive(staff, { upc, model_name: "Sold Down" }, mall);
+    await receive(staff, { upc, model_name: "Sold Down" }, mall);
+    await setMin(owner, upc, 2);
+    expect((await lowRows(staff, await modelOf(upc))).find((r) => r.location_id === mall)).toBeUndefined();
+    await as(staff, (c) => c.query("select public.sell_ball($1, $2)", [id, randomUUID()]));
+    expect((await lowRows(staff, await modelOf(upc))).find((r) => r.location_id === mall)).toMatchObject({ in_stock: 1 });
+  });
+
+  it("gives no row for a model with no minimum, or a minimum of 0", async () => {
+    const upc = upcOf("10000000004");
+    await receive(staff, { upc, model_name: "No Minimum" }, mall);
+    expect(await lowRows(staff, await modelOf(upc))).toEqual([]);
+    await setMin(owner, upc, 0);
+    expect(await lowRows(staff, await modelOf(upc))).toEqual([]);
+  });
+
+  it("lets only the owner set the minimum, from 0 to 99", async () => {
+    const upc = upcOf("10000000005");
+    await receive(staff, { upc, model_name: "Owner Sets" }, mall);
+    expect((await setMin(staff, upc, 3)).rowCount).toBe(0);
+    expect((await setMin(owner, upc, 3)).rowCount).toBe(1);
+    await expect(setMin(owner, upc, 100)).rejects.toThrow(/check constraint/);
+    await expect(setMin(owner, upc, -1)).rejects.toThrow(/check constraint/);
+  });
+
+  it("records a change of the minimum in the catalog edit log", async () => {
+    const upc = upcOf("10000000006");
+    await receive(staff, { upc, model_name: "Logged Min" }, mall);
+    await setMin(owner, upc, 4);
+    const row = (
+      await admin.query("select old_values, new_values from public.catalog_changes where model_id = $1 order by id desc limit 1", [await modelOf(upc)])
+    ).rows[0];
+    expect(row).toEqual({ old_values: { min_in_stock: null }, new_values: { min_in_stock: 4 } });
+  });
+
+  const importModel = async (upc: string, after: Record<string, unknown>) => {
+    const before = (await admin.query("select to_jsonb(m) as row from public.ball_models m where upc = $1", [upc])).rows[0]?.row ?? null;
+    const payload = { kind: "catalog", reason: "", models: [{ upc, before, after }], balls: [] };
+    return as(owner, async (c) => (await c.query("select public.commit_catalog_import($1, $2) as result", [randomUUID(), JSON.stringify(payload)])).rows[0].result);
+  };
+  const importValues = (upc: string, extra: Record<string, unknown> = {}) => ({
+    upc, name: "Import Min", nominal_weight_lb: 15, brand: "Storm", color: null, fragrance: null, coverstock: null,
+    weight_block: null, finish: null, rg: null, diff: null, mass_bias: null, product_code: null, selling_price: null, ...extra,
+  });
+
+  it("lets a catalog import set the minimum, and counts a row with the same minimum as unchanged", async () => {
+    const upc = upcOf("10000000007");
+    expect(await importModel(upc, importValues(upc, { min_in_stock: 2 }))).toMatchObject({ models_added: 1 });
+    expect((await admin.query("select min_in_stock from public.ball_models where upc = $1", [upc])).rows[0].min_in_stock).toBe(2);
+    expect(await importModel(upc, importValues(upc, { min_in_stock: 2 }))).toMatchObject({ models_updated: 0, unchanged: 1 });
+    expect(await importModel(upc, importValues(upc, { min_in_stock: 5 }))).toMatchObject({ models_updated: 1 });
+    expect((await admin.query("select min_in_stock from public.ball_models where upc = $1", [upc])).rows[0].min_in_stock).toBe(5);
+  });
+
+  it("refuses an imported minimum outside 0 to 99, or with decimals", async () => {
+    const upc = upcOf("10000000008");
+    await expect(importModel(upc, importValues(upc, { min_in_stock: 100 }))).rejects.toThrow(/INVALID_IMPORT|check constraint/);
+    await expect(importModel(upc, importValues(upc, { min_in_stock: 1.5 }))).rejects.toThrow(/INVALID_IMPORT/);
+  });
+
+  it("gives signed-in users only read access to the view", async () => {
+    const privileges = (
+      await admin.query(
+        "select has_table_privilege('authenticated', 'public.low_stock', 'INSERT') as ins, has_table_privilege('authenticated', 'public.low_stock', 'UPDATE') as upd, has_table_privilege('authenticated', 'public.low_stock', 'SELECT') as sel",
+      )
+    ).rows[0];
+    expect(privileges).toEqual({ ins: false, upd: false, sel: true });
+  });
+
+  it("shows nothing to a signed-out visitor or an inactive account", async () => {
+    const id = await modelOf(upcOf("10000000001"));
+    await expect(lowRows(null, id)).rejects.toThrow(/permission denied/);
+    expect(await lowRows(inactive, id)).toEqual([]);
+  });
+});

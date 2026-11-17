@@ -1,3 +1,4 @@
+import { MinimumForm } from "@/app/(app)/(stock)/models/[id]/minimum-form";
 import { PriceForm } from "@/app/(app)/(stock)/models/[id]/price-form";
 import { DetailTransition } from "@/components/detail-transition";
 import { ModelView } from "@/components/stock/model-view";
@@ -14,7 +15,12 @@ export default async function PreviewModel({ params }: { params: Promise<{ id: s
         balls={ballsOf(model.id)}
         place={locations[0].name}
         editable
-        priceForm={<PriceForm modelId={model.id} current={model.selling_price} />}
+        priceForm={
+          <div className="flex flex-col items-start">
+            <PriceForm modelId={model.id} current={model.selling_price} />
+            <MinimumForm modelId={model.id} current={model.min_in_stock} />
+          </div>
+        }
       />
     </DetailTransition>
   );

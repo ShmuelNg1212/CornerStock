@@ -35,6 +35,7 @@ function model(id: string, brand: string | null, name: string, weight: number, c
     mass_bias: null,
     product_code: "BBMTLZ15",
     selling_price: price,
+    min_in_stock: null,
   };
 }
 
@@ -53,7 +54,16 @@ const spec: [string | null, string, string | null, [number, number][]][] = [
 const slug = (name: string) => name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
 export const models: BallModel[] = spec.flatMap(([brand, name, color, weights]) => weights.map(([weight]) => model(`${slug(name)}-${weight}`, brand, name, weight, color)));
 export const counts = spec.flatMap(([, name, , weights]) => weights.map(([weight, count]) => ({ model_id: `${slug(name)}-${weight}`, in_stock: count })));
-export const groups = groupStock(models, counts);
+// Low stock: Twist 10 lb is below its minimum of 2, and Phaze II 13 lb is out (doc/adr/0004-low-stock-minimum.md).
+const outModel = model("phaze-ii-13", "Storm", "Phaze II", 13, "Red / Blue / Purple");
+models.push({ ...outModel, min_in_stock: 1 });
+for (const m of models) if (m.id === "twist-10") m.min_in_stock = 2;
+export const low = [
+  { model_id: "twist-10", location_id: "loc-main", min_in_stock: 2 },
+  { model_id: "phaze-ii-13", location_id: "loc-main", min_in_stock: 1 },
+];
+const lowCounts: Record<string, number> = { "twist-10": 1, "phaze-ii-13": 0 };
+export const groups = groupStock(models, counts, low);
 
 // Worst-case data: long names, no brand, non-Latin text, large counts.
 const worstModels: BallModel[] = [
@@ -92,7 +102,9 @@ function ball(id: string, serial: string, modelId: string, values: Partial<Ball>
   };
 }
 
-export const ballsOf = (modelId: string): Ball[] => [
+/** Four sample balls for a model. The low-stock samples get their own count, so the model page shows the mark. */
+export const ballsOf = (modelId: string): Ball[] => sampleBalls(modelId).slice(0, lowCounts[modelId] ?? 4);
+const sampleBalls = (modelId: string): Ball[] => [
   ball("b1", "PHZ244107731", modelId),
   ball("b2", "PHZ244107745", modelId, { gross_weight_oz: 241, top_weight: 3.1, pin_min: 3, pin_max: 4 }),
   ball("b3", "PHZ244110092", modelId, { gross_weight_oz: 240, top_weight: 2.4, location_id: "loc-room" }),

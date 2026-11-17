@@ -82,6 +82,7 @@ const FIELDS: Record<string, { label: string; show: (v: unknown) => string }> = 
   mass_bias: { label: "Mass bias", show: (v) => number(num(v)) },
   product_code: { label: "Product code", show: text },
   selling_price: { label: "Price", show: (v) => (num(v) === null ? "—" : price(num(v))) },
+  min_in_stock: { label: "Keep in stock", show: (v) => (num(v) === null ? "No minimum" : String(num(v))) },
 };
 
 const same = (a: unknown, b: unknown) => (typeof a === "number" || typeof b === "number" ? num(a) === num(b) : (a ?? null) === (b ?? null));
