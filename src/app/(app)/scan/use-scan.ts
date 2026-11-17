@@ -4,7 +4,7 @@ import { startTransition, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { lookupLabel, receiveBall, sellBall } from "@/app/actions";
 import { announceSaved } from "@/lib/events";
-import type { LabelBarcodes } from "@/lib/label/barcodes";
+import { mergeLabelCodes, type LabelBarcodes } from "@/lib/label/barcodes";
 import { readMessage, scanStatus, withoutProductCodeSerial, type ExistingBall } from "@/lib/label/batch";
 import { readLabelPhoto } from "@/lib/label/read-photo";
 import { parseGrossWeight, validateLabel, type LabelErrors, type LabelField, type RawLabel } from "@/lib/label/rules";
@@ -29,11 +29,14 @@ async function shrink(file: File): Promise<Blob> {
   }
 }
 
-/** Reads the barcodes of one label photo and looks them up in the catalog. */
-async function readLabel(file: File) {
+/**
+ * Reads the barcodes of one label photo and looks them up in the catalog.
+ * `live`: the codes that the live camera read. They win over the photo read.
+ */
+async function readLabel(file: File, live?: LabelBarcodes) {
   // Read the barcodes from the full photo. Keep a smaller copy as the record of the label.
   const [read, photo] = await Promise.all([readLabelPhoto(file).catch((): LabelBarcodes | null => null), shrink(file)]);
-  let codes = read;
+  let codes = mergeLabelCodes(live, read);
   let known = false;
   let existingBall: ExistingBall | null = null;
   let lookupFailed = false;
@@ -168,11 +171,12 @@ export function useScan({ locations, defaultLocationId }: { locations: Location[
     setStep(fromBatch ? "batch" : "start");
   }
 
-  async function onPhoto(file: File | undefined) {
+  /** `live`: the codes that the live camera read, if the photo came from it. */
+  async function onPhoto(file: File | undefined, live?: LabelBarcodes) {
     if (!file) return;
     begin("reading");
     setPreview(URL.createObjectURL(file));
-    const read = await readLabel(file);
+    const read = await readLabel(file, live);
     photo.current = read.photo;
     setMessage(readMessage(read.codes, read.lookupFailed, read.serialWasProductCode));
     setExistingBall(read.existingBall);
@@ -215,15 +219,15 @@ export function useScan({ locations, defaultLocationId }: { locations: Location[
     files.forEach((file, i) => {
       // A failed read must not stop the reads of the next photos.
       readQueue.current = readQueue.current.then(() =>
-        readItem(items[i].id, file).catch(() =>
+        readItem(items[i].id, file, codes[i]).catch(() =>
           updateItem(items[i].id, { status: "needs_details", message: "The photo could not be read on this device. Type the details." }),
         ),
       );
     });
   }
 
-  async function readItem(id: string, file: File) {
-    const read = await readLabel(file);
+  async function readItem(id: string, file: File, live?: LabelBarcodes) {
+    const read = await readLabel(file, live);
     const current = batchRef.current;
     const index = current.findIndex((item) => item.id === id);
     if (index < 0) return; // Removed while it was read.

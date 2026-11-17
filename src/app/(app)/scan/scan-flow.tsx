@@ -88,7 +88,7 @@ export function ScanFlow({ locations, defaultLocationId }: { locations: Location
           saved={scan.saved}
           // The box of the ball that was just saved is often still in front of the camera.
           skipSerials={scan.saved ? [scan.saved.serial] : []}
-          onCapture={(file) => void scan.onPhoto(file)}
+          onCapture={(file, codes) => void scan.onPhoto(file, codes)}
           onClose={() => setLive(false)}
           onTakePhoto={() => camera.current?.click()}
           onUnavailable={onUnavailable}
