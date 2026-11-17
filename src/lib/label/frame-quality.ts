@@ -20,6 +20,8 @@ export const FRAME_LIMITS = {
    * The serial reads at 1.77 px and fails at about 1.5 px. The glare photos give 2.08 px or more.
    */
   farBelow: 1.8,
+  /** The capture combines the reads of the frames in this window. */
+  captureWindowMs: 1500,
   /** A hint shows only when its cause lasts this long. */
   hintHoldMs: 800,
   /** The window of frames that a hint looks at. */
@@ -125,38 +127,66 @@ export function frameHasGlare(frame: FrameScores & FrameCodes): boolean {
 const partial = (frame: FrameCodes) => found(frame.codes) > 0 && !complete(frame.codes);
 const tooFar = (frame: FrameCodes) => frame.moduleSize !== null && frame.moduleSize < FRAME_LIMITS.farBelow;
 
+const NO_CODES: LabelBarcodes = { upc: null, serial: null, product_code: null };
+
+/**
+ * The codes to capture from the frames of the capture window, or null.
+ * - The latest frame reads the serial, so the captured photo shows the label.
+ * - One frame reads the UPC and the serial together. This pairs them on one label: a UPC from
+ *   one box never joins a serial from the next box.
+ * - One more frame reads the same serial. The serial is the thinnest barcode, so it can read
+ *   alone; the UPC does not need to read again.
+ * - No frame of the window reads a different serial or UPC. The phone is then on one label.
+ * A barcode reads exactly or fails, so reads from nearby frames can be combined.
+ * No sharpness limit applies: when the barcodes read, the frame is sharp enough.
+ */
+function captureCodes(history: FrameRead[], now: number): LabelBarcodes | null {
+  const window = history.filter((f) => f.at >= now - FRAME_LIMITS.captureWindowMs);
+  const serial = window.at(-1)?.codes.serial;
+  if (!serial) return null;
+  if (window.some((f) => f.codes.serial !== null && f.codes.serial !== serial)) return null;
+  const paired = window.findLast((f) => f.codes.serial === serial && f.codes.upc !== null);
+  if (!paired) return null;
+  const upc = paired.codes.upc;
+  if (window.some((f) => f.codes.upc !== null && f.codes.upc !== upc)) return null;
+  const sameSerial = window.filter((f) => f.codes.serial === serial);
+  if (sameSerial.length < 2) return null;
+  const productCode = sameSerial.findLast((f) => f.codes.product_code !== null)?.codes.product_code ?? null;
+  return { upc, serial, product_code: productCode };
+}
+
 /**
  * Decides on the latest frame. `history` is in time order and ends with the latest frame.
- * The capture needs two frames in a row with the same UPC and serial, so the label is still.
+ * On a capture, `codes` are the combined codes of the capture window. Otherwise they are the codes of the latest frame.
  */
-export function decideFrame(history: FrameRead[], now: number, skipSerials: readonly string[] = []): { capture: boolean; hint: FrameHint } {
+export function decideFrame(
+  history: FrameRead[],
+  now: number,
+  skipSerials: readonly string[] = [],
+): { capture: boolean; hint: FrameHint; codes: LabelBarcodes } {
   const last = history.at(-1);
-  if (!last) return { capture: false, hint: "aim" };
+  if (!last) return { capture: false, hint: "aim", codes: NO_CODES };
+  const wait = (hint: FrameHint) => ({ capture: false, hint, codes: last.codes });
 
-  if (complete(last.codes)) {
-    if (skipSerials.includes(last.codes.serial!)) return { capture: false, hint: "added" };
-    const previous = history.at(-2);
-    const still = previous && previous.codes.serial === last.codes.serial && previous.codes.upc === last.codes.upc;
-    // Both codes read, but the frame is soft: say so, or "Hold still" would show with no capture.
-    if (last.sharpness < FRAME_LIMITS.softBelow) return { capture: false, hint: "soft" };
-    return { capture: Boolean(still), hint: "hold" };
-  }
+  if (last.codes.serial && skipSerials.includes(last.codes.serial)) return wait("added");
+  const codes = captureCodes(history, now);
+  if (codes) return { capture: true, hint: "hold", codes };
+  if (complete(last.codes)) return wait("hold");
 
   // A cause counts only when every frame of the last window has it, and the window is long enough.
   const window = history.filter((f) => f.at >= now - FRAME_LIMITS.hintWindowMs);
   const lasts = (test: (f: FrameRead) => boolean) =>
     window.length > 0 && window[0].at <= now - FRAME_LIMITS.hintHoldMs && window.every(test);
 
-  if (lasts(frameHasGlare)) return { capture: false, hint: "glare" };
-  if (lasts((f) => partial(f) && tooFar(f))) return { capture: false, hint: "far" };
-  if (lasts((f) => found(f.codes) === 0 && f.sharpness < FRAME_LIMITS.softBelow)) return { capture: false, hint: "soft" };
+  if (lasts(frameHasGlare)) return wait("glare");
+  if (lasts((f) => partial(f) && tooFar(f))) return wait("far");
+  if (lasts((f) => found(f.codes) === 0 && f.sharpness < FRAME_LIMITS.softBelow)) return wait("soft");
 
   const lastCode = history.findLast((f) => found(f.codes) > 0);
   const since = lastCode ? lastCode.at : history[0].at;
-  if (!lastCode && now - since >= FRAME_LIMITS.alignAfterMs) return { capture: false, hint: "align" };
-  if (lastCode && now - lastCode.at >= FRAME_LIMITS.alignAfterMs) return { capture: false, hint: "align" };
+  if (now - since >= FRAME_LIMITS.alignAfterMs) return wait("align");
 
-  return { capture: false, hint: found(last.codes) > 0 ? "hold" : "aim" };
+  return wait(found(last.codes) > 0 ? "hold" : "aim");
 }
 
 /** Drops the frames that no rule looks at any more. */

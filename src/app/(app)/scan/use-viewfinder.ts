@@ -16,6 +16,25 @@ const PICTURE_TIMEOUT_MS = 5000;
 /** About 5 frames each second. A slow phone reads fewer: the next frame waits for the last reply. */
 const FRAME_GAP_MS = 200;
 
+/** The values of the diagnostic panel (`?debug=1`). They stay on the device. */
+export type ViewfinderStats = {
+  /** The size that the camera gives, from the track settings. */
+  stream: string;
+  /** The size of the frame that the reader reads. */
+  frame: string;
+  readMs: number;
+  readAvgMs: number;
+  /** Frames read in the last second. */
+  fps: number;
+  sharpness: number;
+  moduleSize: number | null;
+  /** The codes of the last frame: U (UPC), S (serial), P (product code), or a dash. */
+  read: string;
+  captures: number;
+  /** From the first barcode after the start or the last capture, to the capture. */
+  lastCaptureMs: number | null;
+};
+
 /** The torch and the focus mode are camera capabilities that the DOM types do not list yet. */
 type CameraCapabilities = MediaTrackCapabilities & { torch?: boolean; focusMode?: string[] };
 
@@ -36,28 +55,34 @@ const toFile = (canvas: HTMLCanvasElement) =>
 
 /**
  * The live camera of the scan. It reads frames in a worker and calls `onCapture` when a frame
- * gives the UPC and the serial two times in a row. The camera stops when the page is hidden
+ * reads the UPC and the serial together, and one more frame confirms the serial (see `decideFrame`). The camera stops when the page is hidden
  * and when the component that uses the hook goes away.
  */
 export function useViewfinder({
   onCapture,
   skipSerials = [],
+  debug = false,
 }: {
   onCapture: (file: File, codes: LabelBarcodes) => void;
   /** Serial numbers that must not capture again, for example the balls already in a batch. */
   skipSerials?: readonly string[];
+  /** Collect the values of the diagnostic panel. */
+  debug?: boolean;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [state, setState] = useState<CameraState>("starting");
   const [hint, setHint] = useState<FrameHint>("aim");
   const [codes, setCodes] = useState<LabelBarcodes>(NO_CODES);
   const [torch, setTorch] = useState({ available: false, on: false });
+  const [stats, setStats] = useState<ViewfinderStats | null>(null);
+  const debugRef = useRef(debug);
 
   const onCaptureRef = useRef(onCapture);
   const skipRef = useRef(skipSerials);
   useEffect(() => {
     onCaptureRef.current = onCapture;
     skipRef.current = skipSerials;
+    debugRef.current = debug;
   });
 
   const streamRef = useRef<MediaStream | null>(null);
@@ -106,6 +131,12 @@ export function useViewfinder({
     }
 
     let liveSince = 0;
+    // Diagnostic values. They change no decision.
+    let readAvg = 0;
+    let captures = 0;
+    let firstCodeAt: number | null = null;
+    let lastCaptureMs: number | null = null;
+    const readTimes: number[] = [];
     async function tick(mine: number) {
       const video = videoRef.current;
       if (stopped || mine !== session || !video) return;
@@ -121,6 +152,7 @@ export function useViewfinder({
       }
       const started = performance.now();
       const context = drawFrame(video, canvas);
+      const readStart = performance.now();
       const reply = await read(context.getImageData(0, 0, canvas.width, canvas.height));
       if (stopped || mine !== session) return;
 
@@ -130,16 +162,45 @@ export function useViewfinder({
         const decision = decideFrame(history, now, [...skipRef.current, ...captured]);
         setCodes(reply.result.codes);
         setHint(decision.hint);
+
+        const { codes: frameCodes } = reply.result;
+        if (firstCodeAt === null && (frameCodes.upc || frameCodes.serial || frameCodes.product_code)) firstCodeAt = now;
         if (decision.capture) {
-          const serial = reply.result.codes.serial!;
-          captured.add(serial);
+          captures++;
+          lastCaptureMs = firstCodeAt === null ? null : Math.round(now - firstCodeAt);
+          firstCodeAt = null;
+        }
+        if (debugRef.current) {
+          const readMs = now - readStart;
+          readAvg = readAvg ? readAvg * 0.8 + readMs * 0.2 : readMs;
+          readTimes.push(now);
+          while (readTimes[0] < now - 1000) readTimes.shift();
+          const settings = streamRef.current?.getVideoTracks()[0]?.getSettings();
+          setStats({
+            stream: settings?.width ? `${settings.width} × ${settings.height}` : `${video.videoWidth} × ${video.videoHeight}`,
+            frame: `${canvas.width} × ${canvas.height}`,
+            readMs: Math.round(readMs),
+            readAvgMs: Math.round(readAvg),
+            fps: readTimes.length,
+            sharpness: Math.round(reply.result.sharpness),
+            moduleSize: reply.result.moduleSize,
+            read: `${frameCodes.upc ? "U" : "-"}${frameCodes.serial ? "S" : "-"}${frameCodes.product_code ? "P" : "-"}`,
+            captures,
+            lastCaptureMs,
+          });
+        }
+
+        if (decision.capture) {
+          // The combined codes of the capture window. The latest frame read the serial.
+          const codes = decision.codes;
+          captured.add(codes.serial!);
           history = [];
           // The canvas still holds the frame that the worker read.
           const file = await toFile(canvas);
           if (stopped || mine !== session) return;
           if (file) {
             navigator.vibrate?.(30);
-            onCaptureRef.current(file, reply.result.codes);
+            onCaptureRef.current(file, codes);
           }
         }
       }
@@ -174,6 +235,7 @@ export function useViewfinder({
         await video.play().catch(() => {});
         if (stopped || mine !== session) return;
         history = [];
+        firstCodeAt = null;
         liveSince = performance.now();
         setHint("aim");
         setState("live");
@@ -222,5 +284,5 @@ export function useViewfinder({
     if (file) onCaptureRef.current(file, NO_CODES);
   }, []);
 
-  return { videoRef, state, hint, codes, torch, toggleTorch, shutter };
+  return { videoRef, state, hint, codes, torch, toggleTorch, shutter, stats: debug ? stats : null };
 }

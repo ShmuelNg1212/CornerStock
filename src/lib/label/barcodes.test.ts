@@ -4,6 +4,13 @@ import { prepareZXingModule, readBarcodes } from "zxing-wasm/reader";
 import { beforeAll, describe, expect, it } from "vitest";
 import { classifyBarcodes, codeShape, moduleSize, READER_OPTIONS, toFound } from "./barcodes";
 
+describe("READER_OPTIONS", () => {
+  // Fewer formats read 4 times faster. Code 128 stays for labels of other brands.
+  it("reads only the barcode formats of the ball box labels", () => {
+    expect(READER_OPTIONS.formats).toEqual(["UPC-A", "EAN-13", "Code39", "Code128"]);
+  });
+});
+
 describe("classifyBarcodes", () => {
   const serial = { format: "Code39", text: "23VSLE30B047", y: 1236 };
   const upc = { format: "EAN13", text: "0887970617601", y: 1370 };
