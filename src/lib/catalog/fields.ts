@@ -1,4 +1,4 @@
-export const CATALOG_FIELDS = ["upc", "model_name", "nominal_weight_lb", "brand", "color", "fragrance", "coverstock", "weight_block", "finish", "rg", "diff", "mass_bias", "product_code", "selling_price"] as const;
+export const CATALOG_FIELDS = ["upc", "model_name", "nominal_weight_lb", "brand", "color", "fragrance", "coverstock", "weight_block", "finish", "rg", "diff", "mass_bias", "product_code", "selling_price", "min_in_stock"] as const;
 export const STOCK_FIELDS = ["serial", ...CATALOG_FIELDS, "gross_weight", "top_weight", "pin_distance", "boxed_on", "location"] as const;
 export type ImportField = (typeof STOCK_FIELDS)[number];
 export type FileFormat = "csv" | "xlsx";

@@ -5,6 +5,7 @@ import { ModelView } from "@/components/stock/model-view";
 import { ALL_LOCATIONS, getLocations, requireStaff } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import type { Ball, BallModel } from "@/lib/types";
+import { MinimumForm } from "./minimum-form";
 import { PriceForm } from "./price-form";
 
 export const metadata: Metadata = { title: "Model" };
@@ -59,7 +60,14 @@ export default async function ModelPage({ params }: { params: Promise<{ id: stri
         place={all ? "all locations" : (locations.find((l) => l.id === selected)?.name ?? "")}
         locationNames={all ? Object.fromEntries(locations.map((l) => [l.id, l.name])) : undefined}
         editable={profile.role === "owner"}
-        priceForm={profile.role === "owner" ? <PriceForm modelId={model.id} current={model.selling_price} /> : undefined}
+        priceForm={
+          profile.role === "owner" ? (
+            <div className="flex flex-col items-start">
+              <PriceForm modelId={model.id} current={model.selling_price} />
+              <MinimumForm modelId={model.id} current={model.min_in_stock} />
+            </div>
+          ) : undefined
+        }
       />
     </DetailTransition>
   );

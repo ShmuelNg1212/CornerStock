@@ -21,6 +21,8 @@ export type BallModel = {
   mass_bias: number | null;
   product_code: string | null;
   selling_price: number | null;
+  /** The low-stock minimum for each location. Null: no alert. */
+  min_in_stock: number | null;
 };
 
 export type Ball = {

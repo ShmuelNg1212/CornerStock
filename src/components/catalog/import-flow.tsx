@@ -36,6 +36,7 @@ const labels: Record<string, string> = {
   mass_bias: "Mass bias",
   product_code: "Product code",
   selling_price: "Selling price (₱)",
+  min_in_stock: "Keep in stock (each location)",
   serial: "Serial number",
   gross_weight: "Gross weight",
   top_weight: "Top weight",

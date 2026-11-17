@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowDownToLine, ChevronDown, Layers, MapPin, Search, Tag, X } from "lucide-react";
+import { ArrowDownToLine, ChevronDown, CircleSlash, Layers, MapPin, Search, Tag, TriangleAlert, X } from "lucide-react";
 import { AnimatePresence, m, useReducedMotion } from "motion/react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
@@ -15,7 +15,7 @@ import { Sheet } from "@/components/ui/sheet";
 import { spring, stagger } from "@/lib/motion";
 import { changedModels, snapshot, type CountSnapshot } from "@/lib/stock/changes";
 import { manilaHour } from "@/lib/stock/today";
-import { applyFilters, brandCounts, filterGroups, parseFilters, stockTotal, weightCounts, type StockFilters, type StockGroup } from "@/lib/stock/group";
+import { applyFilters, brandCounts, filterGroups, lowCount, parseFilters, stockTotal, weightCounts, type StockFilters, type StockGroup, type WeightEntry } from "@/lib/stock/group";
 import { cn } from "@/lib/utils";
 import { BallGlyph } from "./ball-glyph";
 
@@ -41,7 +41,7 @@ type Props = {
 export function StockList({ groups, place, locationNames, today, base = "", fixtureSerials }: Props) {
   const params = useSearchParams();
   const [query, setQuery] = useState(() => (params.get("q") ?? "").slice(0, 60));
-  const [filters, setFilters] = useState<StockFilters>(() => parseFilters({ w: params.get("w"), b: params.get("b") }, groups));
+  const [filters, setFilters] = useState<StockFilters>(() => parseFilters({ w: params.get("w"), b: params.get("b"), l: params.get("l") }, groups));
   const [serials, setSerials] = useState<SerialMatch[]>([]);
   const [serialFor, setSerialFor] = useState("");
   const [sheet, setSheet] = useState<"brand" | "location" | null>(null);
@@ -51,12 +51,16 @@ export function StockList({ groups, place, locationNames, today, base = "", fixt
 
   const text = query.trim();
   // A filter for a weight or a brand that is no longer in stock does not apply.
-  const active = useMemo(() => parseFilters({ w: filters.weight?.toString() ?? null, b: filters.brand }, groups), [filters, groups]);
+  const active = useMemo(
+    () => parseFilters({ w: filters.weight?.toString() ?? null, b: filters.brand, l: filters.low ? "1" : null }, groups),
+    [filters, groups],
+  );
   const byText = useMemo(() => filterGroups(groups, text), [groups, text]);
   const list = useMemo(() => applyFilters(byText, active), [byText, active]);
   // The pills count what the other filters leave, so each pill tells what a tap shows.
-  const weightPills = useMemo(() => weightCounts(applyFilters(byText, { weight: null, brand: active.brand })), [byText, active.brand]);
-  const brands = useMemo(() => brandCounts(applyFilters(byText, { weight: active.weight, brand: null })), [byText, active.weight]);
+  const weightPills = useMemo(() => weightCounts(applyFilters(byText, { weight: null, brand: active.brand, low: active.low })), [byText, active.brand, active.low]);
+  const brands = useMemo(() => brandCounts(applyFilters(byText, { weight: active.weight, brand: null, low: active.low })), [byText, active.weight, active.low]);
+  const lows = useMemo(() => lowCount(groups), [groups]);
 
   // Keep the search and the filters in the address, so a reload or a shared link shows the same list.
   useEffect(() => {
@@ -65,6 +69,7 @@ export function StockList({ groups, place, locationNames, today, base = "", fixt
     set("q", text);
     set("w", active.weight?.toString() ?? null);
     set("b", active.brand);
+    set("l", active.low ? "1" : null);
     window.history.replaceState(window.history.state, "", url);
   }, [text, active, path]);
 
@@ -122,18 +127,21 @@ export function StockList({ groups, place, locationNames, today, base = "", fixt
 
   const total = stockTotal(groups);
   const shown = stockTotal(list);
-  const filtered = Boolean(text || active.weight !== null || active.brand);
+  const filtered = Boolean(text || active.weight !== null || active.brand || active.low);
   const clearAll = () => {
     setQuery("");
-    setFilters({ weight: null, brand: null });
+    setFilters({ weight: null, brand: null, low: false });
   };
+  const toggleLow = () => setFilters((current) => ({ ...current, low: !active.low }));
+  // A model that is only out of stock is in the list for the alert. It is not a model in stock.
+  const inStock = groups.filter((group) => group.total > 0).length;
 
   return (
     <div className="pb-4 lg:pb-0">
       <h1 className="sr-only">Stock</h1>
       <Greeting />
 
-      <Tiles total={total} models={groups.length} today={today} />
+      <Tiles total={total} models={inStock} today={today} low={lows} lowOn={Boolean(active.low)} onLow={toggleLow} />
 
       {/* The search and the pills stay in view during a scroll. */}
       <div className="sticky top-[calc(env(safe-area-inset-top)+3rem)] z-10 -mx-4 bg-background/95 px-4 pt-3 pb-2 backdrop-blur-md lg:top-0 lg:-mx-8 lg:px-8 lg:pt-4">
@@ -184,6 +192,8 @@ export function StockList({ groups, place, locationNames, today, base = "", fixt
           onWeight={(weight) => setFilters((current) => ({ ...current, weight }))}
           onBrand={() => setSheet("brand")}
           onClearBrand={() => setFilters((current) => ({ ...current, brand: null }))}
+          low={lows}
+          onLow={toggleLow}
         />
       </div>
 
@@ -194,8 +204,8 @@ export function StockList({ groups, place, locationNames, today, base = "", fixt
           </>
         ) : (
           <>
-            <b className="font-heading text-lg font-bold text-foreground">{total}</b> {total === 1 ? "ball" : "balls"} · {groups.length}{" "}
-            {groups.length === 1 ? "model" : "models"} in
+            <b className="font-heading text-lg font-bold text-foreground">{total}</b> {total === 1 ? "ball" : "balls"} · {inStock}{" "}
+            {inStock === 1 ? "model" : "models"} in
           </>
         )}
         <PlaceChip place={place} onOpen={() => setSheet("location")} />
@@ -318,11 +328,30 @@ function Greeting() {
   );
 }
 
-/** Four numbers above the list. The first is the stock total, on navy. */
-function Tiles({ total, models, today }: { total: number; models: number; today?: { received: number; sold: number } }) {
-  const tiles = [
+/**
+ * Four numbers above the list. The first is the stock total, on navy. When a model is below its
+ * minimum, the second tile is "Low stock" in place of "Models". A tap on it shows only the low models.
+ */
+function Tiles({
+  total,
+  models,
+  today,
+  low,
+  lowOn,
+  onLow,
+}: {
+  total: number;
+  models: number;
+  today?: { received: number; sold: number };
+  low: number;
+  lowOn: boolean;
+  onLow: () => void;
+}) {
+  const tiles: { label: string; value: number; icon: React.ReactNode; hero?: boolean; tint?: string; onTap?: () => void; pressed?: boolean }[] = [
     { label: "In stock", value: total, icon: <BallGlyph color="Orange" className="size-5 sm:size-6" />, hero: true },
-    { label: models === 1 ? "Model" : "Models", value: models, icon: <Layers className="size-4.5 text-foreground" aria-hidden="true" />, tint: "bg-secondary" },
+    low > 0
+      ? { label: "Low stock", value: low, icon: <TriangleAlert className="size-4.5 text-warn" aria-hidden="true" />, tint: "bg-warn-surface", onTap: onLow, pressed: lowOn }
+      : { label: models === 1 ? "Model" : "Models", value: models, icon: <Layers className="size-4.5 text-foreground" aria-hidden="true" />, tint: "bg-secondary" },
     ...(today
       ? [
           { label: "In today", value: today.received, icon: <ArrowDownToLine className="size-4.5 text-ok" aria-hidden="true" />, tint: "bg-ok-surface" },
@@ -332,21 +361,38 @@ function Tiles({ total, models, today }: { total: number; models: number; today?
   ];
   return (
     <ul className="grid grid-cols-4 gap-2 sm:gap-2.5" aria-label="Summary">
-      {tiles.map((tile) => (
-        <li
-          key={tile.label}
-          className={cn(
-            "flex min-w-0 flex-col justify-between rounded-2xl p-2.5 shadow-(--shadow-card) sm:rounded-(--radius-card) sm:p-3.5",
-            tile.hero ? "bg-primary text-primary-foreground" : "bg-card",
-          )}
-        >
-          <span className={cn("grid size-7 place-items-center rounded-full sm:size-9", tile.hero ? "bg-background" : tile.tint)}>{tile.icon}</span>
-          <span className="mt-1.5 block sm:mt-2">
-            <RollingNumber value={tile.value} className="font-heading text-2xl font-bold sm:text-[1.75rem]" />
-            <span className={cn("mt-0.5 block text-xs leading-tight sm:text-sm", tile.hero ? "text-rail-muted" : "text-muted-foreground")}>{tile.label}</span>
-          </span>
-        </li>
-      ))}
+      {tiles.map((tile) => {
+        const body = (
+          <>
+            <span className={cn("grid size-7 place-items-center rounded-full sm:size-9", tile.hero ? "bg-background" : tile.tint)}>{tile.icon}</span>
+            <span className="mt-1.5 block text-left sm:mt-2">
+              <RollingNumber value={tile.value} className="font-heading text-2xl font-bold sm:text-[1.75rem]" />
+              <span className={cn("mt-0.5 block text-xs leading-tight sm:text-sm", tile.hero ? "text-rail-muted" : "text-muted-foreground")}>{tile.label}</span>
+            </span>
+          </>
+        );
+        const box = "flex min-w-0 flex-col justify-between rounded-2xl p-2.5 shadow-(--shadow-card) sm:rounded-(--radius-card) sm:p-3.5";
+        return (
+          <li key={tile.label} className="flex min-w-0">
+            {tile.onTap ? (
+              <button
+                type="button"
+                onClick={tile.onTap}
+                aria-pressed={tile.pressed}
+                className={cn(
+                  box,
+                  "w-full items-start outline-none transition-[background-color,transform] duration-(--dur-fast) focus-visible:ring-3 focus-visible:ring-ring/40 active:scale-[0.97]",
+                  tile.pressed ? "bg-warn-surface ring-2 ring-warn" : "bg-card hover:bg-muted",
+                )}
+              >
+                {body}
+              </button>
+            ) : (
+              <div className={cn(box, "w-full", tile.hero ? "bg-primary text-primary-foreground" : "bg-card")}>{body}</div>
+            )}
+          </li>
+        );
+      })}
     </ul>
   );
 }
@@ -358,18 +404,23 @@ function Pills({
   onWeight,
   onBrand,
   onClearBrand,
+  low,
+  onLow,
 }: {
   weights: { weight: number; count: number }[];
   active: StockFilters;
   onWeight: (weight: number | null) => void;
   onBrand: () => void;
   onClearBrand: () => void;
+  /** The number of low and out weights. The "Low stock" pill shows only when it is more than 0. */
+  low: number;
+  onLow: () => void;
 }) {
   const pill =
     "relative flex h-12 shrink-0 items-center gap-1.5 rounded-full px-4 text-sm font-medium lg:h-10 lg:px-3.5 outline-none transition-[color,transform] duration-(--dur-fast) focus-visible:ring-3 focus-visible:ring-ring/40 active:scale-[0.96]";
   const options = [{ weight: null as number | null, label: "All", count: null as number | null }, ...weights.map((w) => ({ weight: w.weight, label: `${w.weight} lb`, count: w.count }))];
   return (
-    <div className="-mx-4 mt-2.5 flex gap-1.5 overflow-x-auto px-4 pb-1 [scrollbar-width:none] lg:mx-0 lg:flex-wrap lg:overflow-visible lg:px-0 [&::-webkit-scrollbar]:hidden" role="group" aria-label="Filter by weight and brand">
+    <div className="-mx-4 mt-2.5 flex gap-1.5 overflow-x-auto px-4 pb-1 [scrollbar-width:none] lg:mx-0 lg:flex-wrap lg:overflow-visible lg:px-0 [&::-webkit-scrollbar]:hidden" role="group" aria-label="Filter by weight, low stock, and brand">
       {options.map((option) => {
         const current = option.weight === active.weight;
         return (
@@ -388,6 +439,18 @@ function Pills({
         );
       })}
       <span className="mx-0.5 w-px shrink-0 self-stretch bg-border" aria-hidden="true" />
+      {low > 0 && (
+        <button
+          type="button"
+          aria-pressed={Boolean(active.low)}
+          onClick={onLow}
+          className={cn(pill, active.low ? "bg-warn text-white" : "bg-warn-surface text-warn ring-1 ring-warn/30 hover:bg-warn-surface/70")}
+        >
+          <TriangleAlert className="size-4" aria-hidden="true" />
+          <span className="font-heading font-bold">Low stock</span>
+          <span className="tabular text-xs">{low}</span>
+        </button>
+      )}
       {active.brand ? (
         <span className={cn(pill, "bg-primary pr-1 text-primary-foreground")}>
           <button type="button" onClick={onBrand} className="font-heading rounded-full font-bold outline-none focus-visible:ring-3 focus-visible:ring-white/50">
@@ -519,15 +582,16 @@ function ModelCard({
                 href={`${base}/models/${entry.modelId}`}
                 transitionTypes={FORWARD}
                 aria-current={current ? "true" : undefined}
-                aria-label={`${entry.weight} pounds, ${entry.count} in stock`}
+                aria-label={`${entry.weight} pounds, ${entry.count} in stock${statusWords(entry)}`}
+                data-status={entry.status === "ok" ? undefined : entry.status}
                 style={{ "--vt-name": `weight-${entry.modelId}` } as React.CSSProperties}
-                className="vt-weight tabular flex h-12 min-w-15 flex-col items-center justify-center rounded-xl bg-background px-2.5 leading-tight outline-none transition-[background-color,transform] duration-(--dur-fast) [view-transition-class:weight-tag] hover:bg-secondary focus-visible:ring-3 focus-visible:ring-ring/40 active:scale-[0.94] aria-[current=true]:bg-gold aria-[current=true]:text-foreground lg:group-data-selected/card:bg-white/10 lg:group-data-selected/card:hover:bg-white/20 lg:group-data-selected/card:aria-[current=true]:bg-gold"
+                className="vt-weight tabular flex h-12 min-w-15 flex-col items-center justify-center rounded-xl bg-background px-2.5 leading-tight data-[status=low]:bg-warn-surface data-[status=low]:text-warn data-[status=out]:border data-[status=out]:border-dashed data-[status=out]:border-warn/60 data-[status=out]:bg-transparent outline-none transition-[background-color,transform] duration-(--dur-fast) [view-transition-class:weight-tag] hover:bg-secondary focus-visible:ring-3 focus-visible:ring-ring/40 active:scale-[0.94] aria-[current=true]:bg-gold aria-[current=true]:text-foreground lg:group-data-selected/card:bg-white/10 lg:group-data-selected/card:hover:bg-white/20 lg:group-data-selected/card:aria-[current=true]:bg-gold"
               >
                 <span className="font-heading text-base font-bold">
                   {entry.weight}
                   <span className="ml-0.5 text-xs font-medium">lb</span>
                 </span>
-                <span className="text-xs font-medium opacity-75">×{entry.count}</span>
+                <ChipCount entry={entry} />
               </Link>
             </li>
           );
@@ -535,6 +599,28 @@ function ModelCard({
       </ul>
     </m.li>
   );
+}
+
+/** The words that a screen reader adds for a low or out weight. */
+const statusWords = (entry: WeightEntry) =>
+  entry.status === "out" ? `, out of stock, keep ${entry.minimum}` : entry.status === "low" ? `, low stock, keep ${entry.minimum}` : "";
+
+/** The count line of a weight chip. A low or out weight shows a word and an icon, not color alone. */
+function ChipCount({ entry }: { entry: WeightEntry }) {
+  if (entry.status === "out")
+    return (
+      <span className="flex items-center gap-0.5 text-xs font-semibold text-warn">
+        <CircleSlash className="size-3" aria-hidden="true" />
+        Out
+      </span>
+    );
+  if (entry.status === "low")
+    return (
+      <span className="flex items-center gap-0.5 text-xs font-semibold">
+        <TriangleAlert className="size-3" aria-hidden="true" />×{entry.count} Low
+      </span>
+    );
+  return <span className="text-xs font-medium opacity-75">×{entry.count}</span>;
 }
 
 /** Shows that a count changed. It goes away 8 seconds after the card is on screen, or on a touch of the card. */

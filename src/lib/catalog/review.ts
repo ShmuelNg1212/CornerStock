@@ -1,5 +1,6 @@
 import { formatGrossWeight, normalizeSerial, validateLabel, validateUpc, type BallLabel, type RawLabel } from "@/lib/label/rules";
 import { pinDistance, price } from "@/lib/format";
+import { parseMinimum } from "@/lib/low-stock";
 import type { Ball, BallModel, Location } from "@/lib/types";
 
 export type ImportKind = "catalog" | "stock";
@@ -19,7 +20,7 @@ export type ImportReview = { payload: ImportPayload; summary: ImportSummary; cha
 export type ImportState = { models: ImportModel[]; balls: Ball[]; locations: Location[] };
 export type ImportOptions = { defaultLocationId: string; reason: string };
 
-const modelFields = ["upc", "brand", "model_name", "nominal_weight_lb", "color", "fragrance", "coverstock", "weight_block", "finish", "rg", "diff", "mass_bias", "product_code", "selling_price"] as const;
+const modelFields = ["upc", "brand", "model_name", "nominal_weight_lb", "color", "fragrance", "coverstock", "weight_block", "finish", "rg", "diff", "mass_bias", "product_code", "selling_price", "min_in_stock"] as const;
 const stockFields = ["serial", "gross_weight", "top_weight", "pin_distance", "boxed_on", "location"] as const;
 const text = (value: unknown) => value === null || value === undefined ? "" : String(value);
 
@@ -94,7 +95,7 @@ export function buildReview(kind: ImportKind, rows: ImportRow[], state: ImportSt
     const existingBall = kind === "stock" && serial.ok ? balls.get(serial.value) ?? null : null;
     const raw: RawLabel = { serial: kind === "stock" ? input.values.serial : "CATALOG", upc: upc.value };
     for (const field of modelFields) {
-      if (field === "selling_price" || field === "upc") continue;
+      if (field === "selling_price" || field === "min_in_stock" || field === "upc") continue;
       const current = before?.[field === "model_name" ? "name" : field];
       const provided = suppliedModel[field];
       raw[field] = provided === "__CLEAR__" ? "" : provided || text(current);
@@ -128,12 +129,16 @@ export function buildReview(kind: ImportKind, rows: ImportRow[], state: ImportSt
     // Accept the same price text as the price form: a peso sign, commas, and spaces.
     const priceText = suppliedModel.selling_price?.replace(/[₱,\s]/g, "");
     if (priceText && priceText !== "__CLEAR__" && (!/^\d+(?:\.\d{1,2})?$/.test(priceText) || Number(priceText) >= 10_000_000)) error(input.row, "selling_price", "Use a nonnegative price below 10,000,000 with at most two decimal places.");
+    const minText = suppliedModel.min_in_stock?.trim();
+    const minimum = minText && minText !== "__CLEAR__" ? parseMinimum(minText) : null;
+    if (minimum && !minimum.ok) error(input.row, "min_in_stock", minimum.error);
     const after: CatalogValues = {
       upc: label.upc, name: label.model_name, nominal_weight_lb: label.nominal_weight_lb,
       brand: label.brand, color: label.color, fragrance: label.fragrance, coverstock: label.coverstock,
       weight_block: label.weight_block, finish: label.finish, rg: label.rg, diff: label.diff,
       mass_bias: label.mass_bias, product_code: label.product_code,
       selling_price: priceText === "__CLEAR__" ? null : priceText ? Number(priceText) : before?.selling_price ?? null,
+      min_in_stock: minText === "__CLEAR__" ? null : minimum?.ok ? minimum.value : before?.min_in_stock ?? null,
     };
     if (!recordedModels.has(label.upc)) {
       result.payload.models.push({ upc: label.upc, before, after });

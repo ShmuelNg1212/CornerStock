@@ -54,7 +54,7 @@ describe("catalog file import", () => {
       id: "model-id", upc: "001234567895", name: '=HYPERLINK("https://example.com")',
       nominal_weight_lb: 15, brand: "Bowlérs, Corner", color: "'Red / Blue", fragrance: null,
       coverstock: "Solid", weight_block: null, finish: "2000", rg: 2.48, diff: 0.048,
-      mass_bias: null, product_code: "-CODE", selling_price: 12500.5,
+      mass_bias: null, product_code: "-CODE", selling_price: 12500.5, min_in_stock: 2,
     };
     const output = await exportCatalog([model], format);
     const { sheets } = await readWorkbook(output, `catalog.${format}`);
@@ -147,7 +147,7 @@ describe("catalog file import", () => {
   it("includes blank and clear instructions in downloadable templates without adding import rows", async () => {
     const csv = new TextDecoder().decode(await template("catalog", "csv"));
     expect(csv).toContain("# Cornerstock: Blank cells keep existing values. Use __CLEAR__ to clear an optional value.");
-    const { sheets } = await readWorkbook(bytes(csv + '001234567895,Test,15,,,,,,,,,,,\r\n'), "catalog.csv");
+    const { sheets } = await readWorkbook(bytes(csv + '001234567895,Test,15,,,,,,,,,,,,\r\n'), "catalog.csv");
     expect(sheets[0].rows[0].row).toBe(3);
     const xlsx = new ExcelJS.Workbook();
     await xlsx.xlsx.load(await template("stock", "xlsx") as unknown as Parameters<typeof xlsx.xlsx.load>[0]);

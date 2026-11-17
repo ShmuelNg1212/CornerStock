@@ -24,6 +24,7 @@ import {
 } from "@/lib/label/rules";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { parseMinimum } from "@/lib/low-stock";
 import type { BallModel, BallStatus } from "@/lib/types";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
@@ -267,6 +268,22 @@ export async function setPrice(modelId: string, priceText: string): Promise<Acti
   const { error, count } = await supabase
     .from("ball_models")
     .update({ selling_price: price }, { count: "exact" })
+    .eq("id", modelId);
+  if (error || count !== 1) return failed(stockErrorMessage(error));
+  revalidatePath("/", "layout");
+  return done;
+}
+
+/** Sets the low-stock minimum of a model. It applies to each location. Empty removes it. */
+export async function setMinimum(modelId: string, text: string): Promise<ActionResult> {
+  await requireOwner();
+  if (!uuid.safeParse(modelId).success) return failed("This model does not exist.");
+  const minimum = parseMinimum(text);
+  if (!minimum.ok) return failed(minimum.error);
+  const supabase = await createClient();
+  const { error, count } = await supabase
+    .from("ball_models")
+    .update({ min_in_stock: minimum.value }, { count: "exact" })
     .eq("id", modelId);
   if (error || count !== 1) return failed(stockErrorMessage(error));
   revalidatePath("/", "layout");

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyFilters, brandCounts, filterGroups, groupStock, parseFilters, stockTotal, weightCounts, type StockModel } from "./group";
+import { applyFilters, brandCounts, filterGroups, groupStock, lowCount, parseFilters, stockTotal, weightCounts, type StockModel } from "./group";
 
 const model = (id: string, name: string, weight: number, brand: string | null = "Storm", color: string | null = null): StockModel => ({
   id,
@@ -39,7 +39,7 @@ describe("groupStock", () => {
       { model_id: "b15", in_stock: 3 },
     ]);
     expect(groups[0].total).toBe(5);
-    expect(groups[0].weights).toEqual([{ modelId: "b15", weight: 15, count: 5 }]);
+    expect(groups[0].weights).toEqual([{ modelId: "b15", weight: 15, count: 5, status: "ok", minimum: null }]);
   });
 
   it("sorts the groups by name", () => {
@@ -177,9 +177,66 @@ describe("filters by weight and brand", () => {
   });
 
   it("reads the filters from the address and ignores values that are not in stock", () => {
-    expect(parseFilters({ w: "15", b: "storm" }, groups)).toEqual({ weight: 15, brand: "Storm" });
-    expect(parseFilters({ w: "13", b: "Nobody" }, groups)).toEqual({ weight: null, brand: null });
-    expect(parseFilters({ w: "15abc", b: "" }, groups)).toEqual({ weight: null, brand: null });
-    expect(parseFilters({ w: null, b: null }, groups)).toEqual({ weight: null, brand: null });
+    expect(parseFilters({ w: "15", b: "storm" }, groups)).toEqual({ weight: 15, brand: "Storm", low: false });
+    expect(parseFilters({ w: "13", b: "Nobody" }, groups)).toEqual({ weight: null, brand: null, low: false });
+    expect(parseFilters({ w: "15abc", b: "" }, groups)).toEqual({ weight: null, brand: null, low: false });
+    expect(parseFilters({ w: null, b: null }, groups)).toEqual({ weight: null, brand: null, low: false });
+  });
+});
+
+describe("low stock in the stock list", () => {
+  const counts = [
+    { model_id: "a15", in_stock: 1 },
+    { model_id: "a16", in_stock: 4 },
+    { model_id: "b15", in_stock: 3 },
+  ];
+  const low = [
+    { model_id: "a15", in_stock: 1, min_in_stock: 2 },
+    { model_id: "a14", in_stock: 0, min_in_stock: 1 },
+    { model_id: "c12", in_stock: 0, min_in_stock: 2 },
+  ];
+  const groups = groupStock(models, counts, low);
+  const phaze = groups.find((g) => g.name === "Phaze II")!;
+
+  it("marks a weight below its minimum as low, and a weight at 0 as out", () => {
+    expect(phaze.weights).toEqual([
+      { modelId: "a16", weight: 16, count: 4, status: "ok", minimum: null },
+      { modelId: "a15", weight: 15, count: 1, status: "low", minimum: 2 },
+      { modelId: "a14", weight: 14, count: 0, status: "out", minimum: 1 },
+    ]);
+    expect(phaze.total).toBe(5);
+  });
+
+  it("shows a model that is out of stock in every weight, with a total of 0", () => {
+    expect(groups.find((g) => g.name === "Rhino")).toMatchObject({ total: 0, weights: [{ modelId: "c12", count: 0, status: "out" }] });
+  });
+
+  it("joins the rows of several locations into one weight: low when any location is low", () => {
+    const all = groupStock(models, [{ model_id: "a15", in_stock: 1 }, { model_id: "a15", in_stock: 5 }], [
+      { model_id: "a15", in_stock: 1, min_in_stock: 2 },
+      { model_id: "a15", in_stock: 0, min_in_stock: 2 },
+    ]);
+    expect(all[0].weights).toEqual([{ modelId: "a15", weight: 15, count: 6, status: "low", minimum: 2 }]);
+  });
+
+  it("counts the low and out weights, and keeps only them with the low filter", () => {
+    expect(lowCount(groups)).toBe(3);
+    const filtered = applyFilters(groups, { weight: null, brand: null, low: true });
+    expect(filtered.map((g) => [g.name, g.weights.map((w) => w.modelId), g.total])).toEqual([
+      ["Phaze II", ["a15", "a14"], 1],
+      ["Rhino", ["c12"], 0],
+    ]);
+  });
+
+  it("leaves out-of-stock weights out of the weight and brand pills, and out of the total", () => {
+    expect(weightCounts(groups).find((w) => w.weight === 14)).toBeUndefined();
+    expect(weightCounts(groups).find((w) => w.weight === 12)).toBeUndefined();
+    expect(stockTotal(groups)).toBe(8);
+    expect(brandCounts(groups).find((b) => b.brand === "Brunswick")).toBeUndefined();
+  });
+
+  it("reads the low filter from the address only when a weight is low", () => {
+    expect(parseFilters({ w: null, b: null, l: "1" }, groups).low).toBe(true);
+    expect(parseFilters({ w: null, b: null, l: "1" }, groupStock(models, counts)).low).toBe(false);
   });
 });

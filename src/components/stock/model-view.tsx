@@ -85,6 +85,9 @@ export function ModelView({
           {Number(model.nominal_weight_lb)} LB
         </span>
         <span className="tabular font-heading text-lg font-semibold">{price(model.selling_price)}</span>
+        {model.min_in_stock ? (
+          <span className="tabular text-sm text-muted-foreground">Keep {model.min_in_stock} in each location</span>
+        ) : null}
       </div>
       {priceForm}
 

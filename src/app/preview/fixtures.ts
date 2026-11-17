@@ -35,6 +35,7 @@ function model(id: string, brand: string | null, name: string, weight: number, c
     mass_bias: null,
     product_code: "BBMTLZ15",
     selling_price: price,
+    min_in_stock: null,
   };
 }
 
@@ -53,7 +54,15 @@ const spec: [string | null, string, string | null, [number, number][]][] = [
 const slug = (name: string) => name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
 export const models: BallModel[] = spec.flatMap(([brand, name, color, weights]) => weights.map(([weight]) => model(`${slug(name)}-${weight}`, brand, name, weight, color)));
 export const counts = spec.flatMap(([, name, , weights]) => weights.map(([weight, count]) => ({ model_id: `${slug(name)}-${weight}`, in_stock: count })));
-export const groups = groupStock(models, counts);
+// Low stock: Twist 10 lb is below its minimum of 2, and Phaze II 13 lb is out (doc/adr/0004-low-stock-minimum.md).
+const outModel = model("phaze-ii-13", "Storm", "Phaze II", 13, "Red / Blue / Purple");
+models.push({ ...outModel, min_in_stock: 1 });
+for (const m of models) if (m.id === "twist-10") m.min_in_stock = 2;
+export const low = [
+  { model_id: "twist-10", in_stock: 1, min_in_stock: 2 },
+  { model_id: "phaze-ii-13", in_stock: 0, min_in_stock: 1 },
+];
+export const groups = groupStock(models, counts, low);
 
 // Worst-case data: long names, no brand, non-Latin text, large counts.
 const worstModels: BallModel[] = [
