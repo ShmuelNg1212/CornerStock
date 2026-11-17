@@ -72,7 +72,7 @@ The GitHub remote is `https://github.com/ShmuelNg1212/CornerStock`. Production i
 
 The first release was verified on 2026-11-16. Deployment `dpl_8kpxM8UBzNUZb2XphkAW9csZwbxY` serves commit `d8027ef`.
 
-The current release was pushed on 2026-11-17. Commit `b35fcba` (catalog management and file imports). The release marker is `2026-11-17-catalog-import-1`. Rollback commit: `92d4265`. Before the push, `20261116164702_catalog_import.sql` was run on production. The import table and function were present, and the function refused a call without an owner. The checks after the push: the marker showed after approximately 50 s. Signed-out visits to `/`, `/catalog`, `/catalog/import`, `/catalog/new`, and the catalog and template downloads go to `/login`. The agent did not sign in on the live site. The owner then confirmed that the live app has all the new features. The complete flow, including saves, was verified on staging with the same build.
+The current release was pushed on 2026-11-17. Commit `585ed83` (owner feedback: solid status bar, tab bar icons, serial and product code checks, forgiving search). The release marker is `2026-11-17-owner-feedback-1`. Rollback commit: `b35fcba`. Before the push, the human ran `20261117120000_serial_not_product_code.sql` on staging and production. The checks after the push: the marker showed after approximately 50 s. The live sign-in page has `apple-mobile-web-app-status-bar-style` set to `default`. A signed-out visit to `/` goes to `/login`. The agent did not sign in on the live site. The scan and search flow was verified on staging with the same code.
 
 1. Push the repository to GitHub. Import it in Vercel.
 2. Add the environment variables above in Vercel, for Production.
