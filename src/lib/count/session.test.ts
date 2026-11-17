@@ -91,10 +91,12 @@ describe("groupResult", () => {
       line("A2", { outcome: "missing", action: "remove" }),
       line("A3", { outcome: "missing", corrected: true }),
       line("A4", { outcome: "unexpected", kind: "other_location", action: "move" }),
+      line("A5", { outcome: "unexpected", kind: "removed" }),
     ]);
     expect(groups.missing.map((l) => l.serial)).toEqual(["A2", "A3"]);
-    expect(groups.unexpected.map((l) => l.serial)).toEqual(["A4"]);
+    expect(groups.unexpected.map((l) => l.serial)).toEqual(["A4", "A5"]);
     expect(groups.found.map((l) => l.serial)).toEqual(["A1"]);
     expect(groups.open).toBe(2);
+    expect(groups.stuck).toBe(1);
   });
 });

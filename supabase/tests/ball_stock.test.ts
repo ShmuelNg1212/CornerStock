@@ -990,10 +990,10 @@ describe("stock count", () => {
   it("keeps the helper functions internal", async () => {
     const rows = (
       await admin.query(
-        "select has_function_privilege('authenticated', 'public.count_totals(uuid)', 'EXECUTE') as totals, has_function_privilege('authenticated', 'public.count_label(uuid)', 'EXECUTE') as label",
+        "select has_function_privilege('authenticated', 'public.count_totals(uuid)', 'EXECUTE') as totals, has_function_privilege('authenticated', 'public.count_label(uuid)', 'EXECUTE') as label, has_function_privilege('authenticated', 'public.transfer_ball_with_reason(uuid, uuid, uuid, text)', 'EXECUTE') as move",
       )
     ).rows[0];
-    expect(rows).toEqual({ totals: false, label: false });
+    expect(rows).toEqual({ totals: false, label: false, move: false });
   });
 
   it("gives no direct table access, also to the owner", async () => {
@@ -1081,6 +1081,19 @@ describe("stock count", () => {
     const rows = await as(staff, async (c) => (await c.query("select type, serial, reason from public.activity_feed(null, null, null, array['transfer', 'remove'], 10)")).rows);
     expect(rows).toContainEqual({ type: "transfer", serial: await serialOf(moved), reason: expect.stringMatching(/^Found in the stock count of .+ at Count Shelf/) });
     expect(rows).toContainEqual({ type: "remove", serial: await serialOf(missing), reason: expect.stringMatching(/^Not found in the stock count of .+ at Count Shelf/) });
+  });
+
+  it("moves a ball that was not recorded at the finish and was added to another location later", async () => {
+    const loc = await newLocation();
+    const serial = nextSerial();
+    const { id: count } = await start(staff, loc);
+    await scan(staff, count, serial);
+    await finish(staff, count);
+    const id = await receive(staff, { serial }, warehouse);
+    expect(line(await result(staff, count), serial)).toMatchObject({ kind: "not_recorded", action: "move", corrected: false });
+    await correct(staff, count, serial);
+    expect(await ballStatus(id)).toEqual({ status: "in_stock", location_id: loc });
+    expect(line(await result(staff, count), serial)).toMatchObject({ corrected: true, action: null });
   });
 
   it("refuses a correction from an open count", async () => {

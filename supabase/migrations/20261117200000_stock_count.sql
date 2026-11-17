@@ -55,12 +55,13 @@ alter table public.count_lines enable row level security;
 revoke all on public.counts, public.count_scans, public.count_lines from anon, authenticated;
 
 -- ---------------------------------------------------------------------------
--- Moves can carry a reason, so a move from a count shows its cause in the activity log.
+-- A move from a count carries a reason, so the activity log shows its cause. Only the count
+-- functions set the reason: clients call transfer_ball, which gives no reason.
 -- ---------------------------------------------------------------------------
 
 drop function public.transfer_ball(uuid, uuid, uuid);
 
-create function public.transfer_ball(p_ball_id uuid, p_to_location_id uuid, p_request_id uuid, p_reason text default null)
+create function public.transfer_ball_with_reason(p_ball_id uuid, p_to_location_id uuid, p_request_id uuid, p_reason text)
 returns void
 language plpgsql security definer set search_path = public as $$
 declare
@@ -89,6 +90,12 @@ begin
   insert into public.stock_movements (ball_id, type, from_location_id, to_location_id, actor, reason, request_id)
   values (p_ball_id, 'transfer', v_from, p_to_location_id, v_actor, nullif(trim(left(p_reason, 200)), ''), p_request_id);
 end;
+$$;
+
+create function public.transfer_ball(p_ball_id uuid, p_to_location_id uuid, p_request_id uuid)
+returns void
+language sql security definer set search_path = public as $$
+  select public.transfer_ball_with_reason(p_ball_id, p_to_location_id, p_request_id, null);
 $$;
 
 -- ---------------------------------------------------------------------------
@@ -277,16 +284,22 @@ begin
     raise exception 'COUNT_CLOSED' using errcode = 'P0001';
   end if;
 
-  -- Found and missing: each in-stock ball of the location.
-  insert into public.count_lines (count_id, serial, ball_id, outcome)
-  select p_count_id, b.serial, b.id,
-    case when exists (select 1 from public.count_scans s where s.count_id = p_count_id and s.serial = b.serial)
-      then 'found'::public.count_outcome else 'missing'::public.count_outcome end
-  from public.balls b
-  where b.location_id = v_count.location_id and b.status = 'in_stock';
-
-  -- Unexpected: each scan with no in-stock ball in the location.
+  -- One statement, so all lines see the stock at the same moment.
+  -- Found and missing: each in-stock ball of the location. Unexpected: each other scan.
   insert into public.count_lines (count_id, serial, ball_id, outcome, kind, other_location_id)
+  with here as (
+    select b.id, b.serial from public.balls b
+    where b.location_id = v_count.location_id and b.status = 'in_stock'
+  ),
+  scans as (
+    select s.serial from public.count_scans s where s.count_id = p_count_id
+  )
+  select p_count_id, h.serial, h.id,
+    case when exists (select 1 from scans where scans.serial = h.serial)
+      then 'found'::public.count_outcome else 'missing'::public.count_outcome end,
+    null::public.count_kind, null::uuid
+  from here h
+  union all
   select p_count_id, s.serial, b.id, 'unexpected',
     case
       when b.id is null then 'not_recorded'::public.count_kind
@@ -295,10 +308,9 @@ begin
       else 'other_location'
     end,
     case when b.status = 'in_stock' then b.location_id end
-  from public.count_scans s
+  from scans s
   left join public.balls b on b.serial = s.serial
-  where s.count_id = p_count_id
-    and not exists (select 1 from public.count_lines cl where cl.count_id = p_count_id and cl.serial = s.serial);
+  where not exists (select 1 from here where here.serial = s.serial);
 
   update public.counts set
     status = 'finished',
@@ -354,8 +366,9 @@ begin
   end if;
 
   select * into v_line from public.count_lines where count_id = p_count_id and serial = upper(btrim(p_serial));
-  if found and v_line.ball_id is not null then
-    select * into v_ball from public.balls where id = v_line.ball_id;
+  -- A "not recorded" line finds a ball recorded after the finish by its serial, as count_result does.
+  if found then
+    select * into v_ball from public.balls where id = coalesce(v_line.ball_id, (select r.id from public.balls r where r.serial = v_line.serial));
   end if;
   v_label := public.count_label(p_count_id);
 
@@ -363,7 +376,7 @@ begin
     perform public.require_owner();
     perform public.remove_ball(v_ball.id, p_request_id, 'Not found in ' || v_label);
   elsif v_line.outcome = 'unexpected' and v_ball.status = 'in_stock' and v_ball.location_id <> v_count.location_id then
-    perform public.transfer_ball(v_ball.id, v_count.location_id, p_request_id, 'Found in ' || v_label);
+    perform public.transfer_ball_with_reason(v_ball.id, v_count.location_id, p_request_id, 'Found in ' || v_label);
   elsif v_line.outcome = 'unexpected' and v_ball.status = 'sold' then
     perform public.require_owner();
     if coalesce(btrim(p_reason), '') = '' then
@@ -400,7 +413,8 @@ end;
 $$;
 
 revoke execute on function
-  public.transfer_ball(uuid, uuid, uuid, text),
+  public.transfer_ball(uuid, uuid, uuid),
+  public.transfer_ball_with_reason(uuid, uuid, uuid, text),
   public.count_totals(uuid),
   public.count_label(uuid),
   public.start_count(uuid),
@@ -412,9 +426,10 @@ revoke execute on function
   public.count_history(int)
   from public, anon;
 -- Supabase gives new functions to signed-in users by default. The helpers stay internal.
-revoke execute on function public.count_totals(uuid), public.count_label(uuid) from authenticated;
+revoke execute on function public.count_totals(uuid), public.count_label(uuid), public.transfer_ball_with_reason(uuid, uuid, uuid, text)
+  from authenticated;
 grant execute on function
-  public.transfer_ball(uuid, uuid, uuid, text),
+  public.transfer_ball(uuid, uuid, uuid),
   public.start_count(uuid),
   public.add_count_scan(uuid, text),
   public.count_result(uuid),

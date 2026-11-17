@@ -11,7 +11,7 @@ import {
   applyScanFailure,
   applyScanResult,
   emptySession,
-  scanText,
+  scanLabel,
   type CountApi,
   type CountOpen,
   type CountResult,
@@ -33,12 +33,12 @@ export const SCAN_MARK: Record<ScanStatus, { icon: typeof CircleCheck; className
   not_recorded: { icon: CircleHelp, className: "bg-warn-surface text-warn" },
 };
 
-const noticeOf = (scan: CountScan, key: number): CountNotice => {
-  if (scan.state === "checking") return { key, serial: scan.serial, text: "Checking…", tone: "checking" };
-  if (scan.state === "failed") return { key, serial: scan.serial, text: scan.error ?? "Not saved", tone: "warn" };
-  const text = scan.duplicate ? "Already counted" : scanText({ status: scan.status!, location: scan.location });
-  return { key, serial: scan.serial, text, tone: scan.status === "found" || scan.duplicate ? "ok" : "warn" };
-};
+const noticeOf = (scan: CountScan, key: number): CountNotice => ({
+  key,
+  serial: scan.serial,
+  text: scanLabel(scan),
+  tone: scan.state === "checking" ? "checking" : scan.state === "done" && (scan.status === "found" || scan.duplicate) ? "ok" : "warn",
+});
 
 type CameraProblem = Exclude<CameraState, "starting" | "live">;
 
@@ -52,11 +52,14 @@ export function CountFlow({
   defaultLocationId,
   api,
   onFinished,
+  onClosed,
 }: {
   locations: Location[];
   defaultLocationId: string;
   api: CountApi;
   onFinished: (result: CountResult) => void;
+  /** Another phone finished or cancelled the count. */
+  onClosed?: () => void;
 }) {
   const [locationId, setLocationId] = useState(defaultLocationId);
   const [count, setCount] = useState<CountOpen | null>(null);
@@ -65,7 +68,8 @@ export function CountFlow({
   const [busy, setBusy] = useState<"start" | "finish" | "cancel" | null>(null);
   const [live, setLive] = useState(false);
   const [problem, setProblem] = useState<CameraProblem | null>(null);
-  const [confirmFinish, setConfirmFinish] = useState(false);
+  const [confirm, setConfirm] = useState<"finish" | "cancel" | null>(null);
+  const [closed, setClosed] = useState(false);
   const [typed, setTyped] = useState("");
   const [typedError, setTypedError] = useState<string | null>(null);
   const [typedInfo, setTypedInfo] = useState<string | null>(null);
@@ -98,6 +102,10 @@ export function CountFlow({
       setSession(next);
       setNotice(noticeOf(next.scans[0], key));
       const reply = await api.scan(count.id, serial!);
+      if (!reply.ok && reply.closed) {
+        setLive(false);
+        setClosed(true);
+      }
       setSession((current) => (reply.ok ? applyScanResult(current, reply.value) : applyScanFailure(current, serial!, reply.error)));
       // Only the newest scan owns the camera notice.
       if (lastKey.current === key) {
@@ -156,7 +164,8 @@ export function CountFlow({
     setBusy(null);
     if (!reply.ok) {
       setMessage(reply.error);
-      setConfirmFinish(false);
+      setConfirm(null);
+      if (reply.closed) setClosed(true);
       return;
     }
     onFinished(reply.value);
@@ -169,11 +178,21 @@ export function CountFlow({
     setBusy(null);
     if (!reply.ok) {
       setMessage(reply.error);
+      setConfirm(null);
+      if (reply.closed) setClosed(true);
       return;
     }
+    leave();
+  }
+
+  /** Back to the start, for a cancelled count or a count that another phone closed. */
+  function leave() {
     setCount(null);
     setSession(emptySession(0));
-    setConfirmFinish(false);
+    setConfirm(null);
+    setClosed(false);
+    setMessage(null);
+    onClosed?.();
   }
 
   if (!count) {
@@ -212,6 +231,7 @@ export function CountFlow({
   }
 
   const counter = `${session.scanned} of ${session.expected}`;
+  const checking = session.scans.some((s) => s.state === "checking");
   return (
     <>
       {live && (
@@ -294,30 +314,44 @@ export function CountFlow({
         )}
 
         <div className="mt-6 border-t border-border pt-5">
-          {confirmFinish ? (
+          {closed ? (
+            <div className="flex flex-col gap-3">
+              <Notice tone="warn">Another phone finished or cancelled this count. The result is in the past counts.</Notice>
+              <button type="button" onClick={leave} className={`${buttonClass.primary} self-start`}>
+                Back to the counts
+              </button>
+            </div>
+          ) : confirm ? (
             <div className="flex flex-col gap-3">
               <p className="font-medium">
-                Finish the count of {count.location}? The app then compares {session.scanned} scanned with {session.expected} in stock.
+                {confirm === "finish"
+                  ? `Finish the count of ${count.location}? The app then compares ${session.scanned} scanned with ${session.expected} in stock.`
+                  : `Cancel the count of ${count.location}? The scans of all phones in this count are dropped. No stock changes.`}
               </p>
               <div className="flex flex-wrap gap-2.5">
-                <button type="button" onClick={() => void finish()} disabled={busy !== null} className={buttonClass.action}>
-                  {busy === "finish" && <LoaderCircle className="size-5 animate-spin" aria-hidden="true" />}
-                  Finish and compare
+                <button
+                  type="button"
+                  onClick={() => void (confirm === "finish" ? finish() : cancel())}
+                  disabled={busy !== null}
+                  className={confirm === "finish" ? buttonClass.action : buttonClass.primary}
+                >
+                  {busy && <LoaderCircle className="size-5 animate-spin" aria-hidden="true" />}
+                  {confirm === "finish" ? "Finish and compare" : "Cancel the count"}
                 </button>
-                <button type="button" onClick={() => setConfirmFinish(false)} disabled={busy !== null} className={buttonClass.quiet}>
+                <button type="button" onClick={() => setConfirm(null)} disabled={busy !== null} className={buttonClass.quiet}>
                   Continue counting
                 </button>
               </div>
             </div>
           ) : (
-            <div className="flex flex-wrap gap-2.5">
-              <button type="button" onClick={() => setConfirmFinish(true)} className={buttonClass.action}>
+            <div className="flex flex-wrap items-center gap-2.5">
+              <button type="button" onClick={() => setConfirm("finish")} disabled={checking} className={buttonClass.action}>
                 Finish the count
               </button>
-              <button type="button" onClick={() => void cancel()} disabled={busy !== null} className={buttonClass.quiet}>
-                {busy === "cancel" && <LoaderCircle className="size-5 animate-spin" aria-hidden="true" />}
+              <button type="button" onClick={() => setConfirm("cancel")} className={buttonClass.quiet}>
                 Cancel the count
               </button>
+              {checking && <p className="text-sm text-muted-foreground">Waiting for the last scans…</p>}
             </div>
           )}
         </div>
@@ -342,8 +376,7 @@ export function CountFlow({
 function ScanRow({ scan, onRetry }: { scan: CountScan; onRetry: () => void }) {
   const mark = scan.state === "done" ? SCAN_MARK[scan.status!] : null;
   const Icon = scan.state === "checking" ? LoaderCircle : scan.state === "failed" ? TriangleAlert : mark!.icon;
-  const text =
-    scan.state === "checking" ? "Checking…" : scan.state === "failed" ? (scan.error ?? "Not saved") : scanText({ status: scan.status!, location: scan.location });
+  const text = scanLabel(scan);
   return (
     <li className="flex animate-enter items-center gap-3 px-4 py-3">
       <span

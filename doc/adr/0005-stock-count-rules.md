@@ -21,7 +21,7 @@ Staff must check that the balls on the shelf agree with the records. A ball has 
 2. Each location has one open count or none. A start in a location with an open count gives that count. Staff on several phones add scans to the same count.
 3. A count records each serial number one time. A second scan of the same serial adds nothing.
 4. The comparison runs when a staff member finishes the count. It uses the in-stock balls of the location at that time. A ball sold during the count is thus not missing.
-5. The finish keeps the result. The result of a past count does not change when stock changes later. The result shows which lines have a correction since the finish.
+5. The finish keeps the result. The result of a past count does not change when stock changes later. The result marks a line as "Resolved" when the stock now agrees with it, from a correction or from any later change.
 6. A count changes no stock. Only a correction changes stock, through the existing stock functions:
    - Unexpected, in a different location: any staff member moves the ball to the location of the count.
    - Missing: only the owner marks the ball as removed. The reason names the count.
@@ -34,5 +34,6 @@ Staff must check that the balls on the shelf agree with the records. A ball has 
 ## Consequences
 
 - The count tables are written only by database functions. Clients have no direct table access.
-- `transfer_ball` gets an optional reason, so a move from a count shows its cause in the activity log.
+- A move from a count has a reason, so the activity log shows its cause. Only the count functions set it (`transfer_ball_with_reason` is internal). A client move still has no reason.
 - A count that nobody finishes stays open. Any staff member can cancel it.
+- A ball recorded as removed that is on the shelf has no correction from the count. The result asks staff to tell the owner.

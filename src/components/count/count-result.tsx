@@ -5,13 +5,11 @@ import Link from "next/link";
 import { useRef, useState } from "react";
 import { buttonClass, inputClass } from "@/components/ui/field";
 import { Notice } from "@/components/ui/notice";
-import { groupResult, kindText, type CountApi, type CountLine, type CountResult } from "@/lib/count/session";
+import { groupResult, kindText, modelText, type CountApi, type CountLine, type CountResult } from "@/lib/count/session";
 import { when } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 const KIND_ICON = { other_location: MapPin, sold: Tag, removed: Ban, not_recorded: CircleHelp } as const;
-
-const modelText = (line: CountLine) => (line.model_name ? `${line.model_name}${line.weight_lb ? ` ${line.weight_lb} lb` : ""}` : null);
 
 /**
  * The result of a finished count, and one correction for each line (doc/adr/0005-stock-count-rules.md).
@@ -54,6 +52,11 @@ export function CountResultView({ initial, isOwner, api, base = "" }: { initial:
       {groups.open > 0 ? (
         <Notice tone="warn">
           {groups.open} {groups.open === 1 ? "line needs" : "lines need"} a correction. Each correction changes the stock and shows in the activity log.
+        </Notice>
+      ) : groups.stuck > 0 ? (
+        <Notice tone="warn">
+          {groups.stuck} {groups.stuck === 1 ? "ball recorded as removed is" : "balls recorded as removed are"} on the shelf. The count cannot correct
+          this. Tell the owner.
         </Notice>
       ) : (
         <Notice tone="ok">{result.missing + result.unexpected === 0 ? "The shelf agrees with the records." : "The stock now agrees with this count."}</Notice>
@@ -152,7 +155,7 @@ function LineRow({
     action = (
       <span className="inline-flex items-center gap-1.5 rounded-full bg-ok-surface px-2.5 py-1 text-sm font-medium text-ok">
         <Check className="size-4" aria-hidden="true" />
-        Corrected
+        Resolved
       </span>
     );
   } else if (line.action === "move") {

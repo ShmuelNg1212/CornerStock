@@ -61,7 +61,7 @@ export const fakeCountApi: CountApi = {
 
   async scan(countId, serial) {
     const count = counts.get(countId);
-    if (!count || count.result) return fail("This count is already finished or cancelled.");
+    if (!count || count.result) return { ...fail("This count is already finished or cancelled."), closed: true };
     await new Promise((resolve) => setTimeout(resolve, 250));
     const duplicate = count.scans.has(serial);
     count.scans.add(serial);

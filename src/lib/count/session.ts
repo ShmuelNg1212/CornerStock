@@ -3,7 +3,7 @@
 import { normalizeSerial } from "@/lib/label/rules";
 
 /** The reply of a count action. */
-export type CountReply<T> = { ok: true; value: T } | { ok: false; error: string };
+export type CountReply<T> = { ok: true; value: T } | { ok: false; error: string; closed?: boolean };
 /** The reply of `start_count`: the open count of a location and its totals. */
 export type CountOpen = { id: string; location_id: string; location: string; started_at: string; scanned: number; expected: number };
 
@@ -71,13 +71,15 @@ export function addScan(session: CountSession, text: string): { session: CountSe
   return { session: { ...session, scans }, added: true, serial };
 }
 
-const modelOf = (r: ScanResult) => (r.model_name ? `${r.model_name}${r.weight_lb ? ` ${r.weight_lb} lb` : ""}` : null);
+/** "Phaze II 15 lb", or null for a serial that is not recorded. */
+export const modelText = (r: { model_name: string | null; weight_lb: number | null }) =>
+  r.model_name ? `${r.model_name}${r.weight_lb ? ` ${r.weight_lb} lb` : ""}` : null;
 
 export function applyScanResult(session: CountSession, result: ScanResult): CountSession {
   return {
     scans: session.scans.map((s) =>
       s.serial === result.serial
-        ? { serial: s.serial, state: "done", status: result.status, duplicate: result.duplicate, ballId: result.ball_id, model: modelOf(result), location: result.location }
+        ? { serial: s.serial, state: "done", status: result.status, duplicate: result.duplicate, ballId: result.ball_id, model: modelText(result), location: result.location }
         : s,
     ),
     // Replies can arrive out of order. The totals only grow during a count.
@@ -88,6 +90,14 @@ export function applyScanResult(session: CountSession, result: ScanResult): Coun
 
 export function applyScanFailure(session: CountSession, serial: string, error: string): CountSession {
   return { ...session, scans: session.scans.map((s) => (s.serial === serial ? { serial, state: "failed", error } : s)) };
+}
+
+/** The status of one scan on this phone, in words. */
+export function scanLabel(scan: CountScan): string {
+  if (scan.state === "checking") return "Checking…";
+  if (scan.state === "failed") return scan.error ?? "Not saved";
+  if (scan.duplicate) return "Already counted";
+  return scanText({ status: scan.status!, location: scan.location });
 }
 
 /** The status of a scan in words. Each status also has an icon on screen; color is never the only sign. */
@@ -146,13 +156,18 @@ export type CountResult = {
 
 export type CountRecord = Omit<CountResult, "lines" | "status">;
 
-/** Sorts the lines for the result screen. `open`: lines that still have a correction to make. */
+/**
+ * Sorts the lines for the result screen. `open`: lines that still have a correction to make.
+ * `stuck`: lines that disagree with the stock and have no correction from the count (a removed ball on the shelf).
+ */
 export function groupResult(lines: CountLine[]) {
+  const unresolved = lines.filter((l) => l.outcome !== "found" && !l.corrected);
   return {
     missing: lines.filter((l) => l.outcome === "missing"),
     unexpected: lines.filter((l) => l.outcome === "unexpected"),
     found: lines.filter((l) => l.outcome === "found"),
-    open: lines.filter((l) => l.action !== null && !l.corrected).length,
+    open: unresolved.filter((l) => l.action !== null).length,
+    stuck: unresolved.filter((l) => l.action === null).length,
   };
 }
 

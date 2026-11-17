@@ -16,7 +16,7 @@ async function rpc<T>(fn: string, args: Record<string, unknown>): Promise<CountR
   await requireStaff();
   const supabase = await createClient();
   const { data, error } = await supabase.rpc(fn, args);
-  if (error) return { ok: false, error: stockErrorMessage(error) };
+  if (error) return { ok: false, error: stockErrorMessage(error), closed: error.message.includes("COUNT_CLOSED") };
   return { ok: true, value: data as T };
 }
 
