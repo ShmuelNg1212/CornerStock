@@ -48,12 +48,21 @@ export function buildReview(kind: ImportKind, rows: ImportRow[], state: ImportSt
   const allowed = new Set<string>(kind === "stock" ? [...modelFields, ...stockFields] : modelFields);
   const suppliedModels = new Map<string, Record<string, string>>();
   const serialRows = new Map<string, number>();
+  const balls = new Map(state.balls.map(ball => [ball.serial, ball]));
+  // An existing ball matches by serial. A blank UPC on its row keeps the stored UPC.
+  const rowUpc = (input: ImportRow) => {
+    const supplied = input.values.upc ?? "";
+    if (kind !== "stock" || supplied.trim()) return supplied;
+    const serial = normalizeSerial(input.values.serial ?? "");
+    const existing = serial.ok ? balls.get(serial.value) : undefined;
+    return state.models.find(model => model.id === existing?.model_id)?.upc ?? supplied;
+  };
   for (const input of rows) {
     for (const [field, value] of Object.entries(input.values)) {
       if (!allowed.has(field)) error(input.row, field, "This field is not supported for this import.");
       else if (value !== undefined && (typeof value !== "string" || value.length > 5000)) error(input.row, field, "This cell must contain text of 5,000 characters or fewer.");
     }
-    const upc = validateUpc(input.values.upc ?? "");
+    const upc = validateUpc(rowUpc(input));
     if (upc.ok) {
       const group = suppliedModels.get(upc.value) ?? {};
       for (const field of modelFields) {
@@ -75,9 +84,8 @@ export function buildReview(kind: ImportKind, rows: ImportRow[], state: ImportSt
   }
   const recordedModels = new Set<string>();
   const models = new Map(state.models.map(model => [model.upc, model]));
-  const balls = new Map(state.balls.map(ball => [ball.serial, ball]));
   for (const input of rows) {
-    const upc = validateUpc(input.values.upc ?? "");
+    const upc = validateUpc(rowUpc(input));
     if (!upc.ok) { error(input.row, "upc", upc.error); continue; }
     const before = models.get(upc.value) ?? null;
     const suppliedModel = suppliedModels.get(upc.value) ?? {};

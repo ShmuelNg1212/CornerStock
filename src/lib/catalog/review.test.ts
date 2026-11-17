@@ -30,6 +30,19 @@ describe("import review", () => {
     expect(result.payload.models[0].after).toMatchObject({ color: "Green", selling_price: 13000 });
     expect(result.summary).toMatchObject({ models_updated: 1, balls_added: 2 });
   });
+  it("keeps the stored UPC when a correction row for an existing ball leaves UPC blank", () => {
+    const result = buildReview("stock", [
+      row({ serial: "abc123", gross_weight: "15 lb 6 oz", color: "Green" }),
+    ], state, { ...options, reason: "Reweighed" });
+    expect(result.errors).toEqual([]);
+    expect(result.payload.balls[0]).toMatchObject({ serial: "ABC123", label: { upc: model.upc, gross_weight_oz: 246 } });
+    expect(result.payload.models[0].after).toMatchObject({ upc: model.upc, color: "Green" });
+    expect(result.summary).toMatchObject({ balls_updated: 1, models_updated: 1, balls_added: 0 });
+  });
+  it("still requires a UPC for a new ball", () => {
+    const result = buildReview("stock", [row({ serial: "NEW123" })], state, options);
+    expect(result.errors).toContainEqual(expect.objectContaining({ row: 2, field: "upc" }));
+  });
   it("reports conflicting model cells and duplicate normalized serials by source row", () => {
     const result = buildReview("stock", [
       row({ upc: model.upc, serial: "new123", color: "Green" }),
