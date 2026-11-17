@@ -51,6 +51,21 @@ To test on a phone before the deploy, the phone needs HTTPS for the camera. Use 
 
 Never put a secret in a `NEXT_PUBLIC_` variable.
 
+## Staging (development and testing)
+
+A second Supabase project is the staging database. Use it to test changes before production.
+Its values are in `.env.staging.local`. This file has the same three variables as `.env.local`. Git ignores it.
+
+1. Apply each new migration to staging first. Use the SQL Editor of the staging project.
+2. To run the app on staging, export the staging variables. They take precedence over `.env.local`:
+   `bash -c 'set -a; . ./.env.staging.local; set +a; npm run build && npx next start -p 3100'`
+   For development mode, use `npm run dev -- -p 3100` instead of the build and start commands.
+3. The build puts the `NEXT_PUBLIC_` values in the client bundle. Build again with the production values before a production check.
+   To make sure, search `.next/static` for the project reference of the URL.
+4. Create test accounts with the Auth admin API and the staging secret key. The first account becomes the owner.
+   For a staff account, set `app_metadata.added_by_owner` to `true`.
+5. Staging data is test data. Do not copy it to production.
+
 ## Deploy
 
 The GitHub remote is `https://github.com/ShmuelNg1212/CornerStock`. Production is https://cornerstock.vercel.app. The Vercel project is `cornerstock` in `shmuelng8310-5097s-projects`.
