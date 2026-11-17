@@ -24,7 +24,7 @@ None. Answers from the human (2026-11-17):
 - Acceptance: on an iPhone with iOS 26.1 or later, a fresh home-screen install shows no grey gradient at the top. The status bar is solid. Nothing moves under it during a scroll.
 - Completion: a device screenshot from the human after deploy (the agent cannot run a real iPhone).
 
-### [ ] 2. Classify scan codes by shape before position — `tests: first`
+### [x] 2. Classify scan codes by shape before position — `tests: first`
 - In `src/lib/label/barcodes.ts`, add `codeShape(text)`: `"serial"` (2 digits, then a letter), `"product"` (starts with a letter), or `"unknown"`.
 - `classifyBarcodes` uses the shape first. It uses the position only when the shapes do not decide.
 - A code with the product shape never goes into the serial number automatically.

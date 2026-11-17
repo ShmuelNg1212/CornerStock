@@ -48,19 +48,31 @@ export function moduleSize(results: { format: string; text: string; position: { 
   return smallest;
 }
 
-/** A product code on the labels starts with letters (BBMVSL15L). A serial number starts with the year (23VSLE30B047). */
-const startsWithLetter = (text: string) => /^[A-Z]/.test(text);
+export type CodeShape = "serial" | "product" | "unknown";
+
+/**
+ * The form of a code on the Storm-group labels. Both codes are Code 39, so only the text tells them apart.
+ * A serial number starts with the 2-digit year, then letters (23VSLE30B047).
+ * A product code starts with letters and ends with the weight (BBMVSL15L).
+ */
+export function codeShape(text: string): CodeShape {
+  if (/^\d{2}[A-Z]/.test(text)) return "serial";
+  if (/^[A-Z]/.test(text)) return "product";
+  return "unknown";
+}
 
 const UPC_FORMATS = ["UPCA", "UPC-A", "EAN13", "EAN-13"];
 
 /**
  * Sorts the barcodes of one label photo into fields.
- * On the labels that the shop gets, the serial number is above the UPC and the product code is below it.
- * The staff member sees the result on the confirm screen and can correct it.
+ * The form of the text decides first. A code with the product code form never becomes the serial number:
+ * a missing serial number is safe, because the staff member must then scan or type it.
+ * The position decides only between codes of the same form. On the labels, the serial number is above
+ * the UPC and the product code is below it. The staff member sees the result on the confirm screen.
  */
 export function classifyBarcodes(found: FoundBarcode[]): LabelBarcodes {
   let upc: string | null = null;
-  let upcY = 0;
+  let upcY: number | null = null;
   const others: { text: string; y: number }[] = [];
 
   for (const code of found) {
@@ -75,21 +87,18 @@ export function classifyBarcodes(found: FoundBarcode[]): LabelBarcodes {
       continue;
     }
     const text = normalizeSerial(code.text);
-    if (text.ok) others.push({ text: text.value, y: code.y });
+    if (text.ok && !others.some((o) => o.text === text.value)) others.push({ text: text.value, y: code.y });
   }
   others.sort((a, b) => a.y - b.y);
 
-  if (upc !== null && others.length === 1 && others[0].y >= upcY && startsWithLetter(others[0].text)) {
-    // One code below the UPC, with the form of a product code: the serial barcode did not read.
-    return { upc, serial: null, product_code: others[0].text };
-  }
-  if (upc === null || others.length < 2) {
-    // With no UPC for reference, or only one other code, the upper code is the serial number.
-    return { upc, serial: others[0]?.text ?? null, product_code: others[1]?.text ?? null };
-  }
-  const above = others.filter((o) => o.y < upcY);
-  const below = others.filter((o) => o.y >= upcY);
-  const serial = above.at(-1) ?? below[0];
-  const productCode = below.find((o) => o !== serial) ?? above.find((o) => o !== serial);
-  return { upc, serial: serial.text, product_code: productCode?.text ?? null };
+  // The serial number: the lowest code above the UPC, else the top code.
+  const pickSerial = (list: typeof others) => (upcY === null ? list[0] : (list.filter((o) => o.y < upcY!).at(-1) ?? list[0]));
+  // The product code: the top code below the UPC, else the top code.
+  const pickProduct = (list: typeof others) => (upcY === null ? list[0] : (list.find((o) => o.y >= upcY!) ?? list[0]));
+
+  const of = (shape: CodeShape) => others.filter((o) => codeShape(o.text) === shape);
+  const serial = pickSerial(of("serial")) ?? pickSerial(of("unknown"));
+  const rest = others.filter((o) => o !== serial && codeShape(o.text) !== "serial");
+  const productCode = pickProduct(rest.filter((o) => codeShape(o.text) === "product")) ?? pickProduct(rest);
+  return { upc, serial: serial?.text ?? null, product_code: productCode?.text ?? null };
 }

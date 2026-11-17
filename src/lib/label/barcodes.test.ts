@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { prepareZXingModule, readBarcodes } from "zxing-wasm/reader";
 import { beforeAll, describe, expect, it } from "vitest";
-import { classifyBarcodes, moduleSize, READER_OPTIONS, toFound } from "./barcodes";
+import { classifyBarcodes, codeShape, moduleSize, READER_OPTIONS, toFound } from "./barcodes";
 
 describe("classifyBarcodes", () => {
   const serial = { format: "Code39", text: "23VSLE30B047", y: 1236 };
@@ -48,8 +48,29 @@ describe("classifyBarcodes", () => {
   });
 
   it("makes the serial number upper case and ignores text that cannot be a serial number", () => {
-    expect(classifyBarcodes([{ format: "Code128", text: "ab12cd34", y: 1 }]).serial).toBe("AB12CD34");
+    expect(classifyBarcodes([{ format: "Code128", text: "23ab45cd", y: 1 }]).serial).toBe("23AB45CD");
     expect(classifyBarcodes([{ format: "QRCode", text: "https://example.com/a?b=1", y: 1 }]).serial).toBeNull();
+  });
+
+  it("never takes a code with the product code form as the serial number, at any position", () => {
+    // Photo 8: the label is turned, and the product code is above the UPC.
+    expect(classifyBarcodes([{ ...code, y: 1200 }, upc])).toEqual({ upc: "887970617601", serial: null, product_code: "BBMVSL15L" });
+    // No UPC read: the product code is the only code.
+    expect(classifyBarcodes([code])).toEqual({ upc: null, serial: null, product_code: "BBMVSL15L" });
+  });
+
+  it("uses the form of the codes before their position", () => {
+    // The product code is above the serial number, for example on an upside-down read.
+    expect(classifyBarcodes([{ ...code, y: 100 }, upc, { ...serial, y: 1600 }])).toEqual({
+      upc: "887970617601",
+      serial: "23VSLE30B047",
+      product_code: "BBMVSL15L",
+    });
+  });
+
+  it("uses the position when two codes have the serial form", () => {
+    const other = { format: "Code39", text: "23VSLE30B048", y: 1500 };
+    expect(classifyBarcodes([other, upc, serial])).toMatchObject({ serial: "23VSLE30B047" });
   });
 
   it("returns nothing for a photo with no barcode", () => {
@@ -74,6 +95,14 @@ describe("moduleSize", () => {
   });
 });
 
+describe("codeShape", () => {
+  it("knows the serial number form and the product code form", () => {
+    expect(codeShape("23VSLE30B047")).toBe("serial");
+    expect(codeShape("BBMGRN14L")).toBe("product");
+    expect(codeShape("123456")).toBe("unknown");
+  });
+});
+
 describe("the sample label photo", () => {
   beforeAll(() => {
     // Load the reader from the copy that the app serves, not from the network.
@@ -93,4 +122,23 @@ describe("the sample label photo", () => {
     const results = await readBarcodes(new Blob([photo]), READER_OPTIONS);
     expect(classifyBarcodes(toFound(results))).toMatchObject({ upc: "887970617601", serial: "23VSLE30B047" });
   });
+
+  // The values that each fixture photo must give. A field that does not read is null, never a wrong value.
+  const expected: Record<string, { upc: string | null; serial: string | null; product_code: string | null }> = {
+    "label-01.jpg": { upc: "887970617601", serial: "23VSLE30B047", product_code: "BBMVSL15L" },
+    "label-02.jpg": { upc: "887970778029", serial: "26GRNE12A043", product_code: "BBMGRN14L" },
+    "label-03.jpg": { upc: "887970777992", serial: "26GRNE08B001", product_code: "BBMGRN13L" },
+    "label-04.jpg": { upc: null, serial: "26GRNE12B037", product_code: "BBMGRN14L" },
+    "label-05.jpg": { upc: null, serial: "26GRNE08A025", product_code: "BBMGRN13L" },
+    "label-06.jpg": { upc: "887970752517", serial: null, product_code: null },
+    "label-07.jpg": { upc: null, serial: null, product_code: null },
+    "label-08.jpg": { upc: "887970760116", serial: null, product_code: "BBMRTQ15L" },
+    "label-09.jpg": { upc: "887970760086", serial: "25RTQI26I031", product_code: "BBMRTQ14L" },
+    "label-10.jpg": { upc: "887970760086", serial: "25RTQI26J031", product_code: "BBMRTQ14L" },
+  };
+  it.each(Object.keys(expected))("sorts the codes of %s", async (name) => {
+    const photo = readFileSync(path.resolve("src/lib/label/__fixtures__", name));
+    const results = await readBarcodes(new Blob([photo]), READER_OPTIONS);
+    expect(classifyBarcodes(toFound(results))).toEqual(expected[name]);
+  }, 30000);
 });
