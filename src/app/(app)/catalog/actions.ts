@@ -29,7 +29,8 @@ const inputSchema = z.object({
     .array(
       z.object({
         row: z.number().int().min(2),
-        values: z.record(z.string().max(60), z.string().max(200)),
+        // The review reports a too-long cell on its row. This bound only limits the request.
+        values: z.record(z.string().max(60), z.string().max(65536)),
       }),
     )
     .min(1)
@@ -46,20 +47,25 @@ function signingKey() {
     );
   return secret;
 }
+const SAVE_FAILED =
+  "The import could not be saved. No changes were saved. Review the file and try again.";
 function errorMessage(error: unknown): string {
-  const message =
-    error instanceof Error
-      ? error.message
-      : String((error as { message?: string })?.message ?? "");
+  const message = String((error as { message?: string })?.message ?? "");
+  const code = (error as { code?: string })?.code;
   if (/STALE|CONFLICT|DUPLICATE/i.test(message))
     return "A record changed since review. Review the file again. No changes were saved.";
   if (/REASON_REQUIRED/.test(message))
     return "Give a reason for corrections to existing stock.";
   if (/REQUEST|REPLAY|PAYLOAD/i.test(message))
     return "This import request changed. Review the file again.";
-  return message && !/constraint|SQL|schema|permission/i.test(message)
-    ? message
-    : "The import could not be saved. No changes were saved. Review the file and try again.";
+  if (/NOT_AUTHORIZED/.test(message) || code === "42501")
+    return "Your account cannot do this.";
+  // These mean that a record or location changed after the review.
+  if (/INVALID_IMPORT|IMMUTABLE_IDENTITY|LOCATION_NOT_FOUND|WRONG_STATUS|BALL_NOT_FOUND|INVALID_LABEL/.test(message) || ["23505", "23514", "22P02"].includes(code ?? ""))
+    return "A record or location changed since review. Review the file again. No changes were saved.";
+  // A database or validation error never shows its raw text. Errors thrown here are written for the owner.
+  if (code || error instanceof z.ZodError || !(error instanceof Error)) return SAVE_FAILED;
+  return message || SAVE_FAILED;
 }
 
 export async function loadImportFile(form: FormData) {
@@ -184,6 +190,22 @@ export async function createCatalogModel(
       defaultLocationId: "",
       reason: "",
     });
+    const client = await createClient();
+    const upc = (values.upc ?? "").replace(/[\s-]/g, "");
+    const { data: existing, error: lookupError } = await client
+      .from("ball_models")
+      .select("*")
+      .eq("upc", upc)
+      .maybeSingle();
+    if (lookupError) throw new Error("Catalog lookup failed. Try again.");
+    if (existing)
+      return {
+        ok: false as const,
+        error: "Check the marked fields.",
+        fieldErrors: {
+          upc: "This UPC is already in the catalog. Open that entry to edit it.",
+        },
+      };
     const review = buildReview(
       "catalog",
       parsed.rows,
@@ -198,11 +220,6 @@ export async function createCatalogModel(
           review.errors.map((error) => [error.field, error.message]),
         ),
       };
-    if (review.payload.models.some((model) => model.before))
-      throw new Error(
-        "This UPC is already in the catalog. Open that entry to edit it.",
-      );
-    const client = await createClient();
     const { error } = await client.rpc("commit_catalog_import", {
       p_request_id: requestId,
       p_payload: review.payload,
@@ -225,7 +242,7 @@ const sheetSchema = z.object({
         cells: z
           .array(
             z.object({
-              text: z.string().max(5000),
+              text: z.string().max(65536),
               formula: z.boolean().optional(),
               numeric: z.boolean().optional(),
               csv: z.boolean().optional(),
