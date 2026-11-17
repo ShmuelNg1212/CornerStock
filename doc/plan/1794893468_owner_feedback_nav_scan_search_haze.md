@@ -2,8 +2,8 @@
 
 Study: [doc/study/1794893468_owner_feedback_nav_scan_search_haze.md](../study/1794893468_owner_feedback_nav_scan_search_haze.md)
 
-Mode: mixed. Technical first (tasks 2, 3, 4, 6), then design (task 5).
-Skills: tasks 2, 3, 6 `tdd`; task 4 `tdd` (database test); task 5 `diagnosing-bugs`, `mobile-native`. Rendezvous: `code-review`, `simplify`, `break-ui` (search with odd input).
+Mode: mixed. Technical first (tasks 2, 3, 4, 6), then design (tasks 5, 1).
+Skills: tasks 2, 3, 6 `tdd`; task 4 `tdd` (database test); task 5 `diagnosing-bugs`, `mobile-native`; task 1 `mobile-native`. Rendezvous: `code-review`, `simplify`, `break-ui` (search with odd input).
 
 Branch: `fix/owner-feedback-nov17`. One commit for each task.
 
@@ -13,12 +13,16 @@ None. Answers from the human (2026-11-17):
 
 1. The tab bar fault is in the **staff** view. A staff screenshot shows the Settings icon and the Account icon on top of each other in the third tab.
 2. All labels are from the Storm group for now. The human sends other label styles when the shop gets them. Task 2 uses the Storm forms only.
-3. The human likes the status bar as it is. Do not change `statusBarStyle`. Task 1 is dropped. The grey gradient is drawn by iOS 26.1 and later over a `black-translucent` bar. CSS cannot remove it. This is a known limit, not a fault in the app.
+3. The human first kept the status bar, then chose the solid bar (second answer, same day). Task 1 is active again. The owner and the staff must delete the home-screen app and add it again.
 
 ## Tasks
 
-### [-] 1. Remove the iOS haze — DROPPED
-- The human keeps the current status bar (answer 3). No change.
+### [ ] 1. Remove the iOS haze with a solid status bar — `tests: alongside`
+- Set `statusBarStyle` to `"default"` in `src/app/layout.tsx`.
+- Remove the navy safe-area band in `layout.tsx` and the safe-area top padding in `shell.tsx` only if they then show a double gap.
+- Change the release marker.
+- Acceptance: on an iPhone with iOS 26.1 or later, a fresh home-screen install shows no grey gradient at the top. The status bar is solid. Nothing moves under it during a scroll.
+- Completion: a device screenshot from the human after deploy (the agent cannot run a real iPhone).
 
 ### [ ] 2. Classify scan codes by shape before position — `tests: first`
 - In `src/lib/label/barcodes.ts`, add `codeShape(text)`: `"serial"` (2 digits, then a letter), `"product"` (starts with a letter), or `"unknown"`.
@@ -66,3 +70,4 @@ None. Answers from the human (2026-11-17):
 - [ ] Probe: stock search "iq" and "hyroad" behind sign-in, on staging
 - [ ] Probe: scan flow with photo 08 shows no serial and the product code warning
 - [ ] Probe: preview shell, owner to staff, third tab shows one icon
+- [ ] Human device check for task 1 after deploy and a fresh home-screen install
