@@ -4,6 +4,9 @@ import type { ReaderOptions, ReadResult } from "zxing-wasm/reader";
 import { normalizeSerial, validateUpc } from "./rules";
 
 export const READER_OPTIONS: ReaderOptions = {
+  // Only the formats of the labels. This reads 4 times faster than all formats, with the same codes.
+  // The Storm-group labels use UPC-A and Code 39. Code 128 stays for labels of other brands; it costs almost nothing.
+  formats: ["UPC-A", "EAN-13", "Code39", "Code128"],
   tryHarder: true,
   tryRotate: true,
   tryDownscale: true,
@@ -13,6 +16,7 @@ export const READER_OPTIONS: ReaderOptions = {
 /** One barcode in the photo. `y` is the distance from the top of the label, not of the photo. */
 export type FoundBarcode = { format: string; text: string; y: number };
 export type LabelBarcodes = { upc: string | null; serial: string | null; product_code: string | null };
+export const NO_CODES: LabelBarcodes = { upc: null, serial: null, product_code: null };
 
 export function toFound(results: ReadResult[]): FoundBarcode[] {
   return results
@@ -101,4 +105,19 @@ export function classifyBarcodes(found: FoundBarcode[]): LabelBarcodes {
   const rest = others.filter((o) => o !== serial && codeShape(o.text) !== "serial");
   const productCode = pickProduct(rest.filter((o) => codeShape(o.text) === "product")) ?? pickProduct(rest);
   return { upc, serial: serial?.text ?? null, product_code: productCode?.text ?? null };
+}
+
+/**
+ * Joins the codes of the live camera and the codes of the photo read. The live codes win: the
+ * camera confirmed them in several frames, and the captured frame can miss a code that an earlier
+ * frame read. The photo read fills the codes that the camera did not give.
+ */
+export function mergeLabelCodes(live: LabelBarcodes | null | undefined, read: LabelBarcodes | null): LabelBarcodes | null {
+  // The shutter gives no live code. The photo read then decides, also when it fails.
+  if (!live || (!live.upc && !live.serial && !live.product_code)) return read;
+  return {
+    upc: live.upc ?? read?.upc ?? null,
+    serial: live.serial ?? read?.serial ?? null,
+    product_code: live.product_code ?? read?.product_code ?? null,
+  };
 }

@@ -55,6 +55,19 @@ describe("analyzeFrame on the label photos", () => {
     for (const n of [2, 3, 10]) expect(frameHasGlare(await analyzeFrame(fixture(n))), `photo ${n}`).toBe(false);
   });
 
+  it("reads the serial at the photo framing in a 1440 px wide frame, and not in a 1080 px wide frame", async () => {
+    // A portrait 1440p stream is 1440 px wide; a 1080p stream is 1080 px wide.
+    // label-02.jpg is 1440 px wide. label-02-1080.jpg is the same photo, 1080 px wide.
+    const at = async (width: number) => {
+      const name = width === 1440 ? "label-02.jpg" : "label-02-1080.jpg";
+      const { data, width: w, height } = jpeg.decode(readFileSync(path.resolve(`src/lib/label/__fixtures__/${name}`)), { useTArray: true });
+      expect(w).toBe(width);
+      return (await analyzeFrame({ data: new Uint8ClampedArray(data.buffer, data.byteOffset, data.length), width: w, height })).codes.serial;
+    };
+    expect(await at(1440)).toBe("26GRNE12A043");
+    expect(await at(1080)).toBeNull();
+  });
+
   it("finds the barcodes of the glare photos large enough, so the hint is glare and not distance", async () => {
     for (const n of [4, 5, 8]) expect((await analyzeFrame(fixture(n))).moduleSize, `photo ${n}`).toBeGreaterThanOrEqual(FRAME_LIMITS.farBelow);
   });

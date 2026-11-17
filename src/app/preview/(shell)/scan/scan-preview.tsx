@@ -10,6 +10,7 @@ import { ScanStart } from "@/app/(app)/scan/scan-start";
 import { ScanViewfinder } from "@/app/(app)/scan/scan-viewfinder";
 import { EMPTY, type BatchItem } from "@/app/(app)/scan/scan-types";
 import { inputClass } from "@/components/ui/field";
+import { mergeLabelCodes } from "@/lib/label/barcodes";
 import { readLabelPhoto } from "@/lib/label/read-photo";
 import { locations } from "../../fixtures";
 
@@ -138,8 +139,9 @@ export function ScanPreview() {
         <ScanViewfinder
           mode="single"
           base="/preview"
-          onCapture={async (file) => {
-            const codes = await readLabelPhoto(file).catch(() => null);
+          onCapture={async (file, live) => {
+            // As the real scan: the live codes win over the photo read.
+            const codes = mergeLabelCodes(live, await readLabelPhoto(file).catch(() => null));
             setShot({ preview: URL.createObjectURL(file), serial: codes?.serial ?? "", upc: codes?.upc ?? "" });
           }}
           onClose={() => setProblem("closed")}

@@ -2,11 +2,11 @@
 
 import { Check, CircleCheck, Flashlight, FlashlightOff, Focus, Hand, LoaderCircle, Minus, RotateCw, ScanLine, SunDim, X, ZoomIn } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import type { LabelBarcodes } from "@/lib/label/barcodes";
 import type { FrameHint } from "@/lib/label/frame-quality";
 import type { Saved } from "./scan-types";
-import { useViewfinder, type CameraState } from "./use-viewfinder";
+import { useViewfinder, type CameraState, type ViewfinderStats } from "./use-viewfinder";
 
 const HINTS: Record<FrameHint, { text: string; icon: typeof Hand }> = {
   aim: { text: "Point the camera at the label", icon: ScanLine },
@@ -36,6 +36,41 @@ function CodeMark({ label, read }: { label: string; read: boolean }) {
       {label}
       <span className="sr-only">{read ? " read" : " not read"}</span>
     </span>
+  );
+}
+
+const noSubscribe = () => () => {};
+const readDebug = () => new URLSearchParams(window.location.search).get("debug") === "1";
+
+/** The diagnostic panel. It shows only with `?debug=1` in the address. No value leaves the device. */
+function DebugPanel({ stats, hint }: { stats: ViewfinderStats | null; hint: FrameHint }) {
+  const rows: [string, string][] = stats
+    ? [
+        ["stream", stats.stream],
+        ["frame", stats.frame],
+        ["read", `${stats.readMs} ms (avg ${stats.readAvgMs})`],
+        ["fps", String(stats.fps)],
+        ["sharp", String(stats.sharpness)],
+        ["module", stats.moduleSize === null ? "–" : `${stats.moduleSize.toFixed(2)} px`],
+        ["codes", stats.read],
+        ["window", stats.window],
+        ["hint", hint],
+        ["captures", String(stats.captures)],
+        ["capture", stats.lastCaptureMs === null ? "–" : `${(stats.lastCaptureMs / 1000).toFixed(1)} s`],
+      ]
+    : [["status", "waiting for a frame"]];
+  return (
+    <dl
+      data-testid="scan-debug"
+      className="tabular pointer-events-none absolute bottom-3 left-3 z-10 grid grid-cols-[auto_auto] gap-x-2 rounded-lg bg-black/70 px-2.5 py-2 font-mono text-[11px] leading-4 text-white"
+    >
+      {rows.map(([name, value]) => (
+        <div key={name} className="contents">
+          <dt className="text-white/60">{name}</dt>
+          <dd>{value}</dd>
+        </div>
+      ))}
+    </dl>
   );
 }
 
@@ -69,8 +104,11 @@ export function ScanViewfinder({
   base?: string;
 }) {
   const [flash, setFlash] = useState<{ key: number; serial: string } | null>(null);
-  const { videoRef, state, hint: frameHint, codes, torch, toggleTorch, shutter } = useViewfinder({
+  // The server render has no address, so it gives false. The client then reads the address.
+  const debug = useSyncExternalStore(noSubscribe, readDebug, () => false);
+  const { videoRef, state, hint: frameHint, codes, torch, toggleTorch, shutter, stats } = useViewfinder({
     skipSerials,
+    debug,
     onCapture: (file, codes) => {
       if (mode === "batch" && codes.serial) setFlash({ key: Date.now(), serial: codes.serial });
       onCapture(file, codes);
@@ -143,6 +181,8 @@ export function ScanViewfinder({
       {/* The camera. The reader reads the whole frame, also the parts outside the view. */}
       <div className="relative flex flex-1 items-center justify-center overflow-hidden bg-black px-6 py-5">
         <video ref={videoRef} muted playsInline autoPlay aria-hidden="true" className="absolute inset-0 size-full object-cover lg:object-contain" />
+
+        {debug && state === "live" && <DebugPanel stats={stats} hint={frameHint} />}
 
         {saved && mode === "single" && (
           <div role="status" className="absolute inset-x-3 top-3 z-10 flex items-center gap-2.5 rounded-xl bg-ok-surface px-3.5 py-2 text-ok">

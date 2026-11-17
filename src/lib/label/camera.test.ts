@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cameraProblem, frameSize } from "./camera";
+import { CAMERA_CONSTRAINTS, cameraProblem, frameSize } from "./camera";
 
 describe("cameraProblem", () => {
   it("reads a refused permission as denied", () => {
@@ -15,11 +15,18 @@ describe("cameraProblem", () => {
 });
 
 describe("frameSize", () => {
-  it("keeps a frame of 1920 px or less", () => {
+  it("keeps a 1440p frame, so the serial barcode keeps its pixels", () => {
+    expect(frameSize(1440, 2560)).toEqual({ width: 1440, height: 2560 });
     expect(frameSize(1080, 1920)).toEqual({ width: 1080, height: 1920 });
   });
 
-  it("makes a larger frame 1920 px on the long side", () => {
-    expect(frameSize(3840, 2160)).toEqual({ width: 1920, height: 1080 });
+  it("makes a larger frame 2560 px on the long side", () => {
+    expect(frameSize(2160, 3840)).toEqual({ width: 1440, height: 2560 });
+  });
+});
+
+describe("CAMERA_CONSTRAINTS", () => {
+  it("asks for a 1440p stream, not 4K", () => {
+    expect(CAMERA_CONSTRAINTS.video).toMatchObject({ width: { ideal: 2560 }, height: { ideal: 1440 } });
   });
 });

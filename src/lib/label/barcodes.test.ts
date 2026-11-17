@@ -2,7 +2,46 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { prepareZXingModule, readBarcodes } from "zxing-wasm/reader";
 import { beforeAll, describe, expect, it } from "vitest";
-import { classifyBarcodes, codeShape, moduleSize, READER_OPTIONS, toFound } from "./barcodes";
+import { classifyBarcodes, codeShape, mergeLabelCodes, moduleSize, READER_OPTIONS, toFound } from "./barcodes";
+
+describe("READER_OPTIONS", () => {
+  // Fewer formats read 4 times faster. Code 128 stays for labels of other brands.
+  it("reads only the barcode formats of the ball box labels", () => {
+    expect(READER_OPTIONS.formats).toEqual(["UPC-A", "EAN-13", "Code39", "Code128"]);
+  });
+});
+
+describe("mergeLabelCodes", () => {
+  const live = { upc: "887970617601", serial: "23VSLE30B047", product_code: null };
+
+  it("keeps the codes of the live camera when the photo read misses them", () => {
+    expect(mergeLabelCodes(live, { upc: null, serial: "23VSLE30B047", product_code: "BBMVSL15L" })).toEqual({
+      ...live,
+      product_code: "BBMVSL15L",
+    });
+  });
+
+  it("keeps the live codes when the photo read fails", () => {
+    expect(mergeLabelCodes(live, null)).toEqual(live);
+  });
+
+  it("prefers the live serial and UPC: several frames confirmed them", () => {
+    expect(mergeLabelCodes(live, { upc: "887970778029", serial: "26GRNE12A043", product_code: null })).toEqual(live);
+  });
+
+  it("gives the photo read when the live camera read no code, as from the shutter", () => {
+    const empty = { upc: null, serial: null, product_code: null };
+    expect(mergeLabelCodes(empty, null)).toBeNull();
+    const read = { upc: "887970778029", serial: null, product_code: null };
+    expect(mergeLabelCodes(empty, read)).toBe(read);
+  });
+
+  it("gives the photo read when there are no live codes", () => {
+    const read = { upc: "887970778029", serial: null, product_code: null };
+    expect(mergeLabelCodes(undefined, read)).toBe(read);
+    expect(mergeLabelCodes(undefined, null)).toBeNull();
+  });
+});
 
 describe("classifyBarcodes", () => {
   const serial = { format: "Code39", text: "23VSLE30B047", y: 1236 };
