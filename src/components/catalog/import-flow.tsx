@@ -101,9 +101,14 @@ export function ImportFlow({
   const [pending, startTransition] = useTransition();
   const fileRef = useRef<HTMLInputElement>(null);
   const heading = useRef<HTMLHeadingElement>(null);
+  const leaving = useRef(false);
   const sheet = workbook?.sheets[sheetIndex];
   const fields = kind === "stock" ? STOCK_FIELDS : CATALOG_FIELDS;
   const dirty = workbook !== null && step !== "result";
+  const changes =
+    review?.changes.filter((change) => change.action !== "unchanged") ?? [];
+  const unchanged =
+    review?.changes.filter((change) => change.action === "unchanged") ?? [];
 
   useEffect(() => {
     heading.current?.focus();
@@ -152,6 +157,43 @@ export function ImportFlow({
       document.removeEventListener("submit", ask, true);
     };
   }, [dirty, pending]);
+
+  // A same-document history traversal does not fire beforeunload. Keep one
+  // same-route history entry while a file is unsaved, so Back can ask first.
+  useEffect(() => {
+    if (!dirty) return;
+    leaving.current = false;
+    const guard = crypto.randomUUID();
+    window.history.pushState(
+      { ...window.history.state, catalogImportGuard: guard },
+      "",
+      window.location.href,
+    );
+    let restoring = false;
+    const onBack = (event: PopStateEvent) => {
+      if (leaving.current) return;
+      if (restoring) {
+        restoring = false;
+        event.stopImmediatePropagation();
+        return;
+      }
+      if (event.state?.catalogImportGuard === guard) return;
+      event.stopImmediatePropagation();
+      if (
+        !window.confirm(
+          "This import has not been confirmed. Leave and discard the review?",
+        )
+      ) {
+        restoring = true;
+        window.history.forward();
+      } else {
+        leaving.current = true;
+        window.history.back();
+      }
+    };
+    window.addEventListener("popstate", onBack, true);
+    return () => window.removeEventListener("popstate", onBack, true);
+  }, [dirty]);
 
   function runReview() {
     if (!sheet) return;
@@ -462,7 +504,14 @@ export function ImportFlow({
                   <dd className="tabular font-heading text-xl font-semibold">
                     {review.summary[key]}
                   </dd>
-                  <dt className="text-sm text-muted-foreground">{label}</dt>
+                  <dt className="text-sm text-muted-foreground">
+                    {review.summary[key] === 1
+                      ? label
+                          .replace("models", "model")
+                          .replace("balls", "ball")
+                          .replace("entries", "entry")
+                      : label}
+                  </dt>
                 </div>
               ))}
           </dl>
@@ -486,7 +535,7 @@ export function ImportFlow({
             </section>
           )}
           <ul className="mt-6 divide-y divide-border rounded-(--radius-card) bg-card px-4 shadow-(--shadow-card)">
-            {review.changes.slice(0, shown).map((change, index) => (
+            {changes.slice(0, shown).map((change, index) => (
               <li key={index} className="py-4">
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
                   <h3 className="min-w-0 font-semibold break-all">
@@ -542,15 +591,36 @@ export function ImportFlow({
               </li>
             ))}
           </ul>
-          {review.changes.length > shown && (
+          {changes.length > shown && (
             <button
               type="button"
               className={`${buttonClass.quiet} mt-4`}
               onClick={() => setShown((current) => current + 50)}
             >
-              Show more changes ({review.changes.length - shown} remaining)
+              Show more changes ({changes.length - shown} remaining)
             </button>
           )}
+          {unchanged.length > 0 && (
+            <details className="mt-5 rounded-xl border border-border p-4">
+              <summary className="min-h-11 cursor-pointer font-medium">
+                {unchanged.length} unchanged{" "}
+                {unchanged.length === 1 ? "entry" : "entries"}
+              </summary>
+              <ul className="mt-3 max-h-64 space-y-2 overflow-y-auto text-sm text-muted-foreground">
+                {unchanged.map((item, index) => (
+                  <li key={index} className="break-all">
+                    Row {item.row} ·{" "}
+                    {item.entity === "model" ? "Model" : "Ball"} ·{" "}
+                    {item.identity}
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
+          <p className="mt-4 text-sm text-muted-foreground">
+            Blank cells keep stored values. <code>__CLEAR__</code> removes an
+            optional value; the resulting empty value is shown above.
+          </p>
           {kind === "stock" && reason && (
             <p className="mt-4 text-sm">
               <span className="font-semibold">Reason: </span>
@@ -631,7 +701,13 @@ export function ImportFlow({
               .map(([key, label]) => (
                 <li key={key}>
                   {result[key]}{" "}
-                  {label
+                  {(result[key] === 1
+                    ? label
+                        .replace("models", "model")
+                        .replace("balls", "ball")
+                        .replace("entries", "entry")
+                    : label
+                  )
                     .replace("to add", "added")
                     .replace("to update", "updated")
                     .replace("to receive", "received")
