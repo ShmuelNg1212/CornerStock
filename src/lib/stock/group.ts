@@ -4,10 +4,13 @@ import { matches } from "@/lib/search";
 import type { BallModel } from "@/lib/types";
 
 export type StockModel = Pick<BallModel, "id" | "brand" | "name" | "color" | "nominal_weight_lb">;
-/** `status`: low or out when a location is below the minimum. See doc/adr/0004-low-stock-minimum.md. */
-export type WeightEntry = { modelId: string; weight: number; count: number; status: StockStatus; minimum: number | null };
+/**
+ * `status`: low or out when a location is below the minimum. `lowAt`: the IDs of those locations.
+ * See doc/adr/0004-low-stock-minimum.md.
+ */
+export type WeightEntry = { modelId: string; weight: number; count: number; status: StockStatus; minimum: number | null; lowAt: string[] };
 /** A row of the database view `low_stock`: one model in one location below its minimum. */
-export type LowRow = { model_id: string; in_stock: number; min_in_stock: number };
+export type LowRow = { model_id: string; location_id: string; min_in_stock: number };
 export type StockGroup = {
   key: string;
   brand: string | null;
@@ -27,6 +30,8 @@ export function groupStock(models: StockModel[], counts: { model_id: string; in_
   const byModel = new Map<string, number>();
   for (const row of counts) byModel.set(row.model_id, (byModel.get(row.model_id) ?? 0) + row.in_stock);
   const minimums = new Map(low.map((row) => [row.model_id, row.min_in_stock]));
+  const lowAt = new Map<string, string[]>();
+  for (const row of low) lowAt.set(row.model_id, [...(lowAt.get(row.model_id) ?? []), row.location_id]);
 
   const groups = new Map<string, StockGroup>();
   for (const model of models) {
@@ -36,8 +41,9 @@ export function groupStock(models: StockModel[], counts: { model_id: string; in_
     const key = `${model.brand ?? ""}|${model.name}`;
     const group = groups.get(key) ?? { key, brand: model.brand, name: model.name, color: model.color, total: 0, weights: [] };
     group.total += count;
+    // A low row decides, not the count: in all locations the total can reach the minimum while one location is low (ADR 0004, rule 4).
     const status: StockStatus = minimum === null ? "ok" : count === 0 ? "out" : "low";
-    group.weights.push({ modelId: model.id, weight: Number(model.nominal_weight_lb), count, status, minimum });
+    group.weights.push({ modelId: model.id, weight: Number(model.nominal_weight_lb), count, status, minimum, lowAt: lowAt.get(model.id) ?? [] });
     groups.set(key, group);
   }
 

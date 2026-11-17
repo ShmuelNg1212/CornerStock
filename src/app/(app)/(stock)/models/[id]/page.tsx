@@ -37,12 +37,19 @@ export default async function ModelPage({ params }: { params: Promise<{ id: stri
       count: countRows.filter((c) => c.model_id === row.id).reduce((sum, c) => sum + c.in_stock, 0),
     }));
   };
-  const [profile, { locations, selected }, { data: model }, balls, allWeights] = await Promise.all([
+  // All locations: the locations below the minimum, so the page names them (doc/adr/0004-low-stock-minimum.md).
+  const lowIn = async (selected: string) => {
+    if (selected !== ALL_LOCATIONS) return [];
+    const { data } = await supabase.from("low_stock").select("location_id").eq("model_id", id);
+    return ((data ?? []) as { location_id: string }[]).map((row) => row.location_id);
+  };
+  const [profile, { locations, selected }, { data: model }, balls, allWeights, lowIds] = await Promise.all([
     requireStaff(),
     getLocations(),
     modelRead,
     getLocations().then(({ selected }) => ballsIn(selected)),
     getLocations().then(({ selected }) => weightsIn(selected)),
+    getLocations().then(({ selected }) => lowIn(selected)),
   ]);
   if (!model) notFound();
 
@@ -59,6 +66,7 @@ export default async function ModelPage({ params }: { params: Promise<{ id: stri
         balls={balls}
         place={all ? "all locations" : (locations.find((l) => l.id === selected)?.name ?? "")}
         locationNames={all ? Object.fromEntries(locations.map((l) => [l.id, l.name])) : undefined}
+        lowPlaces={lowIds.map((lowId) => locations.find((l) => l.id === lowId)?.name ?? "").filter(Boolean)}
         editable={profile.role === "owner"}
         priceForm={
           profile.role === "owner" ? (

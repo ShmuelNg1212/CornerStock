@@ -1,9 +1,10 @@
-import { ChevronLeft, ChevronRight, CircleSlash, TriangleAlert } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { SectionTitle } from "@/components/ui/field";
 import { grossWeight, number, pinDistance, price } from "@/lib/format";
 import { stockStatus } from "@/lib/low-stock";
 import type { Ball, BallModel } from "@/lib/types";
+import { LowMark } from "./low-mark";
 import { ModelDetailsEditor } from "./model-details-editor";
 
 const BACK = ["nav-back"];
@@ -25,8 +26,11 @@ export function ModelView({
   priceForm,
   editable = false,
   weights,
+  lowPlaces,
   base = "",
 }: {
+  /** All locations only: the names of the locations below the minimum. */
+  lowPlaces?: string[];
   /** Each weight of this model with its count. A tap changes the weight in place. */
   weights?: { modelId: string; weight: number; count: number }[];
   model: BallModel;
@@ -125,8 +129,11 @@ export function ModelView({
           <h2 id="balls-heading" className="text-lg font-semibold">
             <span className="tabular">{balls.length}</span> in stock <span className="font-sans text-base font-normal text-muted-foreground">in {place}</span>
           </h2>
-          {/* One location only: in all locations, the stock list shows which location is low. */}
-          {!locationNames && <LowMark count={balls.length} minimum={model.min_in_stock} />}
+          {locationNames ? (
+            lowPlaces?.length ? <LowMark status={balls.length ? "low" : "out"} minimum={model.min_in_stock} places={lowPlaces} /> : null
+          ) : (
+            <LowMark status={stockStatus(balls.length, model.min_in_stock)} minimum={model.min_in_stock} />
+          )}
         </div>
         {balls.length === 0 ? (
           <p className="mt-2 text-muted-foreground">No ball of this model and weight is in stock here. Select another location, or scan a label to add one.</p>
@@ -162,16 +169,3 @@ export function ModelView({
   );
 }
 
-/** "Low stock" or "Out of stock" for one location, with an icon and the minimum. Nothing when the stock is enough. */
-function LowMark({ count, minimum }: { count: number; minimum: number | null }) {
-  const status = stockStatus(count, minimum);
-  if (status === "ok") return null;
-  const Icon = status === "out" ? CircleSlash : TriangleAlert;
-  return (
-    <p className="tabular inline-flex items-center gap-1.5 rounded-full bg-warn-surface px-2.5 py-1 text-sm font-semibold text-warn">
-      <Icon className="size-4" aria-hidden="true" />
-      {status === "out" ? "Out of stock" : "Low stock"}
-      <span className="font-normal">· keep {minimum}</span>
-    </p>
-  );
-}

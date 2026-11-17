@@ -69,6 +69,13 @@ The owner sees in the stock view which models and weights are low or out of stoc
 - Browser probe on `/preview`, 390 × 844 and 1280 × 800: no horizontal overflow. The tile and the pill filter the list to the two low samples (Phaze II 13 lb out, Twist 10 lb low). `?l=1` opens the same list. The "Low stock" pill is in the first screen on a phone. The model pages show "Low stock · keep 2" and "Out of stock · keep 1".
 - Not checked: the owner form save on the signed-in app. The preview has no owner session.
 
+## Rendezvous checks (2026-11-17)
+
+- `npm test`: 260 unit tests and 68 database tests pass. `npm run typecheck`, `npx eslint .`, and `npm run build` pass.
+- Standards review (read-only agent): no blocking bug. The two replaced import functions are the same as the originals except for `min_in_stock` (checked by a diff). Fixed: the view kept write privileges for signed-in users (a database test now checks that only select is granted). Fixed: the status words and icons were in three places; now one map (`LOW_MARK` in `low-mark.tsx`). Fixed: an unused column in the low-stock read. Kept: the minimum form has no cancel, the same as the price form.
+- Spec review (read-only agent): fixed: in "All locations", the list and the model page did not say which location is low. A weight now keeps its low locations (`lowAt`). The chip label for a screen reader names them, and the model page shows "Low stock in <location>". Kept: the stock import also accepts `min_in_stock`, because a stock file carries the catalog values.
+- Probe after the fixes: the chips name "Sta. Lucia East"; the model pages show the marks; no overflow.
+
 ## Out of scope
 
 - A message to the owner outside the app (answer 3).

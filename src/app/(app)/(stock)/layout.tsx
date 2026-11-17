@@ -17,7 +17,7 @@ async function List() {
   };
   // The models below their minimum, in the selected location or in any location (doc/adr/0004-low-stock-minimum.md).
   const lowIn = async (selected: string) => {
-    let query = supabase.from("low_stock").select("model_id, in_stock, min_in_stock");
+    let query = supabase.from("low_stock").select("model_id, location_id, min_in_stock");
     if (selected !== ALL_LOCATIONS) query = query.eq("location_id", selected);
     return ((await query).data ?? []) as LowRow[];
   };

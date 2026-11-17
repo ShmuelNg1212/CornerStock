@@ -39,7 +39,7 @@ describe("groupStock", () => {
       { model_id: "b15", in_stock: 3 },
     ]);
     expect(groups[0].total).toBe(5);
-    expect(groups[0].weights).toEqual([{ modelId: "b15", weight: 15, count: 5, status: "ok", minimum: null }]);
+    expect(groups[0].weights).toEqual([{ modelId: "b15", weight: 15, count: 5, status: "ok", minimum: null, lowAt: [] }]);
   });
 
   it("sorts the groups by name", () => {
@@ -191,18 +191,18 @@ describe("low stock in the stock list", () => {
     { model_id: "b15", in_stock: 3 },
   ];
   const low = [
-    { model_id: "a15", in_stock: 1, min_in_stock: 2 },
-    { model_id: "a14", in_stock: 0, min_in_stock: 1 },
-    { model_id: "c12", in_stock: 0, min_in_stock: 2 },
+    { model_id: "a15", location_id: "mall", min_in_stock: 2 },
+    { model_id: "a14", location_id: "mall", min_in_stock: 1 },
+    { model_id: "c12", location_id: "mall", min_in_stock: 2 },
   ];
   const groups = groupStock(models, counts, low);
   const phaze = groups.find((g) => g.name === "Phaze II")!;
 
   it("marks a weight below its minimum as low, and a weight at 0 as out", () => {
     expect(phaze.weights).toEqual([
-      { modelId: "a16", weight: 16, count: 4, status: "ok", minimum: null },
-      { modelId: "a15", weight: 15, count: 1, status: "low", minimum: 2 },
-      { modelId: "a14", weight: 14, count: 0, status: "out", minimum: 1 },
+      { modelId: "a16", weight: 16, count: 4, status: "ok", minimum: null, lowAt: [] },
+      { modelId: "a15", weight: 15, count: 1, status: "low", minimum: 2, lowAt: ["mall"] },
+      { modelId: "a14", weight: 14, count: 0, status: "out", minimum: 1, lowAt: ["mall"] },
     ]);
     expect(phaze.total).toBe(5);
   });
@@ -211,12 +211,12 @@ describe("low stock in the stock list", () => {
     expect(groups.find((g) => g.name === "Rhino")).toMatchObject({ total: 0, weights: [{ modelId: "c12", count: 0, status: "out" }] });
   });
 
-  it("joins the rows of several locations into one weight: low when any location is low", () => {
+  it("joins the rows of several locations into one weight: low when any location is low, with the low locations", () => {
     const all = groupStock(models, [{ model_id: "a15", in_stock: 1 }, { model_id: "a15", in_stock: 5 }], [
-      { model_id: "a15", in_stock: 1, min_in_stock: 2 },
-      { model_id: "a15", in_stock: 0, min_in_stock: 2 },
+      { model_id: "a15", location_id: "mall", min_in_stock: 2 },
+      { model_id: "a15", location_id: "room", min_in_stock: 2 },
     ]);
-    expect(all[0].weights).toEqual([{ modelId: "a15", weight: 15, count: 6, status: "low", minimum: 2 }]);
+    expect(all[0].weights).toEqual([{ modelId: "a15", weight: 15, count: 6, status: "low", minimum: 2, lowAt: ["mall", "room"] }]);
   });
 
   it("counts the low and out weights, and keeps only them with the low filter", () => {

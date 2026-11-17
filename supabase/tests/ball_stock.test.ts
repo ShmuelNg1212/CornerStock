@@ -847,6 +847,15 @@ describe("low stock", () => {
     await expect(importModel(upc, importValues(upc, { min_in_stock: 1.5 }))).rejects.toThrow(/INVALID_IMPORT/);
   });
 
+  it("gives signed-in users only read access to the view", async () => {
+    const privileges = (
+      await admin.query(
+        "select has_table_privilege('authenticated', 'public.low_stock', 'INSERT') as ins, has_table_privilege('authenticated', 'public.low_stock', 'UPDATE') as upd, has_table_privilege('authenticated', 'public.low_stock', 'SELECT') as sel",
+      )
+    ).rows[0];
+    expect(privileges).toEqual({ ins: false, upd: false, sel: true });
+  });
+
   it("shows nothing to a signed-out visitor or an inactive account", async () => {
     const id = await modelOf(upcOf("10000000001"));
     await expect(lowRows(null, id)).rejects.toThrow(/permission denied/);

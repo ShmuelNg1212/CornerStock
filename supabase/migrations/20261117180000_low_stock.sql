@@ -18,5 +18,5 @@ create view public.low_stock with (security_invoker = true) as
   left join public.stock_counts c on c.model_id = m.id and c.location_id = l.id
   where l.active and m.min_in_stock > 0 and coalesce(c.in_stock, 0) < m.min_in_stock;
 
-revoke all on public.low_stock from public, anon;
+revoke all on public.low_stock from public, anon, authenticated;
 grant select on public.low_stock to authenticated;

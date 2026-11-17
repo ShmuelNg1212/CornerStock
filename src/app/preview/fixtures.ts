@@ -59,9 +59,10 @@ const outModel = model("phaze-ii-13", "Storm", "Phaze II", 13, "Red / Blue / Pur
 models.push({ ...outModel, min_in_stock: 1 });
 for (const m of models) if (m.id === "twist-10") m.min_in_stock = 2;
 export const low = [
-  { model_id: "twist-10", in_stock: 1, min_in_stock: 2 },
-  { model_id: "phaze-ii-13", in_stock: 0, min_in_stock: 1 },
+  { model_id: "twist-10", location_id: "loc-main", min_in_stock: 2 },
+  { model_id: "phaze-ii-13", location_id: "loc-main", min_in_stock: 1 },
 ];
+const lowCounts: Record<string, number> = { "twist-10": 1, "phaze-ii-13": 0 };
 export const groups = groupStock(models, counts, low);
 
 // Worst-case data: long names, no brand, non-Latin text, large counts.
@@ -102,7 +103,7 @@ function ball(id: string, serial: string, modelId: string, values: Partial<Ball>
 }
 
 /** Four sample balls for a model. The low-stock samples get their own count, so the model page shows the mark. */
-export const ballsOf = (modelId: string): Ball[] => sampleBalls(modelId).slice(0, low.find((row) => row.model_id === modelId)?.in_stock ?? 4);
+export const ballsOf = (modelId: string): Ball[] => sampleBalls(modelId).slice(0, lowCounts[modelId] ?? 4);
 const sampleBalls = (modelId: string): Ball[] => [
   ball("b1", "PHZ244107731", modelId),
   ball("b2", "PHZ244107745", modelId, { gross_weight_oz: 241, top_weight: 3.1, pin_min: 3, pin_max: 4 }),

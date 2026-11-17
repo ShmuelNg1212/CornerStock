@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowDownToLine, ChevronDown, CircleSlash, Layers, MapPin, Search, Tag, TriangleAlert, X } from "lucide-react";
+import { ArrowDownToLine, ChevronDown, Layers, MapPin, Search, Tag, TriangleAlert, X } from "lucide-react";
 import { AnimatePresence, m, useReducedMotion } from "motion/react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
@@ -18,6 +18,7 @@ import { manilaHour } from "@/lib/stock/today";
 import { applyFilters, brandCounts, filterGroups, lowCount, parseFilters, stockTotal, weightCounts, type StockFilters, type StockGroup, type WeightEntry } from "@/lib/stock/group";
 import { cn } from "@/lib/utils";
 import { BallGlyph } from "./ball-glyph";
+import { LOW_MARK } from "./low-mark";
 
 const balls = (n: number) => `${n} ${n === 1 ? "ball" : "balls"}`;
 const FORWARD = ["nav-forward"];
@@ -223,6 +224,7 @@ export function StockList({ groups, place, locationNames, today, base = "", fixt
                 marks={marks}
                 selectedModel={selectedModel}
                 onSeen={clearMarks}
+                locationNames={locationNames}
               />
             ))}
           </AnimatePresence>
@@ -520,7 +522,9 @@ function ModelCard({
   marks,
   selectedModel,
   onSeen,
+  locationNames,
 }: {
+  locationNames: Record<string, string>;
   ref?: React.Ref<HTMLLIElement>;
   group: StockGroup;
   index: number;
@@ -585,7 +589,7 @@ function ModelCard({
                 href={`${base}/models/${entry.modelId}`}
                 transitionTypes={FORWARD}
                 aria-current={current ? "true" : undefined}
-                aria-label={`${entry.weight} pounds, ${entry.count} in stock${statusWords(entry)}`}
+                aria-label={`${entry.weight} pounds, ${entry.count} in stock${statusWords(entry, locationNames)}`}
                 data-status={entry.status === "ok" ? undefined : entry.status}
                 style={{ "--vt-name": `weight-${entry.modelId}` } as React.CSSProperties}
                 className="vt-weight tabular flex h-12 min-w-15 flex-col items-center justify-center rounded-xl bg-background px-2.5 leading-tight data-[status=low]:bg-warn-surface data-[status=low]:text-warn data-[status=out]:border data-[status=out]:border-dashed data-[status=out]:border-warn/60 data-[status=out]:bg-transparent data-[status=out]:text-warn aria-[current=true]:data-[status]:bg-gold aria-[current=true]:data-[status]:text-foreground outline-none transition-[background-color,transform] duration-(--dur-fast) [view-transition-class:weight-tag] hover:bg-secondary focus-visible:ring-3 focus-visible:ring-ring/40 active:scale-[0.94] aria-[current=true]:bg-gold aria-[current=true]:text-foreground lg:group-data-selected/card:bg-white/10 lg:group-data-selected/card:hover:bg-white/20 lg:group-data-selected/card:aria-[current=true]:bg-gold"
@@ -604,26 +608,24 @@ function ModelCard({
   );
 }
 
-/** The words that a screen reader adds for a low or out weight. */
-const statusWords = (entry: WeightEntry) =>
-  entry.status === "out" ? `, out of stock, keep ${entry.minimum}` : entry.status === "low" ? `, low stock, keep ${entry.minimum}` : "";
+/** The words that a screen reader adds for a low or out weight, with the low locations. */
+const statusWords = (entry: WeightEntry, locationNames: Record<string, string>) => {
+  if (entry.status === "ok") return "";
+  const places = entry.lowAt.map((id) => locationNames[id]).filter(Boolean);
+  return `, ${LOW_MARK[entry.status].label.toLowerCase()}${places.length ? ` in ${places.join(", ")}` : ""}, keep ${entry.minimum}`;
+};
 
 /** The count line of a weight chip. A low or out weight shows a word and an icon, not color alone. */
 function ChipCount({ entry }: { entry: WeightEntry }) {
-  if (entry.status === "out")
-    return (
-      <span className="flex items-center gap-0.5 text-xs font-semibold">
-        <CircleSlash className="size-3" aria-hidden="true" />
-        Out
-      </span>
-    );
-  if (entry.status === "low")
-    return (
-      <span className="flex items-center gap-0.5 text-xs font-semibold">
-        <TriangleAlert className="size-3" aria-hidden="true" />×{entry.count} Low
-      </span>
-    );
-  return <span className="text-xs font-medium opacity-75">×{entry.count}</span>;
+  if (entry.status === "ok") return <span className="text-xs font-medium opacity-75">×{entry.count}</span>;
+  const { short, Icon } = LOW_MARK[entry.status];
+  return (
+    <span className="flex items-center gap-0.5 text-xs font-semibold">
+      <Icon className="size-3" aria-hidden="true" />
+      {entry.status === "low" && `×${entry.count} `}
+      {short}
+    </span>
+  );
 }
 
 /** Shows that a count changed. It goes away 8 seconds after the card is on screen, or on a touch of the card. */
