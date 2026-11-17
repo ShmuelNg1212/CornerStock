@@ -167,7 +167,7 @@ Keep the plan as the only active task list.
   Saved changes refresh catalog and stock data.
   Completion: server behavior tests and export round-trip tests pass.
 
-- [ ] **D1. Catalog screens and navigation.** `tests: alongside`
+- [x] **D1. Catalog screens and navigation.** `tests: alongside`
   Skills: `impeccable`, `mobile-native`.
   Add catalog browse, detail, create, edit, and export controls.
   Reuse existing detail and price fields where practical.
@@ -177,7 +177,7 @@ Keep the plan as the only active task list.
   Completion: signed-in owner and staff browser probes pass on phone,
   tablet, and desktop layouts.
 
-- [ ] **D2. File import screens.** `tests: alongside`
+- [x] **D2. File import screens.** `tests: alongside`
   Skills: `impeccable`, `mobile-native`, `break-ui`.
   Build the four import steps and their failure and recovery states.
   Acceptance: the owner can map an existing file, resolve errors,
@@ -218,4 +218,37 @@ Execution in progress.
 - T2: 49 database tests pass, including 14 import tests.
 - T3: 18 review tests and seven confirmation, pagination, and action tests pass.
 - Unit suite: 173 tests pass.
-- No remote schema changes or deployment have occurred.
+- D1 and D2: browser probes pass on 2026-11-17.
+  The probes used a separate staging Supabase project.
+  The production database was not changed.
+  The staging project has all three migrations.
+  The probes used a production build with the staging variables.
+  Accounts: one temporary owner and one temporary staff member.
+  Layouts: desktop 1280 px, tablet 820 px, and phone 390 px.
+- D1 evidence: the desktop rail has Catalog.
+  Phone Stock and Account have a catalog link.
+  The owner created a model. The model had no ball and no movement.
+  Search by UPC found the model. The owner edited details and price.
+  The CSV and Excel exports contain the model.
+  Staff browsed zero-stock entries with no management actions.
+  The staff detail page is read-only.
+  Staff go to Stock from `/catalog/new` and `/catalog/import`.
+  A staff catalog download does not return data (status 307).
+  No layout has horizontal overflow.
+- D2 evidence: a catalog import updated one model and added one model.
+  A blank price kept the stored price.
+  A mixed stock import added one model and received two balls.
+  The new model shows in Stock. The ball page shows the receive history.
+  A correction without a reason is blocked and names the reason.
+  A correction with a reason saved one `adjust` movement with that reason.
+  A record changed after review gave this message:
+  "A record changed since review. Review the file again. No changes were saved."
+  That attempt wrote no ball change, no movement, and no batch.
+  Review again, then confirm, saved the batch one time.
+  Row and field errors show on a phone, and they disable Confirm.
+  The phone tab bar does not cover the review buttons.
+- The probe found one defect. A correction row with a blank UPC failed.
+  Commit `b2f92ab` fixes it: an existing ball keeps its stored UPC.
+  A new ball still requires a UPC. Two review tests cover this.
+- Unit suite after the fix: 178 tests pass. Database suite: 49 tests pass.
+- No remote schema changes or deployment have occurred on production.
