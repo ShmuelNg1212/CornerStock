@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpen, Camera, ChevronLeft, LayoutList, Settings, UserRound } from "lucide-react";
+import { BookOpen, Camera, ChevronLeft, History, LayoutList, Settings, UserRound } from "lucide-react";
 import { AnimatePresence, m } from "motion/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -24,6 +24,7 @@ export function Nav({ owner, variant, base = "" }: { owner: boolean; variant: "r
     const items = [
       { href: "/", label: "Stock", icon: LayoutList, current: stock },
       { href: "/catalog", label: "Catalog", icon: BookOpen, current: path.startsWith("/catalog") },
+      { href: "/activity", label: "Activity", icon: History, current: path.startsWith("/activity") },
       { href: "/scan", label: "Scan labels", icon: Camera, current: path.startsWith("/scan") },
       owner
         ? { href: "/settings", label: "Settings", icon: Settings, current: path.startsWith("/settings") }
@@ -63,13 +64,14 @@ export function Nav({ owner, variant, base = "" }: { owner: boolean; variant: "r
       style={{ viewTransitionName: "shell-tabs" }}
       className="fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom)+0.5rem)] z-20 mx-auto max-w-md rounded-[1.5rem] bg-card/95 shadow-(--shadow-float) ring-1 ring-border backdrop-blur-md lg:hidden"
     >
-      <ul className="grid h-16 grid-cols-3 items-center px-2">
+      {/* Five slots: Stock, Catalog, Scan, Activity, and Settings or Account. Each slot is at least 56 px wide at 320 px. */}
+      <ul className="grid h-16 grid-cols-5 items-center px-1.5">
         <li className="flex justify-center">
           {/* In a detail screen, the Stock item becomes Back. It stays at the thumb. */}
           <TabLink
             href={detail && back ? back : `${base}/`}
             label={detail ? "Back" : "Stock"}
-            current={(stock && !detail) || path.startsWith("/catalog")}
+            current={stock && !detail}
             transitionTypes={detail ? BACK : undefined}
             icon={LayoutList}
             altIcon={ChevronLeft}
@@ -78,14 +80,20 @@ export function Nav({ owner, variant, base = "" }: { owner: boolean; variant: "r
           />
         </li>
         <li className="flex justify-center">
+          <TabLink href={`${base}/catalog`} label="Catalog" current={path.startsWith("/catalog")} icon={BookOpen} />
+        </li>
+        <li className="flex justify-center">
           <Link
             href={`${base}/scan`}
             aria-current={scanning ? "page" : undefined}
             aria-label="Scan labels"
-            className="group -mt-7 grid size-16 place-items-center rounded-full bg-action text-action-foreground shadow-[0_10px_22px_-8px_rgb(185_74_37/0.7)] ring-4 ring-background outline-none transition-transform duration-(--dur-fast) focus-visible:ring-ring/50 active:scale-[0.94] aria-[current=page]:ring-gold/60"
+            className="group -mt-7 grid size-14 shrink-0 place-items-center rounded-full min-[360px]:size-16 bg-action text-action-foreground shadow-[0_10px_22px_-8px_rgb(185_74_37/0.7)] ring-4 ring-background outline-none transition-transform duration-(--dur-fast) focus-visible:ring-ring/50 active:scale-[0.94] aria-[current=page]:ring-gold/60"
           >
-            <Camera className="size-7 transition-transform duration-(--dur) group-aria-[current=page]:scale-110" aria-hidden="true" />
+            <Camera className="size-6 transition-transform min-[360px]:size-7 duration-(--dur) group-aria-[current=page]:scale-110" aria-hidden="true" />
           </Link>
+        </li>
+        <li className="flex justify-center">
+          <TabLink href={`${base}/activity`} label="Activity" current={path.startsWith("/activity")} icon={History} />
         </li>
         <li className="flex justify-center">
           {/* The key mounts a new tab when the role changes. A kept page (cacheComponents) must not show the old icon. */}
@@ -124,7 +132,7 @@ function TabLink({
       href={href}
       transitionTypes={transitionTypes}
       aria-current={current ? "page" : undefined}
-      className="group flex h-14 min-w-18 flex-col items-center justify-center gap-0.5 rounded-2xl text-xs font-medium text-muted-foreground outline-none focus-visible:ring-3 focus-visible:ring-ring/40 aria-[current=page]:text-foreground"
+      className="group flex h-14 w-full max-w-18 flex-col items-center justify-center gap-0.5 rounded-2xl text-xs font-medium text-muted-foreground outline-none focus-visible:ring-3 focus-visible:ring-ring/40 aria-[current=page]:text-foreground"
     >
       <span className="relative grid h-8 w-12 place-items-center">
         {current && <m.span layoutId="tab-indicator" transition={spring.tab} className="absolute inset-0 rounded-xl bg-primary" />}

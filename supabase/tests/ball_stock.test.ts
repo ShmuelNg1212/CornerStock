@@ -660,3 +660,92 @@ describe("catalog file import", () => {
     } finally { await other.end(); }
   });
 });
+
+describe("activity feed", () => {
+  type Row = { src: number; id: string; at: Date; at_text: string; type: string; actor_name: string | null; serial: string | null; model_name: string; from_location: string | null; to_location: string | null; reason: string | null; reference: string | null; old_values: Record<string, unknown> | null; new_values: Record<string, unknown> | null };
+  const feed = (user: string | null, args: { before?: Row; types?: string[]; limit?: number } = {}) =>
+    as(user, async (c) =>
+      (
+        await c.query("select *, at::text as at_text from public.activity_feed($1, $2, $3, $4, $5)", [
+          // The driver cuts a timestamp to milliseconds. The cursor needs the exact value.
+          args.before?.at_text ?? null,
+          args.before?.src ?? null,
+          args.before?.id ?? null,
+          args.types ?? null,
+          args.limit ?? 50,
+        ])
+      ).rows as Row[],
+    );
+
+  it("shows each stock change of a ball, newest first, with names", async () => {
+    const id = await receive(staff, { upc: "725272730728", model_name: "Activity Ball" });
+    await as(staff, (c) => c.query("select public.transfer_ball($1, $2, $3)", [id, warehouse, randomUUID()]));
+    await as(staff, (c) => c.query("select public.sell_ball($1, $2, $3)", [id, randomUUID(), "OR-1102"]));
+    await as(owner, (c) => c.query("select public.reverse_sale($1, $2, $3)", [id, randomUUID(), "Wrong ball"]));
+    await as(owner, (c) => c.query("select public.remove_ball($1, $2, $3)", [id, randomUUID(), "Damaged"]));
+    const serial = (await admin.query("select serial from public.balls where id = $1", [id])).rows[0].serial;
+    const rows = (await feed(staff)).filter((r) => r.serial === serial);
+    expect(rows.map((r) => r.type)).toEqual(["remove", "reverse_sale", "sell", "transfer", "receive"]);
+    expect(rows[2]).toMatchObject({ actor_name: "Staff", model_name: "Activity Ball", from_location: "Warehouse", reference: "OR-1102" });
+    expect(rows[3]).toMatchObject({ from_location: "Sta. Lucia East Mall", to_location: "Warehouse" });
+    expect(rows[1]).toMatchObject({ actor_name: "Owner", reason: "Wrong ball" });
+  });
+
+  it("gives the old and the new values of each ball correction", async () => {
+    const id = await receive(staff, { top_weight: 3.28 });
+    await as(owner, (c) => c.query("select public.adjust_ball($1, $2, $3, $4)", [id, { top_weight: 3 }, randomUUID(), "First fix"]));
+    await as(owner, (c) => c.query("select public.adjust_ball($1, $2, $3, $4)", [id, { top_weight: 2.5 }, randomUUID(), "Second fix"]));
+    const serial = (await admin.query("select serial from public.balls where id = $1", [id])).rows[0].serial;
+    const [second, first] = (await feed(staff, { types: ["adjust"] })).filter((r) => r.serial === serial);
+    expect([Number(first.old_values!.top_weight), Number(first.new_values!.top_weight)]).toEqual([3.28, 3]);
+    expect([Number(second.old_values!.top_weight), Number(second.new_values!.top_weight)]).toEqual([3, 2.5]);
+    expect(second.reference).toBeNull();
+  });
+
+  it("returns only the selected types", async () => {
+    const rows = await feed(staff, { types: ["sell", "remove"] });
+    expect(rows.length).toBeGreaterThan(0);
+    expect(new Set(rows.map((r) => r.type))).toEqual(new Set(["sell", "remove"]));
+  });
+
+  it("pages through all rows with no gap and no repeat", async () => {
+    const seen: string[] = [];
+    let before: Row | undefined;
+    for (;;) {
+      const page = await feed(staff, { before, limit: 7 });
+      seen.push(...page.map((r) => `${r.src}:${r.id}`));
+      if (page.length < 7) break;
+      before = page[page.length - 1];
+    }
+    const total = (
+      await admin.query("select (select count(*) from public.stock_movements) + (select count(*) from public.catalog_changes) as n")
+    ).rows[0].n;
+    expect(new Set(seen).size).toBe(seen.length);
+    expect(seen.length).toBe(Number(total));
+  });
+
+  it("shows nothing to a signed-out visitor or an inactive account", async () => {
+    await expect(feed(null)).rejects.toThrow(/permission denied/);
+    expect(await feed(inactive)).toHaveLength(0);
+  });
+
+  it("records a catalog edit with only the changed values, and shows it", async () => {
+    await receive(staff, { upc: "725272730711", model_name: "Edit Me" });
+    await as(owner, (c) =>
+      c.query("update public.ball_models set name = 'Edited', selling_price = 9800, color = color where upc = '725272730711'"),
+    );
+    const [row] = await feed(staff, { types: ["model_edit"], limit: 1 });
+    expect(row).toMatchObject({ actor_name: "Owner", model_name: "Edited", serial: null });
+    expect(row.old_values).toEqual({ name: "Edit Me", selling_price: null });
+    expect(row.new_values).toEqual({ name: "Edited", selling_price: 9800 });
+  });
+
+  it("records nothing for an edit that changes no value, and keeps catalog changes permanent", async () => {
+    const count = async () => Number((await admin.query("select count(*) as n from public.catalog_changes")).rows[0].n);
+    const before = await count();
+    await as(owner, (c) => c.query("update public.ball_models set name = name where upc = '725272730711'"));
+    expect(await count()).toBe(before);
+    await expect(admin.query("delete from public.catalog_changes")).rejects.toThrow(/MOVEMENTS_ARE_PERMANENT/);
+    await expect(as(owner, (c) => c.query("insert into public.catalog_changes (model_id, old_values, new_values) select id, '{}', '{}' from public.ball_models limit 1"))).rejects.toThrow(/permission denied/);
+  });
+});
