@@ -1069,6 +1069,20 @@ describe("stock count", () => {
     await expect(correct(staff, count, "26NOTIN0X999")).rejects.toThrow(/NO_CORRECTION/);
   });
 
+  it("shows each correction in the activity feed with the count in the reason", async () => {
+    const loc = await newLocation();
+    const moved = await receive(staff, {}, warehouse);
+    const missing = await receive(staff, {}, loc);
+    const { id: count } = await start(staff, loc);
+    await scan(staff, count, await serialOf(moved));
+    await finish(staff, count);
+    await correct(staff, count, await serialOf(moved));
+    await correct(owner, count, await serialOf(missing));
+    const rows = await as(staff, async (c) => (await c.query("select type, serial, reason from public.activity_feed(null, null, null, array['transfer', 'remove'], 10)")).rows);
+    expect(rows).toContainEqual({ type: "transfer", serial: await serialOf(moved), reason: expect.stringMatching(/^Found in the stock count of .+ at Count Shelf/) });
+    expect(rows).toContainEqual({ type: "remove", serial: await serialOf(missing), reason: expect.stringMatching(/^Not found in the stock count of .+ at Count Shelf/) });
+  });
+
   it("refuses a correction from an open count", async () => {
     const loc = await newLocation();
     const id = await receive(staff, {}, warehouse);

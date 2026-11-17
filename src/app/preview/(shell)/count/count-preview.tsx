@@ -9,15 +9,15 @@ import { CountResultView } from "@/components/count/count-result";
 import { buttonClass } from "@/components/ui/field";
 import type { CountResult } from "@/lib/count/session";
 import { locations } from "../../fixtures";
-import { bigResult, fakeCountApi, historyRows } from "./fake-count";
+import { fakeCountApi, fakeResult, historyRows } from "./fake-count";
 
 /**
  * The stock count with fixture data. `?step=result` shows a result with 200 balls.
  * The count itself runs on an in-memory copy of the rules, so a fake camera can scan the label fixtures.
  */
-export function CountPreview({ owner, forceResult = false }: { owner: boolean; forceResult?: boolean }) {
+export function CountPreview({ owner, countId = null }: { owner: boolean; countId?: string | null }) {
   const step = useSearchParams().get("step");
-  const [result, setResult] = useState<CountResult | null>(forceResult || step === "result" ? bigResult() : null);
+  const [result, setResult] = useState<CountResult | null>(countId || step === "result" ? fakeResult(countId) : null);
   const [round, setRound] = useState(0);
   return (
     <div className="mx-auto max-w-2xl">

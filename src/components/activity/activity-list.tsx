@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRightLeft, Ban, BookOpen, History, PackagePlus, Pencil, Tag, Undo2 } from "lucide-react";
+import { ArrowRightLeft, Ban, BookOpen, ClipboardCheck, History, PackagePlus, Pencil, Tag, Undo2 } from "lucide-react";
 import { m } from "motion/react";
 import Link from "next/link";
 import { useState, useTransition } from "react";
@@ -89,7 +89,13 @@ export function ActivityList({
 
   return (
     <div className="mx-auto max-w-3xl lg:mx-0">
-      <h1 className="font-heading text-2xl font-bold">Activity</h1>
+      <div className="flex items-start justify-between gap-3">
+        <h1 className="font-heading text-2xl font-bold">Activity</h1>
+        <Link href={`${base}/count`} className={`${buttonClass.small} shrink-0`}>
+          <ClipboardCheck className="size-4" aria-hidden="true" />
+          Stock counts
+        </Link>
+      </div>
       <p className="mt-2 text-muted-foreground">Every ball added, sold, moved, edited, or removed, and every catalog edit.</p>
 
       <nav

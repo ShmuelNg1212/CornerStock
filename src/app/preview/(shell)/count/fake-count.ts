@@ -172,9 +172,17 @@ export function bigResult(): CountResult {
   };
 }
 
+/** The result of a count finished in this preview session, or the large fixture result. */
+export function fakeResult(id: string | null): CountResult {
+  const count = id ? counts.get(id) : undefined;
+  return count?.result ? resultOf(count) : bigResult();
+}
+
 export function historyRows(): CountRecord[] {
   const big = bigResult();
+  const finished = [...counts.values()].flatMap((c) => (c.result ? [c.result] : [])).reverse();
   return [
+    ...finished,
     { ...big },
     { ...big, id: "00000000-0000-4000-8000-000000000998", location: "Stock room", found: 41, missing: 0, unexpected: 0, finished_at: new Date(Date.now() - 8 * 86_400_000).toISOString(), finished_by: "Carlo Reyes" },
   ];
