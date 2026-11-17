@@ -2,25 +2,23 @@
 
 Study: [doc/study/1794893468_owner_feedback_nav_scan_search_haze.md](../study/1794893468_owner_feedback_nav_scan_search_haze.md)
 
-Mode: mixed. Technical first (tasks 2, 3, 4), then design (tasks 1, 5).
-Skills: task 2 and 3 `tdd`; task 4 `tdd` (database test); task 1 `mobile-native`; task 5 `mobile-native`, `impeccable` (polish). Rendezvous: `code-review`, `simplify`, `break-ui` (search with odd input).
+Mode: mixed. Technical first (tasks 2, 3, 4, 6), then design (task 5).
+Skills: tasks 2, 3, 6 `tdd`; task 4 `tdd` (database test); task 5 `diagnosing-bugs`, `mobile-native`. Rendezvous: `code-review`, `simplify`, `break-ui` (search with odd input).
 
 Branch: `fix/owner-feedback-nov17`. One commit for each task.
 
 ## OPEN QUESTIONS
 
-1. **Tab bar fault.** The code and your screenshot show a correct bar. Please send a screenshot from the owner's phone that shows the crowded icons. Until then, task 5 is blocked. My guess: the owner sees two account controls (the "S" at the top and Settings at the bottom). If that is the fault, the fix is to remove the "S" from the top bar for the owner, because Settings already holds the account panel.
-2. **Other makers.** Do you stock balls from makers outside the Storm group (Brunswick, Hammer, Motiv, Roto Grip is Storm)? If yes, please send one label photo of each. Task 2 treats a code that starts with letters as a product code. A maker whose serial numbers start with letters then needs a typed serial until we add its form.
-3. **Status bar.** Task 1 changes the top of the home-screen app. The clock and battery then sit on a solid bar, not over the page. The owner must delete the home-screen app and add it again. Is that acceptable?
+None. Answers from the human (2026-11-17):
+
+1. The tab bar fault is in the **staff** view. A staff screenshot shows the Settings icon and the Account icon on top of each other in the third tab.
+2. All labels are from the Storm group for now. The human sends other label styles when the shop gets them. Task 2 uses the Storm forms only.
+3. The human likes the status bar as it is. Do not change `statusBarStyle`. Task 1 is dropped. The grey gradient is drawn by iOS 26.1 and later over a `black-translucent` bar. CSS cannot remove it. This is a known limit, not a fault in the app.
 
 ## Tasks
 
-### [ ] 1. Remove the iOS haze — `tests: alongside`
-- Set `statusBarStyle` to `"default"` in `src/app/layout.tsx`.
-- Remove the navy safe-area band in `layout.tsx` and the safe-area top padding in `shell.tsx` only if they then show a double gap.
-- Change the release marker.
-- Acceptance: on an iPhone with iOS 26.1 or later, a fresh home-screen install shows no grey gradient at the top. The status bar is navy or a plain solid colour. Nothing moves under it during a scroll.
-- Completion: a device screenshot from the human after deploy (the agent cannot run a real iPhone).
+### [-] 1. Remove the iOS haze — DROPPED
+- The human keeps the current status bar (answer 3). No change.
 
 ### [ ] 2. Classify scan codes by shape before position — `tests: first`
 - In `src/lib/label/barcodes.ts`, add `codeShape(text)`: `"serial"` (2 digits, then a letter), `"product"` (starts with a letter), or `"unknown"`.
@@ -44,10 +42,12 @@ Branch: `fix/owner-feedback-nov17`. One commit for each task.
 - Acceptance: a database test that a call with `serial = product_code` fails and writes no ball and no movement.
 - Completion: `npm test` passes, the database tests included.
 
-### [ ] 5. Fix the tab bar — `tests: alongside` — BLOCKED on open question 1
-- Fix the fault that the owner's screenshot shows.
-- Acceptance: at 320, 375, and 430 px wide, and with the largest browser text size, no icon or label overlaps another or the scan button.
-- Completion: probe screenshots at the three widths.
+### [ ] 5. Fix the stacked icons in the staff tab bar — `tests: alongside`
+- Cause (to confirm in execute with the preview shell): the third tab swaps its icon in `AnimatePresence mode="popLayout"`, keyed by the label. When `owner` changes while the app is open, the Settings icon starts an exit and stays on screen next to the new Account icon.
+- Fix: give the third tab a `key` from its route, so that a role change mounts a new tab with no exit. Keep the icon swap animation only on the Stock/Back tab, where the cause is a navigation.
+- Check the Stock/Back tab for the same fault: go to a model and back fast, several times.
+- Acceptance: in the preview shell, a change from owner to staff shows only the Account icon. At 320, 375, and 430 px wide, no icon or label overlaps another or the scan button.
+- Completion: probe screenshots before and after the role change, at the three widths.
 
 ### [ ] 6. Make the search forgiving — `tests: first`
 - New `src/lib/search.ts` with `matches(text, query)`:
@@ -65,4 +65,4 @@ Branch: `fix/owner-feedback-nov17`. One commit for each task.
 - [ ] `npm test`, `npm run typecheck`, `npx eslint .`, `npm run build`
 - [ ] Probe: stock search "iq" and "hyroad" behind sign-in, on staging
 - [ ] Probe: scan flow with photo 08 shows no serial and the product code warning
-- [ ] Human device check for task 1 after deploy
+- [ ] Probe: preview shell, owner to staff, third tab shows one icon
