@@ -96,6 +96,8 @@ export function useScan({ locations, defaultLocationId }: { locations: Location[
   // One request id for each ball. A second tap on Save, or a retry after a lost
   // connection, sends the same id, and the database then adds the ball one time only.
   const requestId = useRef("");
+  // The sale of a recorded ball has its own id. sell_ball skips a request id that any movement has.
+  const saleId = useRef("");
   const batchRef = useRef<BatchItem[]>([]);
   // The photos of a batch are read one at a time. This keeps the memory use low on a phone.
   const readQueue = useRef<Promise<void>>(Promise.resolve());
@@ -145,6 +147,7 @@ export function useScan({ locations, defaultLocationId }: { locations: Location[
 
   function begin(next: Step) {
     requestId.current = crypto.randomUUID();
+    saleId.current = crypto.randomUUID();
     weightGuess.current = "";
     setErrors({});
     setMessage(null);
@@ -198,6 +201,7 @@ export function useScan({ locations, defaultLocationId }: { locations: Location[
     if (!files.length) return;
     const items: BatchItem[] = files.map((_, i) => ({
       id: crypto.randomUUID(),
+      saleId: crypto.randomUUID(),
       preview: null,
       photo: null,
       fields: { ...EMPTY, serial: codes[i]?.serial ?? "", upc: codes[i]?.upc ?? "" },
@@ -247,6 +251,7 @@ export function useScan({ locations, defaultLocationId }: { locations: Location[
 
   function openItem(item: BatchItem) {
     requestId.current = item.id;
+    saleId.current = item.saleId;
     weightGuess.current = "";
     photo.current = item.photo;
     setFields(item.fields);
@@ -350,17 +355,18 @@ export function useScan({ locations, defaultLocationId }: { locations: Location[
     return true;
   }
 
-  /**
-   * Marks the recorded ball of this scan as sold. The request id is the id of this scan:
-   * the receive with that id did not happen, and a second tap sells the ball one time only.
-   */
+  /** Marks the recorded ball of this scan as sold. A second tap sends the same id and sells the ball one time only. */
   async function sell(reference: string) {
     if (!existingBall) return;
     setSelling(true);
     setMessage(null);
     try {
-      const result = await sellBall(existingBall.id, requestId.current, reference);
+      const result = await sellBall(existingBall.id, saleId.current, reference);
       if (!result.ok) {
+        // The server refused the sale, so the status that the scan read is out of date. Stop the offer.
+        const unknown = { ...existingBall, status: null };
+        setExistingBall(unknown);
+        if (fromBatch) updateItem(fromBatch, { existingBall: unknown });
         setMessage(result.error);
         return;
       }
@@ -380,9 +386,9 @@ export function useScan({ locations, defaultLocationId }: { locations: Location[
     if (!ball) return;
     updateItem(item.id, { status: "selling", message: null });
     try {
-      const result = await sellBall(ball.id, item.id, "");
+      const result = await sellBall(ball.id, item.saleId, "");
       if (result.ok) updateItem(item.id, { status: "sold", existingBall: { ...ball, status: "sold" } });
-      else updateItem(item.id, { status: "duplicate", message: result.error });
+      else updateItem(item.id, { status: "duplicate", message: result.error, existingBall: { ...ball, status: null } });
     } catch {
       updateItem(item.id, { status: "duplicate", message: "Not sold. Check the connection, then tap Mark sold again." });
     }

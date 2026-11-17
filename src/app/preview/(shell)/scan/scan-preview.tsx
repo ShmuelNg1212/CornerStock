@@ -17,6 +17,7 @@ const LABEL = "/preview-label.jpg";
 const known = { ...EMPTY, serial: "PHZ244107731", upc: "836185012345", model_name: "Phaze II", nominal_weight_lb: "15", brand: "Storm", color: "Red / Blue / Purple", product_code: "BBMTLZ15" };
 const item = (id: string, status: BatchItem["status"], change: Partial<BatchItem> = {}): BatchItem => ({
   id,
+  saleId: `sale-${id}`,
   preview: status === "reading" ? null : LABEL,
   photo: null,
   fields: status === "reading" ? EMPTY : { ...known, serial: `PHZ2441077${id}` },

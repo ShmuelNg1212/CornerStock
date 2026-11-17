@@ -10,6 +10,8 @@ export type Saved = { ballId: string; serial: string; summary: string; location:
 export type BatchItem = {
   /** Also the request id of the save, so a retry adds the ball one time only. */
   id: string;
+  /** The request id of a sale of the recorded ball. It is not the save id, so a save and a sale never share one. */
+  saleId: string;
   preview: string | null;
   photo: Blob | null;
   fields: RawLabel;

@@ -1,5 +1,6 @@
 import { Camera, Check, CircleCheck, Copy, Images, LoaderCircle, Tag, TriangleAlert, X } from "lucide-react";
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { buttonClass, Field } from "@/components/ui/field";
 import { Notice } from "@/components/ui/notice";
 import { existingBallNotice } from "@/lib/label/batch";
@@ -137,6 +138,13 @@ function BatchRow({
   const busy = status === "reading" || status === "saving" || status === "selling";
   const notice = item.existingBall ? existingBallNotice(item.existingBall) : null;
   const canSell = status === "duplicate" && (notice?.canSell ?? false);
+  // A sale needs two taps, so a tap meant for Open or Remove does not sell a ball.
+  const [arming, setArming] = useState(false);
+  useEffect(() => {
+    if (!arming) return;
+    const timer = setTimeout(() => setArming(false), 4000);
+    return () => clearTimeout(timer);
+  }, [arming]);
   const title = item.known ? `${fields.model_name} · ${fields.nominal_weight_lb} lb` : status === "reading" ? `Photo ${index + 1}` : "Model not in the catalog";
   const { label, className, icon: Icon, spin } = STATUS[status];
   return (
@@ -179,8 +187,13 @@ function BatchRow({
       </div>
       <div className="flex shrink-0 items-center gap-1">
         {canSell && (
-          <button type="button" onClick={() => onSell(item)} disabled={disabled} className={buttonClass.small}>
-            Mark sold
+          <button
+            type="button"
+            onClick={() => (arming ? (setArming(false), onSell(item)) : setArming(true))}
+            disabled={disabled}
+            className={buttonClass.small}
+          >
+            {arming ? "Tap to confirm" : "Mark sold"}
           </button>
         )}
         {(status === "needs_details" || status === "duplicate" || status === "ready") && (

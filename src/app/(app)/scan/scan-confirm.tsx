@@ -89,7 +89,6 @@ export function ScanConfirm({
       onSubmit={async (event) => {
         event.preventDefault();
         if (busy) return;
-        if (sells) return onSell(reference);
         if (!(await onSave())) form.current?.querySelector<HTMLElement>("[aria-invalid=true]")?.focus();
       }}
       noValidate
@@ -181,9 +180,16 @@ export function ScanConfirm({
         </div>
 
         <div className="sticky bottom-[calc(4rem+env(safe-area-inset-bottom))] z-10 -mx-4 mt-6 flex gap-2 border-t border-border bg-background px-4 py-3 lg:bottom-0 lg:mx-0 lg:px-0">
-          <button type="submit" disabled={busy} className={`${buttonClass.action} flex-1`}>
-            {sells ? (selling ? "Saving…" : "Mark as sold") : saving ? "Saving…" : "Save to stock"}
-          </button>
+          {sells ? (
+            // Only a tap on this button sells. Enter in a field keeps the save path, which refuses a recorded serial.
+            <button type="button" onClick={() => onSell(reference)} disabled={busy} className={`${buttonClass.action} flex-1`}>
+              {selling ? "Saving…" : "Mark as sold"}
+            </button>
+          ) : (
+            <button type="submit" disabled={busy} className={`${buttonClass.action} flex-1`}>
+              {saving ? "Saving…" : "Save to stock"}
+            </button>
+          )}
           {canRetake && (
             <button type="button" onClick={onRetake} disabled={busy} className={buttonClass.quiet}>
               Retake
