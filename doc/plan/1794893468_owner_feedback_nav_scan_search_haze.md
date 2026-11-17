@@ -23,6 +23,7 @@ None. Answers from the human (2026-11-17):
 - Change the release marker.
 - Acceptance: on an iPhone with iOS 26.1 or later, a fresh home-screen install shows no grey gradient at the top. The status bar is solid. Nothing moves under it during a scroll.
 - Completion: a device screenshot from the human after deploy (the agent cannot run a real iPhone).
+- Result (execute): `statusBarStyle: "default"`. The production build has `content="default"` on all 19 prerendered pages. The safe-area band and padding stay: with a solid bar, the top safe-area inset is 0, so they take no space. Waiting for the device check.
 
 ### [x] 2. Classify scan codes by shape before position — `tests: first`
 - In `src/lib/label/barcodes.ts`, add `codeShape(text)`: `"serial"` (2 digits, then a letter), `"product"` (starts with a letter), or `"unknown"`.

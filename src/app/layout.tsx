@@ -12,7 +12,9 @@ export const metadata: Metadata = {
   title: { default: "Cornerstock", template: "%s · Cornerstock" },
   description: "Bowling ball stock for Bowlers Corner.",
   // The startup images are made by scripts/make-startup-images.mjs, one for each iPhone and iPad screen.
-  appleWebApp: { capable: true, title: "Cornerstock", statusBarStyle: "black-translucent", startupImage: startupImages },
+  // "default" gives a solid status bar above the page. With "black-translucent", iOS 26.1 and later draw
+  // a grey blur over the top of the page, and CSS cannot remove it. iOS reads this value at install time.
+  appleWebApp: { capable: true, title: "Cornerstock", statusBarStyle: "default", startupImage: startupImages },
   robots: { index: false, follow: false },
   other: {
     // Next.js writes only "mobile-web-app-capable". iOS uses the status bar style and the startup
