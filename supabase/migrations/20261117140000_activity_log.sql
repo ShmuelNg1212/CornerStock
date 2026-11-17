@@ -17,6 +17,7 @@ create table public.catalog_changes (
 );
 
 create index catalog_changes_at_idx on public.catalog_changes (at desc, id desc);
+create index catalog_changes_model_idx on public.catalog_changes (model_id);
 
 create trigger catalog_changes_permanent
   before update or delete on public.catalog_changes
@@ -110,7 +111,9 @@ language sql stable security invoker set search_path = '' as $$
     left join public.locations tl on tl.id = m.to_location_id
     left join public.profiles p on p.id = m.actor
     where (p_types is null or m.type::text = any (p_types))
-      and (p_before_at is null or (m.at, 0::smallint, m.id) < (p_before_at, p_before_src, p_before_id))
+      -- The row (at, 0, id) is before the cursor. "at <=" lets the time index find the start.
+      and (p_before_at is null or (m.at <= p_before_at
+        and (m.at < p_before_at or 0 < p_before_src or (0 = p_before_src and m.id < p_before_id))))
     order by m.at desc, m.id desc
     limit least(greatest(p_limit, 1), 100)
   ),
@@ -123,7 +126,8 @@ language sql stable security invoker set search_path = '' as $$
     join public.ball_models bm on bm.id = c.model_id
     left join public.profiles p on p.id = c.actor
     where (p_types is null or 'model_edit' = any (p_types))
-      and (p_before_at is null or (c.at, 1::smallint, c.id) < (p_before_at, p_before_src, p_before_id))
+      and (p_before_at is null or (c.at <= p_before_at
+        and (c.at < p_before_at or 1 < p_before_src or (1 = p_before_src and c.id < p_before_id))))
     order by c.at desc, c.id desc
     limit least(greatest(p_limit, 1), 100)
   )

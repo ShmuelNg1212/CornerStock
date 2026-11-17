@@ -47,17 +47,21 @@ export function ActivityList({
   base?: string;
 }) {
   const current = ACTIVITY_FILTERS.find((f) => f.key === filter)?.key ?? "all";
-  // Older pages belong to one filter. A new filter, or a refresh of the first page, starts from `first`.
+  // Older pages belong to one filter. A new filter starts from `first` again.
   const [older, setOlder] = useState<{ filter: string; pages: Page[] }>({ filter: current, pages: [] });
   const [error, setError] = useState(false);
   const [pending, startTransition] = useTransition();
   const pages = older.filter === current ? older.pages : [];
 
-  // A live refresh can move rows from the first page into an older page. Each row shows once.
-  const seen = new Set<string>();
-  const rows = [first, ...pages].flatMap((page) => page.rows).filter((row) => !seen.has(rowKey(row)) && seen.add(rowKey(row)));
+  // When older pages are open, a live refresh puts new rows on top of `first` and pushes its
+  // last rows out. The first page as it was at the first "Show older" stays in `pages[0]`, so
+  // those rows stay in the list. Each row shows once, newest first. Movements are permanent.
+  const byKey = new Map<string, ActivityRow>();
+  for (const row of [first, ...pages].flatMap((page) => page.rows)) byKey.set(rowKey(row), row);
+  const rows = [...byKey.values()].sort((a, b) => (a.at === b.at ? b.src - a.src || b.id - a.id : a.at < b.at ? 1 : -1));
   const more = (pages.at(-1) ?? first).more;
-  const firstCount = first.rows.length;
+  // The rows of the last "Show older" arrive one after another.
+  const arriving = new Map((pages.length > 1 ? pages.at(-1)!.rows : []).map((row, i) => [rowKey(row), i]));
 
   function showOlder() {
     const last = rows.at(-1);
@@ -66,7 +70,7 @@ export function ActivityList({
     startTransition(async () => {
       try {
         const page = await loadOlder(filter, { at: last.at, src: last.src, id: last.id });
-        setOlder({ filter: current, pages: [...pages, page] });
+        setOlder({ filter: current, pages: [...(pages.length ? pages : [first]), page] });
       } catch {
         setError(true);
       }
@@ -122,13 +126,12 @@ export function ActivityList({
       ) : (
         days.map((group) => (
           <section key={group.day} className="mt-6" aria-labelledby={`day-${group.day}`}>
-            <h2 id={`day-${group.day}`} className="mb-2 text-sm font-semibold text-muted-foreground">
+            <h2 id={`day-${group.day}`} suppressHydrationWarning className="mb-2 text-sm font-semibold text-muted-foreground">
               {dayHeading(group.rows[0].at)}
             </h2>
             <ul className="divide-y divide-border overflow-hidden rounded-(--radius-card) bg-card shadow-(--shadow-card)">
               {group.rows.map((row) => {
-                // Rows of "Show older" arrive one after another. The cause is the tap.
-                const index = rows.indexOf(row) - firstCount;
+                const index = arriving.get(rowKey(row)) ?? -1;
                 return (
                   <m.li
                     key={rowKey(row)}
@@ -177,7 +180,7 @@ function ActivityItem({ row, base }: { row: ActivityRow; base: string }) {
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline justify-between gap-3">
           <p className="font-semibold">{ACTIVITY_LABEL[row.type]}</p>
-          <time dateTime={row.at} className="tabular shrink-0 text-sm text-muted-foreground">
+          <time dateTime={row.at} suppressHydrationWarning className="tabular shrink-0 text-sm text-muted-foreground">
             {time.format(new Date(row.at))}
           </time>
         </div>

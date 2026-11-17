@@ -1,4 +1,4 @@
-import { day, grossWeight, number, pinDistance, price } from "@/lib/format";
+import { day, grossWeight, MOVEMENT_LABEL, number, pinDistance, price } from "@/lib/format";
 import type { MovementType } from "@/lib/types";
 
 export type ActivityType = MovementType | "model_edit";
@@ -24,15 +24,7 @@ export type ActivityRow = {
   new_values: Record<string, unknown> | null;
 };
 
-export const ACTIVITY_LABEL: Record<ActivityType, string> = {
-  receive: "Added",
-  sell: "Sold",
-  reverse_sale: "Sale cancelled",
-  transfer: "Moved",
-  adjust: "Edited",
-  remove: "Removed",
-  model_edit: "Catalog edited",
-};
+export const ACTIVITY_LABEL: Record<ActivityType, string> = { ...MOVEMENT_LABEL, model_edit: "Catalog edited" };
 
 export const ACTIVITY_FILTERS = [
   { key: "all", label: "All", types: null },
