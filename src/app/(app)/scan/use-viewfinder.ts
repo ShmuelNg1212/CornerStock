@@ -1,14 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { LabelBarcodes } from "@/lib/label/barcodes";
+import { NO_CODES, type LabelBarcodes } from "@/lib/label/barcodes";
 import { CAMERA_CONSTRAINTS, cameraProblem, frameSize } from "@/lib/label/camera";
-import { decideFrame, trimHistory, type FrameHint, type FrameRead } from "@/lib/label/frame-quality";
+import { decideFrame, FRAME_LIMITS, trimHistory, type FrameHint, type FrameRead } from "@/lib/label/frame-quality";
 import type { FrameReply, FrameRequest } from "@/lib/label/frame-worker";
 
 export type CameraState = "starting" | "live" | "unsupported" | "denied" | "failed";
 
-const NO_CODES: LabelBarcodes = { upc: null, serial: null, product_code: null };
 /** A frame read that takes longer than this counts as failed. A phone reads one in well under a second. */
 const READ_TIMEOUT_MS = 5000;
 /** A camera that gives no picture for this long after the start counts as failed. */
@@ -30,6 +29,8 @@ export type ViewfinderStats = {
   moduleSize: number | null;
   /** The codes of the last frame: U (UPC), S (serial), P (product code), or a dash. */
   read: string;
+  /** The codes that read in any frame of the capture window, in the same form. */
+  window: string;
   captures: number;
   /** From the first barcode after the start or the last capture, to the capture. */
   lastCaptureMs: number | null;
@@ -55,7 +56,8 @@ const toFile = (canvas: HTMLCanvasElement) =>
 
 /**
  * The live camera of the scan. It reads frames in a worker and calls `onCapture` when a frame
- * reads the UPC and the serial together, and one more frame confirms the serial (see `decideFrame`). The camera stops when the page is hidden
+ * reads the UPC and the serial together,
+ * and one more frame confirms the serial (see `decideFrame`). The camera stops when the page is hidden
  * and when the component that uses the hook goes away.
  */
 export function useViewfinder({
@@ -152,7 +154,6 @@ export function useViewfinder({
       }
       const started = performance.now();
       const context = drawFrame(video, canvas);
-      const readStart = performance.now();
       const reply = await read(context.getImageData(0, 0, canvas.width, canvas.height));
       if (stopped || mine !== session) return;
 
@@ -163,15 +164,19 @@ export function useViewfinder({
         setCodes(reply.result.codes);
         setHint(decision.hint);
 
-        const { codes: frameCodes } = reply.result;
-        if (firstCodeAt === null && (frameCodes.upc || frameCodes.serial || frameCodes.product_code)) firstCodeAt = now;
-        if (decision.capture) {
-          captures++;
-          lastCaptureMs = firstCodeAt === null ? null : Math.round(now - firstCodeAt);
-          firstCodeAt = null;
-        }
         if (debugRef.current) {
-          const readMs = now - readStart;
+          const { codes: frameCodes } = reply.result;
+          if (firstCodeAt === null && (frameCodes.upc || frameCodes.serial || frameCodes.product_code)) firstCodeAt = now;
+          if (decision.capture) {
+            captures++;
+            lastCaptureMs = firstCodeAt === null ? null : Math.round(now - firstCodeAt);
+            firstCodeAt = null;
+          }
+          // The draw and the read, as one frame costs.
+          const readMs = now - started;
+          const inWindow = history.filter((f) => f.at >= now - FRAME_LIMITS.captureWindowMs).map((f) => f.codes);
+          const marks = (list: LabelBarcodes[]) =>
+            `${list.some((c) => c.upc) ? "U" : "-"}${list.some((c) => c.serial) ? "S" : "-"}${list.some((c) => c.product_code) ? "P" : "-"}`;
           readAvg = readAvg ? readAvg * 0.8 + readMs * 0.2 : readMs;
           readTimes.push(now);
           while (readTimes[0] < now - 1000) readTimes.shift();
@@ -184,7 +189,8 @@ export function useViewfinder({
             fps: readTimes.length,
             sharpness: Math.round(reply.result.sharpness),
             moduleSize: reply.result.moduleSize,
-            read: `${frameCodes.upc ? "U" : "-"}${frameCodes.serial ? "S" : "-"}${frameCodes.product_code ? "P" : "-"}`,
+            read: marks([frameCodes]),
+            window: marks(inWindow),
             captures,
             lastCaptureMs,
           });
@@ -192,15 +198,15 @@ export function useViewfinder({
 
         if (decision.capture) {
           // The combined codes of the capture window. The latest frame read the serial.
-          const codes = decision.codes;
-          captured.add(codes.serial!);
+          const capturedCodes = decision.codes;
+          captured.add(capturedCodes.serial!);
           history = [];
           // The canvas still holds the frame that the worker read.
           const file = await toFile(canvas);
           if (stopped || mine !== session) return;
           if (file) {
             navigator.vibrate?.(30);
-            onCaptureRef.current(file, codes);
+            onCaptureRef.current(file, capturedCodes);
           }
         }
       }

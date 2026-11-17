@@ -53,6 +53,7 @@ function DebugPanel({ stats, hint }: { stats: ViewfinderStats | null; hint: Fram
         ["sharp", String(stats.sharpness)],
         ["module", stats.moduleSize === null ? "–" : `${stats.moduleSize.toFixed(2)} px`],
         ["codes", stats.read],
+        ["window", stats.window],
         ["hint", hint],
         ["captures", String(stats.captures)],
         ["capture", stats.lastCaptureMs === null ? "–" : `${(stats.lastCaptureMs / 1000).toFixed(1)} s`],

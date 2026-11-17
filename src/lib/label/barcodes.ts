@@ -16,6 +16,7 @@ export const READER_OPTIONS: ReaderOptions = {
 /** One barcode in the photo. `y` is the distance from the top of the label, not of the photo. */
 export type FoundBarcode = { format: string; text: string; y: number };
 export type LabelBarcodes = { upc: string | null; serial: string | null; product_code: string | null };
+export const NO_CODES: LabelBarcodes = { upc: null, serial: null, product_code: null };
 
 export function toFound(results: ReadResult[]): FoundBarcode[] {
   return results
@@ -112,7 +113,8 @@ export function classifyBarcodes(found: FoundBarcode[]): LabelBarcodes {
  * frame read. The photo read fills the codes that the camera did not give.
  */
 export function mergeLabelCodes(live: LabelBarcodes | null | undefined, read: LabelBarcodes | null): LabelBarcodes | null {
-  if (!live) return read;
+  // The shutter gives no live code. The photo read then decides, also when it fails.
+  if (!live || (!live.upc && !live.serial && !live.product_code)) return read;
   return {
     upc: live.upc ?? read?.upc ?? null,
     serial: live.serial ?? read?.serial ?? null,

@@ -29,6 +29,13 @@ describe("mergeLabelCodes", () => {
     expect(mergeLabelCodes(live, { upc: "887970778029", serial: "26GRNE12A043", product_code: null })).toEqual(live);
   });
 
+  it("gives the photo read when the live camera read no code, as from the shutter", () => {
+    const empty = { upc: null, serial: null, product_code: null };
+    expect(mergeLabelCodes(empty, null)).toBeNull();
+    const read = { upc: "887970778029", serial: null, product_code: null };
+    expect(mergeLabelCodes(empty, read)).toBe(read);
+  });
+
   it("gives the photo read when there are no live codes", () => {
     const read = { upc: "887970778029", serial: null, product_code: null };
     expect(mergeLabelCodes(undefined, read)).toBe(read);

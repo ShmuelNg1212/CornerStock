@@ -1,6 +1,6 @@
 // Checks of one camera frame, and the rules that turn a run of frames into a capture or a hint.
 // The live viewfinder and the tests use them. No function here touches the camera or the page.
-import type { LabelBarcodes } from "./barcodes";
+import { NO_CODES, type LabelBarcodes } from "./barcodes";
 
 /**
  * All limits of the frame checks. The values come from the 10 label photos of the human
@@ -126,8 +126,6 @@ export function frameHasGlare(frame: FrameScores & FrameCodes): boolean {
 
 const partial = (frame: FrameCodes) => found(frame.codes) > 0 && !complete(frame.codes);
 const tooFar = (frame: FrameCodes) => frame.moduleSize !== null && frame.moduleSize < FRAME_LIMITS.farBelow;
-
-const NO_CODES: LabelBarcodes = { upc: null, serial: null, product_code: null };
 
 /**
  * The codes to capture from the frames of the capture window, or null.

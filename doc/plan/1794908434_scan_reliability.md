@@ -53,14 +53,14 @@ The live scan captures a normal ball box label in 2 seconds or less, held at a c
   - Acceptance: the scan reaches the confirm screen with the UPC and the serial filled, with no tap. The same label held for 5 seconds in the batch gives 1 item, not many.
   - Done when: both checks pass, and the time to capture shows in the overlay and is recorded here.
 
-- [ ] **6. A 1440p stream.** `tests: first`. Added on 2026-11-17 with the approval of the human.
+- [x] **6. A 1440p stream.** `tests: first`. Added on 2026-11-17 with the approval of the human.
   - Ask for an ideal stream of 2560 × 1440. A phone that cannot give it falls back to a smaller stream.
   - Raise the reader frame size to 2560 px on the long side, so the larger stream is not scaled down.
   - The stream is not stored. The label photo is still shrunk to 1800 px before the upload.
   - Acceptance: a unit test shows that a 1440 × 2560 frame keeps its size, and a 2160 × 3840 frame becomes 1440 × 2560. A fixture test shows that the serial of photo 2 at the photo framing reads at 1440 px wide and not at 1080 px wide. A probe with a 1440 × 2560 video at the photo framing captures.
   - Done when: `npm test` passes and the probe captures.
 
-- [ ] **7. "Move closer" before "glare".** `tests: first`. Added on 2026-11-17 with the approval of the human.
+- [x] **7. "Move closer" before "glare".** `tests: first`. Added on 2026-11-17 with the approval of the human.
   - When the barcodes that read are too small, the hint is "far", also when a white patch shows glare.
   - Acceptance: a unit test with a partial read, a module size of 1.5 px, and a glare patch gives "far". The glare tests of photos 4, 5, and 8 still pass.
   - Done when: `npm test` passes.
@@ -86,8 +86,16 @@ The live scan captures a normal ball box label in 2 seconds or less, held at a c
 - Fake camera probe, Chrome, 390 × 844, `/preview/scan?step=viewfinder&debug=1`:
   - Label that fills the width: capture in 0.5 to 0.7 s from the page load, 0.2 s after the first code. Confirm screen: serial `26GRNE12A043`, UPC `887970778029`. 3 runs of 3.
   - Same label in the batch for 8 s: 1 item.
-  - Label at the photo framing: no capture in 12 s. Module size 1.53 px, only the UPC reads. The hint is "glare", not "move closer".
+  - Label at the photo framing, 1080 px wide stream (before task 6): no capture in 12 s. Module size 1.53 px, only the UPC reads. Before task 7 the hint was "glare". After task 7 it is "far".
+  - Label at the photo framing, 1440 px wide stream (task 6): capture in 0.7 s from the page load, 0.2 s after the first code. Module size 1.95 px. 4 runs of 4. Batch for 8 s: 1 item.
   - The panel shows with `?debug=1` and does not show without it.
+
+## Rendezvous checks (2026-11-17)
+
+- `npm test`: 248 unit tests and 58 database tests pass. `npm run typecheck`, `npx eslint .`, and `npm run build` pass.
+- Standards review (read-only agent): no violation, no correctness bug. Fixed: the duplicate empty-codes constant (now `NO_CODES` in `barcodes.ts`), a shadowed name in the hook, a long comment line. The diagnostic counters now run only with `?debug=1`.
+- Spec review (read-only agent): fixed: the shutter with a failed photo read showed "No barcode was found" and not "The photo could not be read". `mergeLabelCodes` now gives the photo read when the live camera read no code. Test added first. Fixed: the panel now shows the codes of the capture window (row "window"). Kept: "added" now also shows on a frame that reads only a saved serial.
+- Probe after the fixes: the panel shows the "window" row. The 1440 px stream captures; the 1080 px stream at the photo framing shows "far".
 
 ## Completion
 
