@@ -68,6 +68,7 @@ export function CountFlow({
   const [confirmFinish, setConfirmFinish] = useState(false);
   const [typed, setTyped] = useState("");
   const [typedError, setTypedError] = useState<string | null>(null);
+  const [typedInfo, setTypedInfo] = useState<string | null>(null);
   const [notice, setNotice] = useState<CountNotice | null>(null);
   const typeInput = useRef<HTMLInputElement>(null);
   const sessionRef = useRef(session);
@@ -84,14 +85,14 @@ export function CountFlow({
   }, [notice]);
 
   const send = useCallback(
-    async (text: string): Promise<string | null> => {
-      if (!count) return null;
+    async (text: string): Promise<{ error?: string; info?: string }> => {
+      if (!count) return {};
       const { session: next, added, serial, error } = addScan(sessionRef.current, text);
-      if (error) return error;
+      if (error) return { error };
       const key = ++lastKey.current;
       if (!added) {
         setNotice({ key, serial: serial!, text: "Already counted", tone: "ok" });
-        return null;
+        return { info: `${serial} is already counted.` };
       }
       sessionRef.current = next;
       setSession(next);
@@ -106,7 +107,7 @@ export function CountFlow({
         setNotice(noticeOf(done, key));
       }
       if (reply.ok && reply.value.status === "found" && !reply.value.duplicate) navigator.vibrate?.(30);
-      return null;
+      return {};
     },
     [api, count],
   );
@@ -232,9 +233,8 @@ export function CountFlow({
       )}
 
       <section aria-labelledby="count-open" className="rounded-(--radius-card) bg-card p-5 shadow-(--shadow-card) sm:p-6">
-        <p className="text-sm font-medium text-muted-foreground">Counting</p>
-        <h2 id="count-open" className="font-heading text-xl font-semibold break-words">
-          {count.location}
+        <h2 id="count-open" className="font-heading text-xl font-semibold text-balance break-words">
+          Counting {count.location}
         </h2>
         <p role="status" className="tabular mt-3 flex items-baseline gap-1.5">
           <b className="font-heading text-3xl font-bold">{session.scanned}</b>
@@ -262,13 +262,14 @@ export function CountFlow({
           className="mt-5 flex max-w-md items-start gap-2"
           onSubmit={(event) => {
             event.preventDefault();
-            void send(typed).then((error) => {
-              setTypedError(error);
+            void send(typed).then(({ error, info }) => {
+              setTypedError(error ?? null);
+              setTypedInfo(info ?? null);
               if (!error) setTyped("");
             });
           }}
         >
-          <Field label="Serial number" error={typedError ?? undefined} hint="For a damaged label." className="min-w-0 flex-1">
+          <Field label="Serial number" error={typedError ?? undefined} hint={typedInfo ?? "For a damaged label."} className="min-w-0 flex-1">
             <input
               ref={typeInput}
               value={typed}

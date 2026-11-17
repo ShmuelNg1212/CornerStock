@@ -29,8 +29,7 @@ export function CountResultView({ initial, isOwner, api, base = "" }: { initial:
   return (
     <div className="space-y-6">
       <header>
-        <p className="text-sm font-medium text-muted-foreground">Stock count result</p>
-        <h1 className="font-heading text-2xl font-semibold break-words">{result.location}</h1>
+        <h1 className="font-heading text-2xl font-semibold text-balance break-words">Count of {result.location}</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Finished {when(result.finished_at)}
           {result.finished_by && ` by ${result.finished_by}`}
@@ -38,16 +37,16 @@ export function CountResultView({ initial, isOwner, api, base = "" }: { initial:
         </p>
       </header>
 
-      <dl className="grid grid-cols-3 gap-2.5">
+      <dl className="grid grid-cols-3 divide-x divide-border rounded-(--radius-card) bg-card py-3 shadow-(--shadow-card)">
         {tiles.map(({ label, value, icon: Icon, tone }) => (
-          <div key={label} className="rounded-(--radius-card) bg-card p-3 shadow-(--shadow-card) sm:p-4">
+          <div key={label} className="flex flex-col-reverse items-center gap-1 px-2 text-center">
             <dt className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
-              <span className={cn("grid size-7 shrink-0 place-items-center rounded-full", tone)}>
-                <Icon className="size-4" aria-hidden="true" />
+              <span className={cn("grid size-6 shrink-0 place-items-center rounded-full", tone)}>
+                <Icon className="size-3.5" aria-hidden="true" />
               </span>
-              <span className="truncate">{label}</span>
+              {label}
             </dt>
-            <dd className="font-heading tabular mt-1.5 text-3xl font-bold">{value}</dd>
+            <dd className="font-heading tabular text-3xl leading-none font-bold">{value}</dd>
           </div>
         ))}
       </dl>
@@ -205,7 +204,7 @@ function LineRow({
         </span>
         <div className="min-w-0 flex-1 basis-40">
           <p className="tabular truncate font-mono font-semibold">{line.serial}</p>
-          <p className="truncate text-sm text-muted-foreground">{[modelText(line), detail].filter(Boolean).join(" · ")}</p>
+          <p className="text-sm break-words text-muted-foreground">{[modelText(line), detail].filter(Boolean).join(" · ")}</p>
         </div>
         <div className="ml-12 shrink-0 sm:ml-0">{action}</div>
       </div>
