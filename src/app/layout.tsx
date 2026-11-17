@@ -20,7 +20,7 @@ export const metadata: Metadata = {
     // Next.js writes only "mobile-web-app-capable". iOS uses the status bar style and the startup
     // images only with this Apple tag. Without it, the home-screen app has a white status bar.
     "apple-mobile-web-app-capable": "yes",
-    "cornerstock-release": "2026-11-17-catalog-import-1",
+    "cornerstock-release": "2026-11-17-owner-feedback-1",
   },
 };
 
