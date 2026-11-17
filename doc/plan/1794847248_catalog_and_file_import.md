@@ -186,7 +186,7 @@ Keep the plan as the only active task list.
   Completion: browser probes import catalog data and a mixed stock batch.
   The saved ball appears in Stock and has the expected history.
 
-- [ ] **R1. Rendezvous.** `tests: alongside`
+- [x] **R1. Rendezvous.** `tests: alongside`
   Skills: `code-review`, `impeccable critique`, `impeccable audit`,
   `impeccable polish`, `break-ui`.
   Use independent read-only agents for review, tests, and the browser probe.
@@ -212,7 +212,7 @@ Keep the plan as the only active task list.
 
 ## Checks record
 
-Execution in progress.
+Execution and rendezvous complete. Sync docs is next.
 
 - T1: nine file tests pass.
 - T2: 49 database tests pass, including 14 import tests.
@@ -251,4 +251,59 @@ Execution in progress.
   Commit `b2f92ab` fixes it: an existing ball keeps its stored UPC.
   A new ball still requires a UPC. Two review tests cover this.
 - Unit suite after the fix: 178 tests pass. Database suite: 49 tests pass.
+- R1 on 2026-11-17. Two reviews ran: a high-level code review of the
+  branch against main, and a read-only design reviewer with `impeccable`
+  critique and audit and worst-case data at 390, 820, and 1280 px.
+- R1 code findings, fixed:
+  - The workbook guard missed worksheet paths that the Excel reader loads.
+    A crafted file crashed the test worker. Commit `aa24902`.
+  - A database error code showed to the owner as raw text.
+    Codes that mean a changed record now ask for a new review.
+    Commit `2eedf71`.
+  - Add model with an existing UPC showed a stale-review message.
+    It now names the UPC field. Commit `2eedf71`.
+  - A long cell in an unmapped column failed the preview.
+    The client now sends only mapped columns. Commit `fabb9fb`.
+  - A mapped cell over 200 characters failed the preview.
+    It is now an error on its row. Commit `2eedf71`.
+  - Price text with a peso sign or commas failed in imports.
+    Commit `fabb9fb`.
+  - The Back guard added a history entry for each file.
+    It now adds one entry for each visit. Commit `fabb9fb`.
+  - A worksheet without row or cell addresses got a false row-limit error.
+    The Excel reader cannot read such a file.
+    It now gets a resave message. Commit `aa24902`.
+- R1 code finding, accepted: the import transfer reason uses a
+  transaction-local setting and an insert trigger. The commit function
+  clears the setting after each use. The trigger does nothing otherwise.
+- R1 design findings, fixed in `fabb9fb` and `9f58e24`:
+  focus moves to each step heading or to the error summary;
+  the progress live region stays mounted;
+  models show as name and weight with the UPC as detail;
+  weights, pin distance, and prices use the stock screen formats;
+  errors group by problem; changes fold away while errors exist;
+  the disabled Confirm button has a reason; the export menu is two links;
+  a missing price is muted; catalog headings match other screens;
+  the detail UPC uses the mono font; the phone Stock tab is current on
+  catalog pages; the length error names the 120-character limit.
+- R1 design findings, not done: the export links and Import button can
+  still wrap to two rows on a phone. This is acceptable.
+- R1 recheck on staging: 17 of 17 browser checks pass. These include:
+  signed-out download and import go to sign-in;
+  the CSV export has all 1,107 entries, past one API page;
+  Back after a save leaves in one step;
+  Back on an unsaved review asks, can stay, and writes nothing.
+- R1 final checks with the normal environment: typecheck and lint pass.
+  Unit suite: 188 tests pass. Database suite: 49 tests pass.
+  The production build passes. Graphify is updated.
+- The branch stays on `feat/catalog-file-import` until the human approves
+  shipping. A push to main deploys production.
 - No remote schema changes or deployment have occurred on production.
+- Before shipping, run `20261116164702_catalog_import.sql` on production.
+  Its timestamp is earlier than the applied staff trigger migration.
+  Run it by hand in the SQL Editor, as `setup.md` describes.
+- Staging holds test data: probe accounts, test models, 1,100 seed models,
+  and two test balls with history. Delete the staging project when no
+  longer needed.
+
+This plan is frozen after R1.
