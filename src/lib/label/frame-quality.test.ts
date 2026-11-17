@@ -160,3 +160,35 @@ describe("decideFrame", () => {
     expect(decideFrame([], 0)).toMatchObject({ capture: false, hint: "aim" });
   });
 });
+
+describe("decideFrame in count mode", () => {
+  const serialOnly = (at: number, serial = "23VSLE30B047") => read(at, { codes: { upc: null, serial, product_code: null } });
+
+  it("captures the serial alone, confirmed in 2 frames of the window", () => {
+    const decision = decideFrame([serialOnly(0), serialOnly(200)], 200, [], "count");
+    expect(decision).toMatchObject({ capture: true, codes: { serial: "23VSLE30B047", upc: null } });
+  });
+
+  it("does not capture the serial alone in intake mode", () => {
+    expect(decideFrame([serialOnly(0), serialOnly(200)], 200).capture).toBe(false);
+    expect(decideFrame([serialOnly(0), serialOnly(200)], 200, [], "intake").capture).toBe(false);
+  });
+
+  it("does not capture from 1 frame", () => {
+    expect(decideFrame([serialOnly(200)], 200, [], "count").capture).toBe(false);
+  });
+
+  it("does not capture when a different serial reads in the window", () => {
+    const history = [serialOnly(0), serialOnly(100, "26GRNE12B037"), serialOnly(200)];
+    expect(decideFrame(history, 200, [], "count").capture).toBe(false);
+  });
+
+  it("does not capture a serial that is already counted", () => {
+    expect(decideFrame([serialOnly(0), serialOnly(200)], 200, ["23VSLE30B047"], "count")).toMatchObject({ capture: false, hint: "added" });
+  });
+
+  it("does not show the glare hint for a frame with the serial and no UPC", () => {
+    const history = [0, 300, 600, 900].map((at) => serialOnly(at, at === 900 ? "23VSLE30B047" : "26GRNE12B037"));
+    expect(decideFrame(history, 900, [], "count").hint).not.toBe("glare");
+  });
+});

@@ -862,3 +862,255 @@ describe("low stock", () => {
     expect(await lowRows(inactive, id)).toEqual([]);
   });
 });
+
+describe("stock count", () => {
+  type ScanResult = { serial: string; status: string; duplicate: boolean; ball_id: string | null; location: string | null; scanned: number; expected: number };
+  type Line = { serial: string; ball_id: string | null; outcome: string; kind: string | null; other_location: string | null; corrected: boolean };
+  type Result = { id: string; status: string; location: string; found: number; missing: number; unexpected: number; lines: Line[] };
+
+  let shelf = 0;
+  const newLocation = async () =>
+    (await admin.query("insert into public.locations (name) values ($1) returning id", [`Count Shelf ${++shelf}`])).rows[0].id as string;
+  const serialOf = async (id: string) => (await admin.query("select serial from public.balls where id = $1", [id])).rows[0].serial as string;
+  const start = (user: string | null, location: string) =>
+    as(user, async (c) => (await c.query("select public.start_count($1) as r", [location])).rows[0].r as { id: string; scanned: number; expected: number });
+  const scan = (user: string | null, count: string, serial: string) =>
+    as(user, async (c) => (await c.query("select public.add_count_scan($1, $2) as r", [count, serial])).rows[0].r as ScanResult);
+  const finish = (user: string | null, count: string) =>
+    as(user, async (c) => (await c.query("select public.finish_count($1) as r", [count])).rows[0].r as Result);
+  const result = (user: string | null, count: string) =>
+    as(user, async (c) => (await c.query("select public.count_result($1) as r", [count])).rows[0].r as Result);
+  const correct = (user: string | null, count: string, serial: string, reason: string | null = null, requestId = randomUUID()) =>
+    as(user, (c) => c.query("select public.correct_count_line($1, $2, $3, $4)", [count, serial, requestId, reason]));
+  const line = (r: Result, serial: string) => r.lines.find((l) => l.serial === serial);
+
+  it("gives one open count for a location, also for two starts", async () => {
+    const loc = await newLocation();
+    const first = await start(staff, loc);
+    const second = await start(secondStaff, loc);
+    expect(second.id).toBe(first.id);
+    expect((await admin.query("select count(*)::int as n from public.counts where location_id = $1", [loc])).rows[0].n).toBe(1);
+  });
+
+  it("gives one open count when two starts run at the same time", async () => {
+    const loc = await newLocation();
+    const other = await connect();
+    try {
+      const [a, b] = await Promise.all([
+        as(staff, async (c) => (await c.query("select public.start_count($1) as r", [loc])).rows[0].r, admin),
+        as(secondStaff, async (c) => (await c.query("select public.start_count($1) as r", [loc])).rows[0].r, other),
+      ]);
+      expect(a.id).toBe(b.id);
+    } finally {
+      await other.end();
+    }
+  });
+
+  it("records a serial one time, also for a second scan", async () => {
+    const loc = await newLocation();
+    const id = await receive(staff, {}, loc);
+    const serial = await serialOf(id);
+    const { id: count } = await start(staff, loc);
+    const one = await scan(staff, count, serial);
+    const two = await scan(secondStaff, count, ` ${serial.toLowerCase()} `);
+    expect(one).toMatchObject({ status: "found", duplicate: false, ball_id: id, scanned: 1, expected: 1 });
+    expect(two).toMatchObject({ status: "found", duplicate: true, scanned: 1 });
+    expect((await admin.query("select count(*)::int as n from public.count_scans where count_id = $1", [count])).rows[0].n).toBe(1);
+  });
+
+  it("gives the status of each scan", async () => {
+    const loc = await newLocation();
+    const here = await receive(staff, {}, loc);
+    const elsewhere = await receive(staff, {}, warehouse);
+    const sold = await receive(staff, {}, loc);
+    const removed = await receive(staff, {}, loc);
+    await as(staff, (c) => c.query("select public.sell_ball($1, $2)", [sold, randomUUID()]));
+    await as(owner, (c) => c.query("select public.remove_ball($1, $2, $3)", [removed, randomUUID(), "Damaged"]));
+    const { id: count } = await start(staff, loc);
+    expect(await scan(staff, count, await serialOf(here))).toMatchObject({ status: "found" });
+    expect(await scan(staff, count, await serialOf(elsewhere))).toMatchObject({ status: "other_location", location: "Warehouse", ball_id: elsewhere });
+    expect(await scan(staff, count, await serialOf(sold))).toMatchObject({ status: "sold" });
+    expect(await scan(staff, count, await serialOf(removed))).toMatchObject({ status: "removed" });
+    expect(await scan(staff, count, "26NEWB00X001")).toMatchObject({ status: "not_recorded", ball_id: null });
+    await expect(scan(staff, count, "no")).rejects.toThrow(/INVALID_SERIAL/);
+  });
+
+  it("lists a missing ball and an unexpected ball at the finish, and keeps the totals", async () => {
+    const loc = await newLocation();
+    const found = await receive(staff, {}, loc);
+    const missing = await receive(staff, {}, loc);
+    const unexpected = await receive(staff, {}, warehouse);
+    const { id: count } = await start(staff, loc);
+    await scan(staff, count, await serialOf(found));
+    await scan(staff, count, await serialOf(unexpected));
+    const r = await finish(secondStaff, count);
+    expect(r).toMatchObject({ status: "finished", found: 1, missing: 1, unexpected: 1 });
+    expect(line(r, await serialOf(found))).toMatchObject({ outcome: "found", ball_id: found });
+    expect(line(r, await serialOf(missing))).toMatchObject({ outcome: "missing", ball_id: missing, corrected: false });
+    expect(line(r, await serialOf(unexpected))).toMatchObject({ outcome: "unexpected", kind: "other_location", other_location: "Warehouse" });
+  });
+
+  it("does not list a ball sold during the count as missing", async () => {
+    const loc = await newLocation();
+    const id = await receive(staff, {}, loc);
+    const { id: count } = await start(staff, loc);
+    await as(staff, (c) => c.query("select public.sell_ball($1, $2)", [id, randomUUID()]));
+    const r = await finish(staff, count);
+    expect(r).toMatchObject({ found: 0, missing: 0, unexpected: 0, lines: [] });
+  });
+
+  it("refuses scans after the finish, and a second finish; a new start gives a new count", async () => {
+    const loc = await newLocation();
+    const { id: count } = await start(staff, loc);
+    await finish(staff, count);
+    await expect(scan(staff, count, "26NEWB00X002")).rejects.toThrow(/COUNT_CLOSED/);
+    await expect(finish(staff, count)).rejects.toThrow(/COUNT_CLOSED/);
+    expect((await start(staff, loc)).id).not.toBe(count);
+  });
+
+  it("cancels an open count and refuses its scans", async () => {
+    const loc = await newLocation();
+    const { id: count } = await start(staff, loc);
+    await as(secondStaff, (c) => c.query("select public.cancel_count($1)", [count]));
+    await expect(scan(staff, count, "26NEWB00X003")).rejects.toThrow(/COUNT_CLOSED/);
+    expect((await admin.query("select status from public.counts where id = $1", [count])).rows[0].status).toBe("cancelled");
+  });
+
+  it("refuses a signed-out visitor and an inactive account", async () => {
+    const loc = await newLocation();
+    await expect(start(null, loc)).rejects.toThrow(/permission denied/);
+    await expect(start(inactive, loc)).rejects.toThrow(/NOT_AUTHORIZED/);
+    const { id: count } = await start(staff, loc);
+    await expect(scan(inactive, count, "26NEWB00X004")).rejects.toThrow(/NOT_AUTHORIZED/);
+    await expect(finish(inactive, count)).rejects.toThrow(/NOT_AUTHORIZED/);
+    await expect(result(inactive, count)).rejects.toThrow(/NOT_AUTHORIZED/);
+    await expect(as(inactive, (c) => c.query("select public.count_history()"))).rejects.toThrow(/NOT_AUTHORIZED/);
+  });
+
+  it("keeps the helper functions internal", async () => {
+    const rows = (
+      await admin.query(
+        "select has_function_privilege('authenticated', 'public.count_totals(uuid)', 'EXECUTE') as totals, has_function_privilege('authenticated', 'public.count_label(uuid)', 'EXECUTE') as label, has_function_privilege('authenticated', 'public.transfer_ball_with_reason(uuid, uuid, uuid, text)', 'EXECUTE') as move",
+      )
+    ).rows[0];
+    expect(rows).toEqual({ totals: false, label: false, move: false });
+  });
+
+  it("gives no direct table access, also to the owner", async () => {
+    for (const table of ["counts", "count_scans", "count_lines"]) {
+      await expect(as(owner, (c) => c.query(`select * from public.${table}`))).rejects.toThrow(/permission denied/);
+      await expect(as(staff, (c) => c.query(`delete from public.${table}`))).rejects.toThrow(/permission denied/);
+    }
+  });
+
+  it("keeps the result of a finished count, and marks a line as corrected after a later change", async () => {
+    const loc = await newLocation();
+    const missing = await receive(staff, {}, loc);
+    const { id: count } = await start(staff, loc);
+    await finish(staff, count);
+    await as(staff, (c) => c.query("select public.transfer_ball($1, $2, $3)", [missing, warehouse, randomUUID()]));
+    const r = await result(staff, count);
+    expect(r.missing).toBe(1);
+    expect(line(r, await serialOf(missing))).toMatchObject({ outcome: "missing", corrected: true });
+  });
+
+  it("moves an unexpected ball here, with the count in the reason", async () => {
+    const loc = await newLocation();
+    const id = await receive(staff, {}, warehouse);
+    const serial = await serialOf(id);
+    const { id: count } = await start(staff, loc);
+    await scan(staff, count, serial);
+    await finish(staff, count);
+    await correct(staff, count, serial);
+    expect(await ballStatus(id)).toEqual({ status: "in_stock", location_id: loc });
+    const move = (await movements(id)).at(-1);
+    expect(move).toMatchObject({ type: "transfer", to_location_id: loc });
+    expect(move.reason).toMatch(/^Found in the stock count of \d{4}-\d{2}-\d{2} at Count Shelf \d+$/);
+    expect(line(await result(staff, count), serial)).toMatchObject({ corrected: true });
+  });
+
+  it("lets only the owner remove a missing ball or put a sold ball back", async () => {
+    const loc = await newLocation();
+    const missing = await receive(staff, {}, loc);
+    const sold = await receive(staff, {}, loc);
+    await as(staff, (c) => c.query("select public.sell_ball($1, $2)", [sold, randomUUID()]));
+    const { id: count } = await start(staff, loc);
+    await scan(staff, count, await serialOf(sold));
+    await finish(staff, count);
+
+    await expect(correct(staff, count, await serialOf(missing))).rejects.toThrow(/NOT_AUTHORIZED/);
+    await expect(correct(staff, count, await serialOf(sold), "Sale was cancelled")).rejects.toThrow(/NOT_AUTHORIZED/);
+    await expect(correct(owner, count, await serialOf(sold))).rejects.toThrow(/REASON_REQUIRED/);
+
+    await correct(owner, count, await serialOf(missing));
+    await correct(owner, count, await serialOf(sold), "Sale was cancelled");
+    expect((await ballStatus(missing)).status).toBe("removed");
+    expect((await movements(missing)).at(-1).reason).toMatch(/^Not found in the stock count of \d{4}-\d{2}-\d{2} at Count Shelf \d+$/);
+    expect((await ballStatus(sold)).status).toBe("in_stock");
+    expect((await movements(sold)).at(-1).reason).toMatch(/^Found in the stock count of .+: Sale was cancelled$/);
+  });
+
+  it("does not change stock a second time for a repeated correction, and refuses a line with no correction", async () => {
+    const loc = await newLocation();
+    const id = await receive(staff, {}, warehouse);
+    const serial = await serialOf(id);
+    const found = await receive(staff, {}, loc);
+    const { id: count } = await start(staff, loc);
+    await scan(staff, count, serial);
+    await scan(staff, count, await serialOf(found));
+    await scan(staff, count, "26NEWB00X005");
+    await finish(staff, count);
+    const requestId = randomUUID();
+    await correct(staff, count, serial, null, requestId);
+    await correct(staff, count, serial, null, requestId);
+    expect((await movements(id)).filter((m) => m.type === "transfer")).toHaveLength(1);
+    await expect(correct(staff, count, await serialOf(found))).rejects.toThrow(/NO_CORRECTION/);
+    await expect(correct(staff, count, "26NEWB00X005")).rejects.toThrow(/NO_CORRECTION/);
+    await expect(correct(staff, count, "26NOTIN0X999")).rejects.toThrow(/NO_CORRECTION/);
+  });
+
+  it("shows each correction in the activity feed with the count in the reason", async () => {
+    const loc = await newLocation();
+    const moved = await receive(staff, {}, warehouse);
+    const missing = await receive(staff, {}, loc);
+    const { id: count } = await start(staff, loc);
+    await scan(staff, count, await serialOf(moved));
+    await finish(staff, count);
+    await correct(staff, count, await serialOf(moved));
+    await correct(owner, count, await serialOf(missing));
+    const rows = await as(staff, async (c) => (await c.query("select type, serial, reason from public.activity_feed(null, null, null, array['transfer', 'remove'], 10)")).rows);
+    expect(rows).toContainEqual({ type: "transfer", serial: await serialOf(moved), reason: expect.stringMatching(/^Found in the stock count of .+ at Count Shelf/) });
+    expect(rows).toContainEqual({ type: "remove", serial: await serialOf(missing), reason: expect.stringMatching(/^Not found in the stock count of .+ at Count Shelf/) });
+  });
+
+  it("moves a ball that was not recorded at the finish and was added to another location later", async () => {
+    const loc = await newLocation();
+    const serial = nextSerial();
+    const { id: count } = await start(staff, loc);
+    await scan(staff, count, serial);
+    await finish(staff, count);
+    const id = await receive(staff, { serial }, warehouse);
+    expect(line(await result(staff, count), serial)).toMatchObject({ kind: "not_recorded", action: "move", corrected: false });
+    await correct(staff, count, serial);
+    expect(await ballStatus(id)).toEqual({ status: "in_stock", location_id: loc });
+    expect(line(await result(staff, count), serial)).toMatchObject({ corrected: true, action: null });
+  });
+
+  it("refuses a correction from an open count", async () => {
+    const loc = await newLocation();
+    const id = await receive(staff, {}, warehouse);
+    const { id: count } = await start(staff, loc);
+    await scan(staff, count, await serialOf(id));
+    await expect(correct(staff, count, await serialOf(id))).rejects.toThrow(/COUNT_NOT_FINISHED/);
+  });
+
+  it("lists finished counts, newest first, with names and totals", async () => {
+    const loc = await newLocation();
+    await receive(staff, {}, loc);
+    const { id: count } = await start(staff, loc);
+    await finish(secondStaff, count);
+    const history = await as(staff, async (c) => (await c.query("select public.count_history() as r")).rows[0].r);
+    expect(history[0]).toMatchObject({ id: count, started_by: "Staff", finished_by: "Second Staff", found: 0, missing: 1, unexpected: 0 });
+    expect(history[0].location).toMatch(/^Count Shelf/);
+  });
+});

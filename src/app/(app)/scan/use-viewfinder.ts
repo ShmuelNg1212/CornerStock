@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { NO_CODES, type LabelBarcodes } from "@/lib/label/barcodes";
 import { CAMERA_CONSTRAINTS, cameraProblem, frameSize } from "@/lib/label/camera";
-import { decideFrame, FRAME_LIMITS, trimHistory, type FrameHint, type FrameRead } from "@/lib/label/frame-quality";
+import { decideFrame, FRAME_LIMITS, trimHistory, type CaptureMode, type FrameHint, type FrameRead } from "@/lib/label/frame-quality";
 import type { FrameReply, FrameRequest } from "@/lib/label/frame-worker";
 
 export type CameraState = "starting" | "live" | "unsupported" | "denied" | "failed";
@@ -64,8 +64,11 @@ export function useViewfinder({
   onCapture,
   skipSerials = [],
   debug = false,
+  mode = "intake",
 }: {
   onCapture: (file: File, codes: LabelBarcodes) => void;
+  /** Intake needs the UPC and the serial. Count needs the serial alone. */
+  mode?: CaptureMode;
   /** Serial numbers that must not capture again, for example the balls already in a batch. */
   skipSerials?: readonly string[];
   /** Collect the values of the diagnostic panel. */
@@ -81,9 +84,11 @@ export function useViewfinder({
 
   const onCaptureRef = useRef(onCapture);
   const skipRef = useRef(skipSerials);
+  const modeRef = useRef(mode);
   useEffect(() => {
     onCaptureRef.current = onCapture;
     skipRef.current = skipSerials;
+    modeRef.current = mode;
     debugRef.current = debug;
   });
 
@@ -160,7 +165,7 @@ export function useViewfinder({
       if ("result" in reply) {
         const now = performance.now();
         history = trimHistory([...history, { at: now, ...reply.result }], now);
-        const decision = decideFrame(history, now, [...skipRef.current, ...captured]);
+        const decision = decideFrame(history, now, [...skipRef.current, ...captured], modeRef.current);
         setCodes(reply.result.codes);
         setHint(decision.hint);
 

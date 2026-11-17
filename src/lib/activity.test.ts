@@ -36,6 +36,9 @@ describe("activityDetail", () => {
 
   it("names both locations of a move", () => {
     expect(activityDetail(row({ type: "transfer", from_location: "Mall", to_location: "Warehouse" }))).toBe("Mall → Warehouse");
+    expect(activityDetail(row({ type: "transfer", from_location: "Mall", to_location: "Warehouse", reason: "Found in the stock count of 2026-11-17 at Warehouse" }))).toBe(
+      "Mall → Warehouse · Found in the stock count of 2026-11-17 at Warehouse",
+    );
   });
 
   it("gives the reason of a cancelled sale, a removal, and an edit", () => {
