@@ -1,7 +1,9 @@
-import { Camera, Check, CircleCheck, Copy, Images, LoaderCircle, TriangleAlert, X } from "lucide-react";
+import { Camera, Check, CircleCheck, Copy, Images, LoaderCircle, Tag, TriangleAlert, X } from "lucide-react";
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { buttonClass, Field } from "@/components/ui/field";
 import { Notice } from "@/components/ui/notice";
+import { existingBallNotice } from "@/lib/label/batch";
 import type { BatchItem } from "./scan-types";
 
 const STATUS: Record<BatchItem["status"], { label: string; className: string; icon: typeof Check; spin?: boolean }> = {
@@ -11,6 +13,8 @@ const STATUS: Record<BatchItem["status"], { label: string; className: string; ic
   duplicate: { label: "Already recorded", className: "bg-danger-surface text-destructive", icon: Copy },
   saving: { label: "Saving", className: "bg-secondary text-muted-foreground", icon: LoaderCircle, spin: true },
   saved: { label: "Saved", className: "bg-ok-surface text-ok", icon: CircleCheck },
+  selling: { label: "Selling", className: "bg-secondary text-muted-foreground", icon: LoaderCircle, spin: true },
+  sold: { label: "Sold", className: "bg-ok-surface text-ok", icon: Tag },
 };
 
 /** The batch scan: several label photos, each with its state. */
@@ -23,6 +27,7 @@ export function ScanBatch({
   onLibrary,
   onOpen,
   onRemove,
+  onSell,
   onSaveAll,
   onDone,
   base = "",
@@ -35,6 +40,7 @@ export function ScanBatch({
   onLibrary: () => void;
   onOpen: (item: BatchItem) => void;
   onRemove: (item: BatchItem) => void;
+  onSell: (item: BatchItem) => void;
   onSaveAll: () => void;
   onDone: () => void;
   base?: string;
@@ -48,6 +54,7 @@ export function ScanBatch({
       [count("needs_details"), "to check"],
       [count("duplicate"), "already recorded"],
       [count("saved"), "saved"],
+      [count("sold"), "sold"],
     ] as [number, string][]
   )
     .filter(([n]) => n)
@@ -88,7 +95,7 @@ export function ScanBatch({
           </p>
           <ul className="mt-2 divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
             {batch.map((item, index) => (
-              <BatchRow key={item.id} item={item} index={index} onOpen={onOpen} onRemove={onRemove} disabled={saving} base={base} />
+              <BatchRow key={item.id} item={item} index={index} onOpen={onOpen} onRemove={onRemove} onSell={onSell} disabled={saving} base={base} />
             ))}
           </ul>
         </>
@@ -115,6 +122,7 @@ function BatchRow({
   index,
   onOpen,
   onRemove,
+  onSell,
   disabled,
   base,
 }: {
@@ -122,11 +130,21 @@ function BatchRow({
   index: number;
   onOpen: (item: BatchItem) => void;
   onRemove: (item: BatchItem) => void;
+  onSell: (item: BatchItem) => void;
   disabled: boolean;
   base: string;
 }) {
   const { fields, status } = item;
-  const busy = status === "reading" || status === "saving";
+  const busy = status === "reading" || status === "saving" || status === "selling";
+  const notice = item.existingBall ? existingBallNotice(item.existingBall) : null;
+  const canSell = status === "duplicate" && (notice?.canSell ?? false);
+  // A sale needs two taps, so a tap meant for Open or Remove does not sell a ball.
+  const [arming, setArming] = useState(false);
+  useEffect(() => {
+    if (!arming) return;
+    const timer = setTimeout(() => setArming(false), 4000);
+    return () => clearTimeout(timer);
+  }, [arming]);
   const title = item.known ? `${fields.model_name} · ${fields.nominal_weight_lb} lb` : status === "reading" ? `Photo ${index + 1}` : "Model not in the catalog";
   const { label, className, icon: Icon, spin } = STATUS[status];
   return (
@@ -158,19 +176,32 @@ function BatchRow({
         ) : (
           item.message && <p className="mt-1 text-sm text-muted-foreground">{item.message}</p>
         )}
-        {status === "duplicate" && item.existingBallId && (
-          <Link href={`${base}/balls/${item.existingBallId}`} className="mt-1 inline-block text-sm underline underline-offset-4">
-            View the recorded ball
-          </Link>
+        {(status === "duplicate" || status === "sold") && item.existingBall && notice && (
+          <p className="mt-1 text-sm text-muted-foreground">
+            {status === "duplicate" && <>{notice.text} </>}
+            <Link href={`${base}/balls/${item.existingBall.id}`} className="underline underline-offset-4">
+              View the recorded ball
+            </Link>
+          </p>
         )}
       </div>
       <div className="flex shrink-0 items-center gap-1">
+        {canSell && (
+          <button
+            type="button"
+            onClick={() => (arming ? (setArming(false), onSell(item)) : setArming(true))}
+            disabled={disabled}
+            className={buttonClass.small}
+          >
+            {arming ? "Tap to confirm" : "Mark sold"}
+          </button>
+        )}
         {(status === "needs_details" || status === "duplicate" || status === "ready") && (
           <button type="button" onClick={() => onOpen(item)} disabled={disabled} className={buttonClass.small}>
             Open
           </button>
         )}
-        {status !== "saved" && status !== "saving" && (
+        {!busy && status !== "saved" && status !== "sold" && (
           <button
             type="button"
             onClick={() => onRemove(item)}

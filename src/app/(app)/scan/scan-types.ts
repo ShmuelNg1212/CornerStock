@@ -1,4 +1,4 @@
-import type { ScanStatus } from "@/lib/label/batch";
+import type { ExistingBall, ScanStatus } from "@/lib/label/batch";
 import { LABEL_FIELDS, type LabelField, type RawLabel } from "@/lib/label/rules";
 
 export type Step = "start" | "reading" | "confirm" | "batch";
@@ -10,14 +10,17 @@ export type Saved = { ballId: string; serial: string; summary: string; location:
 export type BatchItem = {
   /** Also the request id of the save, so a retry adds the ball one time only. */
   id: string;
+  /** The request id of a sale of the recorded ball. It is not the save id, so a save and a sale never share one. */
+  saleId: string;
   preview: string | null;
   photo: Blob | null;
   fields: RawLabel;
   known: boolean;
   unread: LabelField[];
-  existingBallId: string | null;
+  /** The recorded ball with this serial number. A duplicate that is in stock can be marked sold. */
+  existingBall: ExistingBall | null;
   message: string | null;
-  status: "reading" | ScanStatus | "saving" | "saved";
+  status: "reading" | ScanStatus | "saving" | "saved" | "selling" | "sold";
   ballId?: string;
   savedTo?: string;
   photoKept?: boolean;

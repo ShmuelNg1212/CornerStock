@@ -1,10 +1,11 @@
 "use client";
 
 import { startTransition, useEffect, useRef, useState } from "react";
-import { lookupLabel, receiveBall } from "@/app/actions";
+import { toast } from "sonner";
+import { lookupLabel, receiveBall, sellBall } from "@/app/actions";
 import { announceSaved } from "@/lib/events";
 import type { LabelBarcodes } from "@/lib/label/barcodes";
-import { readMessage, scanStatus, withoutProductCodeSerial } from "@/lib/label/batch";
+import { readMessage, scanStatus, withoutProductCodeSerial, type ExistingBall } from "@/lib/label/batch";
 import { readLabelPhoto } from "@/lib/label/read-photo";
 import { parseGrossWeight, validateLabel, type LabelErrors, type LabelField, type RawLabel } from "@/lib/label/rules";
 import { createClient } from "@/lib/supabase/client";
@@ -34,7 +35,7 @@ async function readLabel(file: File) {
   const [read, photo] = await Promise.all([readLabelPhoto(file).catch((): LabelBarcodes | null => null), shrink(file)]);
   let codes = read;
   let known = false;
-  let existingBallId: string | null = null;
+  let existingBall: ExistingBall | null = null;
   let lookupFailed = false;
   let serialWasProductCode = false;
   let model: RawLabel | null = null;
@@ -45,7 +46,7 @@ async function readLabel(file: File) {
       known = model !== null;
       serialWasProductCode = lookup.serialIsProductCode;
       codes = withoutProductCodeSerial(codes, lookup.serialIsProductCode);
-      existingBallId = serialWasProductCode ? null : lookup.existingBallId;
+      existingBall = serialWasProductCode ? null : lookup.existingBall;
     } catch {
       lookupFailed = true;
     }
@@ -53,7 +54,7 @@ async function readLabel(file: File) {
   // Catalog values win, but an empty catalog product code keeps the code that was read.
   const fields: RawLabel = { ...EMPTY, upc: codes?.upc ?? "", serial: codes?.serial ?? "", ...model, product_code: model?.product_code || codes?.product_code || "" };
   const unread = (["serial", "upc"] as LabelField[]).filter((f) => !fields[f]);
-  return { codes, photo, fields, known, existingBallId, lookupFailed, serialWasProductCode, unread };
+  return { codes, photo, fields, known, existingBall, lookupFailed, serialWasProductCode, unread };
 }
 
 /** Keeps the label photo, then adds the ball. Throws when the connection fails. */
@@ -80,10 +81,11 @@ export function useScan({ locations, defaultLocationId }: { locations: Location[
   const [unread, setUnread] = useState<LabelField[]>([]);
   const [knownModel, setKnownModel] = useState(false);
   const [editModel, setEditModel] = useState(false);
-  const [existingBallId, setExistingBallId] = useState<string | null>(null);
+  const [existingBall, setExistingBall] = useState<ExistingBall | null>(null);
   const [locationId, setLocationId] = useState(defaultLocationId || (locations.length === 1 ? locations[0].id : ""));
   const [message, setMessage] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [selling, setSelling] = useState(false);
   const [saved, setSaved] = useState<Saved | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [batch, setBatch] = useState<BatchItem[]>([]);
@@ -94,6 +96,8 @@ export function useScan({ locations, defaultLocationId }: { locations: Location[
   // One request id for each ball. A second tap on Save, or a retry after a lost
   // connection, sends the same id, and the database then adds the ball one time only.
   const requestId = useRef("");
+  // The sale of a recorded ball has its own id. sell_ball skips a request id that any movement has.
+  const saleId = useRef("");
   const batchRef = useRef<BatchItem[]>([]);
   // The photos of a batch are read one at a time. This keeps the memory use low on a phone.
   const readQueue = useRef<Promise<void>>(Promise.resolve());
@@ -107,7 +111,8 @@ export function useScan({ locations, defaultLocationId }: { locations: Location[
   }, [batch]);
   useEffect(() => () => batchRef.current.forEach((item) => item.preview && URL.revokeObjectURL(item.preview)), []);
 
-  const unsaved = batch.filter((item) => item.status !== "saved").length;
+  // A sold row is finished work, like a saved row.
+  const unsaved = batch.filter((item) => item.status !== "saved" && item.status !== "sold").length;
   const unsavedPhotos = unsaved + (!fromBatch && preview && (step === "reading" || step === "confirm") ? 1 : 0);
   useEffect(() => {
     if (!unsavedPhotos) return;
@@ -142,10 +147,11 @@ export function useScan({ locations, defaultLocationId }: { locations: Location[
 
   function begin(next: Step) {
     requestId.current = crypto.randomUUID();
+    saleId.current = crypto.randomUUID();
     weightGuess.current = "";
     setErrors({});
     setMessage(null);
-    setExistingBallId(null);
+    setExistingBall(null);
     setSaved(null);
     setBatchAdded(0);
     setStep(next);
@@ -169,7 +175,7 @@ export function useScan({ locations, defaultLocationId }: { locations: Location[
     const read = await readLabel(file);
     photo.current = read.photo;
     setMessage(readMessage(read.codes, read.lookupFailed, read.serialWasProductCode));
-    setExistingBallId(read.existingBallId);
+    setExistingBall(read.existingBall);
     setFields(read.fields);
     setKnownModel(read.known);
     setEditModel(!read.known);
@@ -195,12 +201,13 @@ export function useScan({ locations, defaultLocationId }: { locations: Location[
     if (!files.length) return;
     const items: BatchItem[] = files.map((_, i) => ({
       id: crypto.randomUUID(),
+      saleId: crypto.randomUUID(),
       preview: null,
       photo: null,
       fields: { ...EMPTY, serial: codes[i]?.serial ?? "", upc: codes[i]?.upc ?? "" },
       known: false,
       unread: [],
-      existingBallId: null,
+      existingBall: null,
       message: null,
       status: "reading",
     }));
@@ -221,16 +228,16 @@ export function useScan({ locations, defaultLocationId }: { locations: Location[
     const index = current.findIndex((item) => item.id === id);
     if (index < 0) return; // Removed while it was read.
     const serialsBefore = current.slice(0, index).flatMap((item) => (item.fields.serial ? [item.fields.serial] : []));
-    const status = scanStatus({ ...read, knownModel: read.known, serialsBefore });
+    const status = scanStatus({ ...read, existingBallId: read.existingBall?.id ?? null, knownModel: read.known, serialsBefore });
     updateItem(id, {
       preview: URL.createObjectURL(read.photo),
       photo: read.photo,
       fields: read.fields,
       known: read.known,
       unread: read.unread,
-      existingBallId: read.existingBallId,
+      existingBall: read.existingBall,
       message:
-        status === "duplicate" && !read.existingBallId
+        status === "duplicate" && !read.existingBall
           ? "Another photo in this batch has this serial number. If it was misread, correct it."
           : readMessage(read.codes, read.lookupFailed, read.serialWasProductCode),
       status,
@@ -244,6 +251,7 @@ export function useScan({ locations, defaultLocationId }: { locations: Location[
 
   function openItem(item: BatchItem) {
     requestId.current = item.id;
+    saleId.current = item.saleId;
     weightGuess.current = "";
     photo.current = item.photo;
     setFields(item.fields);
@@ -251,14 +259,14 @@ export function useScan({ locations, defaultLocationId }: { locations: Location[
     setUnread(item.unread);
     setKnownModel(item.known);
     setEditModel(!item.known);
-    setExistingBallId(item.existingBallId);
+    setExistingBall(item.existingBall);
     setMessage(item.message);
     setFromBatch(item.id);
     setStep("confirm");
   }
 
   function backToBatch() {
-    if (fromBatch) updateItem(fromBatch, { fields, existingBallId });
+    if (fromBatch) updateItem(fromBatch, { fields, existingBall });
     reset();
   }
 
@@ -291,9 +299,9 @@ export function useScan({ locations, defaultLocationId }: { locations: Location[
         }
         else
           updateItem(item.id, {
-            status: result.existingBallId ? "duplicate" : "needs_details",
+            status: result.existingBall ? "duplicate" : "needs_details",
             message: result.error,
-            existingBallId: result.existingBallId ?? null,
+            existingBall: result.existingBall ?? null,
           });
       } catch {
         updateItem(item.id, { status: "ready", message: "Not saved. Check the connection, then tap Save again." });
@@ -337,7 +345,7 @@ export function useScan({ locations, defaultLocationId }: { locations: Location[
       } else {
         setMessage(result.error);
         setErrors(result.fieldErrors ?? {});
-        setExistingBallId(result.existingBallId ?? null);
+        setExistingBall(result.existingBall ?? null);
       }
     } catch {
       setMessage("The ball was not saved. Check the connection, then tap Save again.");
@@ -345,6 +353,45 @@ export function useScan({ locations, defaultLocationId }: { locations: Location[
       setSaving(false);
     }
     return true;
+  }
+
+  /** Marks the recorded ball of this scan as sold. A second tap sends the same id and sells the ball one time only. */
+  async function sell(reference: string) {
+    if (!existingBall) return;
+    setSelling(true);
+    setMessage(null);
+    try {
+      const result = await sellBall(existingBall.id, saleId.current, reference);
+      if (!result.ok) {
+        // The server refused the sale, so the status that the scan read is out of date. Stop the offer.
+        const unknown = { ...existingBall, status: null };
+        setExistingBall(unknown);
+        if (fromBatch) updateItem(fromBatch, { existingBall: unknown });
+        setMessage(result.error);
+        return;
+      }
+      toast.success(`Sold · ${fields.serial}`);
+      if (fromBatch) updateItem(fromBatch, { status: "sold", message: null, existingBall: { ...existingBall, status: "sold" } });
+      reset();
+    } catch {
+      setMessage("The sale was not sent. Check the connection, then tap Mark as sold again.");
+    } finally {
+      setSelling(false);
+    }
+  }
+
+  /** Marks the recorded ball of one batch row as sold, with no receipt number. */
+  async function sellItem(item: BatchItem) {
+    const ball = item.existingBall;
+    if (!ball) return;
+    updateItem(item.id, { status: "selling", message: null });
+    try {
+      const result = await sellBall(ball.id, item.saleId, "");
+      if (result.ok) updateItem(item.id, { status: "sold", existingBall: { ...ball, status: "sold" } });
+      else updateItem(item.id, { status: "duplicate", message: result.error, existingBall: { ...ball, status: null } });
+    } catch {
+      updateItem(item.id, { status: "duplicate", message: "Not sold. Check the connection, then tap Mark sold again." });
+    }
   }
 
   function setField(field: LabelField, value: string) {
@@ -361,7 +408,7 @@ export function useScan({ locations, defaultLocationId }: { locations: Location[
     }
     setFields(next);
     if (errors[field]) setErrors({ ...errors, [field]: undefined });
-    if (field === "serial") setExistingBallId(null);
+    if (field === "serial") setExistingBall(null);
   }
 
   return {
@@ -371,10 +418,11 @@ export function useScan({ locations, defaultLocationId }: { locations: Location[
     unread,
     knownModel,
     editModel,
-    existingBallId,
+    existingBall,
     locationId,
     message,
     saving,
+    selling,
     saved,
     preview: fromBatch ? (batch.find((item) => item.id === fromBatch)?.preview ?? null) : preview,
     hasOwnPhoto: preview !== null && !fromBatch,
@@ -395,6 +443,8 @@ export function useScan({ locations, defaultLocationId }: { locations: Location[
     finishBatch,
     saveAll,
     save,
+    sell,
+    sellItem,
   };
 }
 

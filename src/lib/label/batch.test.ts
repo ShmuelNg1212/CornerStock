@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { readMessage, scanStatus, withoutProductCodeSerial } from "./batch";
+import { existingBallNotice, readMessage, scanStatus, withoutProductCodeSerial } from "./batch";
 
 const codes = { upc: "887970617601", serial: "23VSLE30B047", product_code: "BBMVSL15L" };
 
@@ -72,5 +72,29 @@ describe("readMessage after a moved serial number", () => {
   it("tells the staff member that the scanned value was the product code", () => {
     const codes = { upc: "887970617601", serial: null, product_code: "BBMVSL15L" };
     expect(readMessage(codes, false, true)).toMatch(/product code/);
+  });
+});
+
+describe("existingBallNotice", () => {
+  it("offers the sale when the recorded ball is in stock", () => {
+    const notice = existingBallNotice({ id: "b1", status: "in_stock", location: "Counter" });
+    expect(notice.canSell).toBe(true);
+    expect(notice.text).toMatch(/in stock at Counter/);
+  });
+
+  it("does not offer the sale when the ball is already sold", () => {
+    const notice = existingBallNotice({ id: "b1", status: "sold", location: "Counter" });
+    expect(notice.canSell).toBe(false);
+    expect(notice.text).toMatch(/already sold/);
+  });
+
+  it("does not offer the sale when the ball was removed from stock", () => {
+    expect(existingBallNotice({ id: "b1", status: "removed", location: null }).canSell).toBe(false);
+  });
+
+  it("does not offer the sale when the status is not known", () => {
+    const notice = existingBallNotice({ id: "b1", status: null, location: null });
+    expect(notice.canSell).toBe(false);
+    expect(notice.text).toMatch(/already recorded/);
   });
 });

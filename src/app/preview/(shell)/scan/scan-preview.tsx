@@ -17,12 +17,13 @@ const LABEL = "/preview-label.jpg";
 const known = { ...EMPTY, serial: "PHZ244107731", upc: "836185012345", model_name: "Phaze II", nominal_weight_lb: "15", brand: "Storm", color: "Red / Blue / Purple", product_code: "BBMTLZ15" };
 const item = (id: string, status: BatchItem["status"], change: Partial<BatchItem> = {}): BatchItem => ({
   id,
+  saleId: `sale-${id}`,
   preview: status === "reading" ? null : LABEL,
   photo: null,
   fields: status === "reading" ? EMPTY : { ...known, serial: `PHZ2441077${id}` },
   known: status !== "reading",
   unread: [],
-  existingBallId: null,
+  existingBall: null,
   message: null,
   status,
   ...change,
@@ -31,11 +32,13 @@ const batch: BatchItem[] = [
   item("31", "saved", { ballId: "b1", savedTo: "Sta. Lucia East", photoKept: true }),
   item("45", "saving"),
   item("52", "ready"),
-  item("60", "duplicate", { existingBallId: "b1", message: "A ball with this serial number is already recorded." }),
+  item("60", "duplicate", { existingBall: { id: "b1", status: "in_stock", location: "Sta. Lucia East" } }),
+  item("63", "duplicate", { existingBall: { id: "b1", status: "sold", location: "Sta. Lucia East" } }),
+  item("66", "sold", { existingBall: { id: "b1", status: "sold", location: "Sta. Lucia East" } }),
   item("71", "needs_details", { known: false, fields: { ...EMPTY, serial: "SUPERLONGSERIALNUMBER00000000000001" }, message: "The UPC barcode was not found. Take the photo again, or type the 12 digits below the barcode." }),
   item("88", "reading"),
 ];
-const STEPS = ["start", "saved", "reading", "confirm", "new", "error", "batch", "batch-empty", "viewfinder", "viewfinder-batch"];
+const STEPS = ["start", "saved", "reading", "confirm", "new", "error", "in-stock", "batch", "batch-empty", "viewfinder", "viewfinder-batch"];
 const noop = () => {};
 
 /** The steps of the scan flow with fixture data. Select a step with `?step=`. */
@@ -91,7 +94,7 @@ export function ScanPreview() {
           unread={[]}
           knownModel
           editModel={false}
-          existingBallId={null}
+          existingBall={null}
           message={null}
         />
       )}
@@ -103,7 +106,7 @@ export function ScanPreview() {
           unread={["serial"]}
           knownModel={false}
           editModel
-          existingBallId={null}
+          existingBall={null}
           message="The serial number barcode was not found. Take the photo again, or type the serial number."
         />
       )}
@@ -115,8 +118,20 @@ export function ScanPreview() {
           unread={[]}
           knownModel
           editModel={false}
-          existingBallId="b1"
+          existingBall={{ id: "b1", status: "sold", location: "Sta. Lucia East" }}
           message="Check the marked fields."
+        />
+      )}
+      {step === "in-stock" && (
+        <ScanConfirm
+          {...confirm}
+          fields={known}
+          errors={{}}
+          unread={[]}
+          knownModel
+          editModel={false}
+          existingBall={{ id: "b1", status: "in_stock", location: "Sta. Lucia East" }}
+          message={null}
         />
       )}
       {step === "viewfinder" && !shot && !problem && (
@@ -142,7 +157,7 @@ export function ScanPreview() {
           unread={[]}
           knownModel={false}
           editModel
-          existingBallId={null}
+          existingBall={null}
           message={null}
         />
       )}
@@ -176,6 +191,7 @@ export function ScanPreview() {
           onLibrary={noop}
           onOpen={noop}
           onRemove={noop}
+          onSell={noop}
           onSaveAll={noop}
           onDone={noop}
         />

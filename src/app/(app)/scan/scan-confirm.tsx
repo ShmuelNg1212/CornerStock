@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, ViewTransition } from "react";
+import { useRef, useState, ViewTransition } from "react";
 import { buttonClass, Field, inputClass } from "@/components/ui/field";
 import { Notice } from "@/components/ui/notice";
+import { existingBallNotice, type ExistingBall } from "@/lib/label/batch";
 import type { LabelErrors, LabelField, RawLabel } from "@/lib/label/rules";
 import { MODEL_FIELDS, SERIAL_FIELD, VALUE_FIELDS, type FieldSpec } from "./scan-types";
 
@@ -14,9 +15,10 @@ export function ScanConfirm({
   unread,
   knownModel,
   editModel,
-  existingBallId,
+  existingBall,
   message,
   saving,
+  selling = false,
   preview,
   canRetake,
   fromBatch,
@@ -24,6 +26,7 @@ export function ScanConfirm({
   onField,
   onShowModel,
   onSave,
+  onSell = () => {},
   onRetake,
   onCancel,
   base = "",
@@ -33,9 +36,10 @@ export function ScanConfirm({
   unread: LabelField[];
   knownModel: boolean;
   editModel: boolean;
-  existingBallId: string | null;
+  existingBall: ExistingBall | null;
   message: string | null;
   saving: boolean;
+  selling?: boolean;
   preview: string | null;
   canRetake: boolean;
   fromBatch: boolean;
@@ -44,11 +48,18 @@ export function ScanConfirm({
   onShowModel: () => void;
   /** Resolves to false when a field has an error. */
   onSave: () => Promise<boolean>;
+  /** Marks the recorded ball as sold. The scan shows it only when that ball is in stock. */
+  onSell?: (reference: string) => void;
   onRetake: () => void;
   onCancel: () => void;
   base?: string;
 }) {
   const form = useRef<HTMLFormElement>(null);
+  const [reference, setReference] = useState("");
+  const notice = existingBall ? existingBallNotice(existingBall) : null;
+  // A scan of a ball that is in stock is most often a sale. The main button then sells it.
+  const sells = notice?.canSell ?? false;
+  const busy = saving || selling;
 
   const input = ({ field, label, hint, mode, mono }: FieldSpec) => (
     <Field
@@ -77,6 +88,7 @@ export function ScanConfirm({
       ref={form}
       onSubmit={async (event) => {
         event.preventDefault();
+        if (busy) return;
         if (!(await onSave())) form.current?.querySelector<HTMLElement>("[aria-invalid=true]")?.focus();
       }}
       noValidate
@@ -85,7 +97,10 @@ export function ScanConfirm({
       <div className="lg:sticky lg:top-7">
         <h1 className="text-2xl font-bold">Check the details</h1>
         <p className="mt-1 text-muted-foreground">
-          {knownModel ? "Type the weights and the pin distance from the label, then save." : "Type the details from the label, then save."}
+          {sells
+            ? "This ball is already in stock. Mark it as sold, or correct the serial number to add a new ball."
+            : knownModel
+              ? "Type the weights and the pin distance from the label, then save." : "Type the details from the label, then save."}
         </p>
 
         {preview && (
@@ -100,14 +115,21 @@ export function ScanConfirm({
             {message}
           </Notice>
         )}
-        {existingBallId && (
+        {existingBall && notice && (
           <Notice tone="warn" className="mt-4">
-            A ball with this serial number is already recorded.{" "}
-            <Link href={`${base}/balls/${existingBallId}`} className="underline underline-offset-4">
+            {notice.text}{" "}
+            <Link href={`${base}/balls/${existingBall.id}`} className="underline underline-offset-4">
               View that ball
             </Link>
             . If the serial number was misread, correct it below.
           </Notice>
+        )}
+        {sells && (
+          <div className="mt-4">
+            <Field label="Receipt number (optional)">
+              <input value={reference} onChange={(e) => setReference(e.target.value)} maxLength={80} className={inputClass} />
+            </Field>
+          </div>
         )}
       </div>
 
@@ -158,15 +180,22 @@ export function ScanConfirm({
         </div>
 
         <div className="sticky bottom-[calc(4rem+env(safe-area-inset-bottom))] z-10 -mx-4 mt-6 flex gap-2 border-t border-border bg-background px-4 py-3 lg:bottom-0 lg:mx-0 lg:px-0">
-          <button type="submit" disabled={saving} className={`${buttonClass.action} flex-1`}>
-            {saving ? "Saving…" : "Save to stock"}
-          </button>
+          {sells ? (
+            // Only a tap on this button sells. Enter in a field keeps the save path, which refuses a recorded serial.
+            <button type="button" onClick={() => onSell(reference)} disabled={busy} className={`${buttonClass.action} flex-1`}>
+              {selling ? "Saving…" : "Mark as sold"}
+            </button>
+          ) : (
+            <button type="submit" disabled={busy} className={`${buttonClass.action} flex-1`}>
+              {saving ? "Saving…" : "Save to stock"}
+            </button>
+          )}
           {canRetake && (
-            <button type="button" onClick={onRetake} disabled={saving} className={buttonClass.quiet}>
+            <button type="button" onClick={onRetake} disabled={busy} className={buttonClass.quiet}>
               Retake
             </button>
           )}
-          <button type="button" onClick={onCancel} disabled={saving} className={buttonClass.quiet}>
+          <button type="button" onClick={onCancel} disabled={busy} className={buttonClass.quiet}>
             {fromBatch ? "Back" : "Cancel"}
           </button>
         </div>
