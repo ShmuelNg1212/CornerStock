@@ -20,11 +20,11 @@ export const when = (iso: string) => dateTime.format(new Date(iso));
 export const day = (isoDate: string | null) => (isoDate === null ? "—" : dateOnly.format(new Date(`${isoDate}T00:00:00Z`)));
 
 export const MOVEMENT_LABEL: Record<MovementType, string> = {
-  receive: "Received",
+  receive: "Added",
   sell: "Sold",
-  reverse_sale: "Sale reversed",
+  reverse_sale: "Sale cancelled",
   transfer: "Moved",
-  adjust: "Corrected",
+  adjust: "Edited",
   remove: "Removed",
 };
 
