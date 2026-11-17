@@ -48,7 +48,10 @@ Source: the brand kit handoff in [../study/1794811328_brand_kit_handoff.md](../s
 - The import review shows the additions, the before-and-after values, the unchanged rows, and the errors by source row and field. Errors of the same kind show as one line with their rows. Confirm stays off while an error remains.
 - A stock import receives new balls, adds missing catalog entries, and corrects or moves existing balls. A change to an existing ball needs a reason. The reason shows in the ball history.
 - The complete batch saves together, or nothing saves. If a record changes after the review, the save stops and asks for a new review.
-- The Catalog item is in the rail on large screens. On a phone, Stock and Account have a "Browse catalog" link, and the Stock tab stays current on catalog screens.
+- Catalog and Activity are items in the rail on large screens and tabs on a phone.
+- Activity: all staff see every stock change and every catalog edit of the store, newest first, grouped by day in Manila time. A row shows the type, the time, the model and weight, the serial number, the details (locations, receipt number, reason, or the changed values with old and new), and the staff member. A row opens the ball, or the catalog model for a catalog edit.
+- Activity types: Added, Sold, Sale cancelled, Moved, Edited (a ball correction), Removed, and Catalog edited. The filters are All, Added, Sold, Cancelled, Moved, Edited (ball and catalog edits), and Removed. The address keeps the filter (`?type=`). "Show older" loads 50 more rows.
+- Each catalog model edit is recorded with the staff member, the time, and only the values that changed. This includes edits from a catalog import. The record is permanent.
 - A serial number that is already recorded is refused. The message links to the existing ball.
 - A serial number that is a product code is refused: "This is the product code. Scan or type the serial number." The confirm screen, the server, and the database check it. The scan moves a read serial number that the catalog knows as a product code into the product code field.
 - Stock view: a greeting, four summary tiles, the search, the filter pills, and one card for each model with a count for each weight. It shows one location or all locations. Search finds a model or a serial number.
@@ -58,7 +61,7 @@ Source: the brand kit handoff in [../study/1794811328_brand_kit_handoff.md](../s
 - Filter pills: "All", each weight in stock with its ball count, and "Brand", which opens a sheet. The address keeps the query, the weight, and the brand (`?q=`, `?w=`, `?b=`).
 - Large screens: the `/` key goes to the search. `Esc` clears the search.
 - At 1024px and wider, the stock list stays beside the detail pane. The selected model card is navy.
-- Smaller screens: a small top bar with the initials, a floating tab bar, and one screen at a time. The tab bar has Stock, a large Scan button in the center, and Settings (owner) or Account (staff). On a detail screen, Stock becomes Back. Back from a ball opens its model.
+- Smaller screens: a small top bar with the initials, a floating tab bar, and one screen at a time. The tab bar has Stock, Catalog, a large Scan button in the center, Activity, and Settings (owner) or Account (staff). Under 360 px width the Scan button is 56 px, so it stays round. On a detail screen, Stock becomes Back. Back from a ball opens its model.
 - The home-screen app on iOS has a solid status bar above the page. A `black-translucent` bar gets a grey system blur on iOS 26.1 and later.
 - Smaller screens: a swipe from the left edge goes back on a detail screen. Safari in the browser has its own swipe, so the app does not add one there.
 - The location: a chip on the stock screen opens a sheet with the locations. The rail on large screens keeps its selector. The Account screen also has the locations and sign-out. The owner sees the same panel at the top of Settings.
@@ -67,7 +70,7 @@ Source: the brand kit handoff in [../study/1794811328_brand_kit_handoff.md](../s
 - After a scan saves a ball, the Stock item of the tab bar shows "+1" for 2 seconds.
 - App links and sign-out warn before discarding unsaved label photos. Browser Back is not covered by this guard on the scan screen.
 - On the import screen, app links, sign-out, browser Back, and a page close warn before discarding a file that is not saved.
-- Ball page: details, label photo, history. Staff mark a ball as sold or move it to another location.
+- Ball page: details, label photo, history. The history uses the activity words (Added, Sold, Sale cancelled, Moved, Edited, Removed). Staff mark a ball as sold or move it to another location.
 - Owner only: put a sold ball back in stock, correct the details, remove a ball, set a selling price, manage locations and staff accounts. Each of the first three needs a reason.
 - Colors: actions use `#B94A25`, a darker variant of signal orange, because white text on `#D45A32` has a contrast of 4.0. Secondary text uses `#5A6369`.
 

@@ -14,6 +14,8 @@ This page gives the reasons for the structure. Read the code for the structure i
 - A ball is identified by its serial number. The count for a model is the number of its balls with status `in_stock`.
 - A model row is one UPC: a model at one nominal weight. The first scan of a UPC creates the model. Later scans keep the catalog values, so one bad photo cannot change a model.
 - The owner can also create a model in the catalog or by an import. Only the owner's model edit and an owner import change catalog values.
+- A trigger on `ball_models` records each catalog edit in `catalog_changes`, so the edit form and the import need no separate log code. The table is permanent, as `stock_movements` is.
+- The activity page reads one function, `activity_feed`. It runs as the caller, so the read policies decide what it shows. It pages by time with a cursor, not by offset, so new rows do not shift the pages.
 
 ## Repeated and concurrent actions
 
