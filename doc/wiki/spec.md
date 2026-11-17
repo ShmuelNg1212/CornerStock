@@ -60,7 +60,9 @@ Source: the brand kit handoff in [../study/1794811328_brand_kit_handoff.md](../s
 - A sold or removed ball is not offered for sale from a scan. If the server refuses the sale, the scan stops the offer and shows the reason. A sale from a scan uses the same database function as the ball page.
 - A serial number that is a product code is refused: "This is the product code. Scan or type the serial number." The confirm screen, the server, and the database check it. The scan moves a read serial number that the catalog knows as a product code into the product code field.
 - Stock view: a greeting, four summary tiles, the search, the filter pills, and one card for each model with a count for each weight. It shows one location or all locations. Search finds a model or a serial number.
-- Summary tiles: balls in stock, models, balls received today, and balls sold today. "Today" starts at midnight in Manila time. A reversed sale removes a sale only when that ball was sold earlier the same day.
+- Low-stock alert ([../adr/0004-low-stock-minimum.md](../adr/0004-low-stock-minimum.md)): the owner sets a minimum (0 to 99) for a model at one weight, on the model page or with a catalog import (column `min_in_stock`). The minimum applies to each active location. Fewer balls than the minimum is "Low". No ball is "Out". In "All locations", a weight is low when any location is low. Each change of the minimum is in the catalog edit log. The alert is in the app only.
+- Low stock in the stock view: when a weight is low, the second tile is "Low stock" (in place of "Models"), and a "Low stock" pill shows after "All". A tap on either shows only the low weights. The address keeps it (`?l=1`). A low weight chip shows "×1 Low" and an out weight chip shows "Out", each with an icon. A model that is out in every weight shows with 0 in stock. The model page shows "Low stock" or "Out of stock" with the minimum, and in "All locations" the names of the low locations.
+- Summary tiles: balls in stock, models (or "Low stock", see above), balls received today, and balls sold today. "Today" starts at midnight in Manila time. A reversed sale removes a sale only when that ball was sold earlier the same day.
 - Model search filters during typing. Serial search starts after a 200 ms pause.
 - Model search forgives: it ignores case, accents, spaces, and punctuation ("hyroad" finds Hy-Road). `!` and `|` read as the letter i ("iq" finds !Q Tour). A word of 5 or more letters can have one typing error. A word with a digit (a UPC, a code) must match exactly.
 - Filter pills: "All", each weight in stock with its ball count, and "Brand", which opens a sheet. The address keeps the query, the weight, and the brand (`?q=`, `?w=`, `?b=`).
@@ -102,9 +104,9 @@ Source: the brand kit handoff in [../study/1794811328_brand_kit_handoff.md](../s
    - Accessories: size, color, or pack.
 3. Receiving, sales deductions, returns, transfers, stock adjustments.
 4. Separate on-hand, reserved, and available quantities.
-5. Low-stock threshold for each variant.
+5. Low-stock threshold for each variant. Built for balls (see "Built").
 6. Purchase orders and supplier records.
-7. Barcode entry, fast search, CSV import and export, physical stock counts. CSV and `.xlsx` import and export are built for balls (see "Built").
+7. Barcode entry, fast search, CSV import and export, physical stock counts. CSV and `.xlsx` import and export are built for balls (see "Built"). The stock count is planned: [../plan/1794911487_stock_count.md](../plan/1794911487_stock_count.md).
 8. Owner, manager, and staff roles.
 
 ### Inventory integrity

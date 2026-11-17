@@ -32,12 +32,12 @@ Stock is a list of individual balls, not a quantity. Each ball has its own seria
 
 ## Capabilities and Constraints
 
-- Built: sign-in, stock view with search, model page, ball page with history and label photo, single and batch label scan, owner settings (locations, staff accounts), owner corrections with a reason, a catalog of all models (also with no stock), owner catalog edits, CSV and Excel export, and reviewed CSV and Excel imports of catalog and stock files.
+- Built: sign-in, stock view with search, model page, ball page with history and label photo, single and batch label scan, owner settings (locations, staff accounts), owner corrections with a reason, a low-stock alert with an owner minimum for each model and weight, a catalog of all models (also with no stock), owner catalog edits, CSV and Excel export, and reviewed CSV and Excel imports of catalog and stock files.
 - Stock changes go through database functions. The server and database are the authority. No privileged key is in client code.
 - The app does not work offline.
 - Next.js App Router, Tailwind CSS, Supabase. Installable progressive web app.
 - Terms: ball, model, catalog entry, serial number, UPC, location, in stock, sold, removed, movement, import batch.
-- Not built, not decided: shoes, bags, accessories, purchase orders, low-stock thresholds, a manager role, a checkout integration.
+- Not built, not decided: shoes, bags, accessories, purchase orders, a manager role, a checkout integration.
 
 ## Brand Commitments
 
