@@ -149,7 +149,7 @@ export function validateLabel(raw: RawLabel): { value: BallLabel | null; errors:
     errors[field] = result.error;
     return null;
   }
-  const plain = (t: string): Parsed<string> => (t.length <= 120 ? ok(t) : fail("This text is too long."));
+  const plain = (t: string): Parsed<string> => (t.length <= 120 ? ok(t) : fail("Use 120 characters or fewer."));
 
   const pin = optional("pin_distance", parsePinDistance);
   const value = {

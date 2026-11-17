@@ -238,6 +238,6 @@ describe("validateModelDetails", () => {
     expect(Object.keys(errors).sort()).toEqual(["diff", "mass_bias", "rg"]);
   });
   it("rejects text that is too long", () => {
-    expect(validateModelDetails({ ...details, color: "x".repeat(121) }).errors.color).toBeDefined();
+    expect(validateModelDetails({ ...details, color: "x".repeat(121) }).errors.color).toMatch(/120 characters/);
   });
 });
