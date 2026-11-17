@@ -45,7 +45,11 @@ export default async function CatalogModel({
       {fields.map(([label, value]) => (
         <div key={label}>
           <dt className="text-sm text-muted-foreground">{label}</dt>
-          <dd className="mt-1 font-medium break-words">{value ?? "—"}</dd>
+          <dd
+            className={`mt-1 font-medium break-words ${label === "UPC" || label === "Product code" ? "font-mono" : ""}`}
+          >
+            {value ?? "—"}
+          </dd>
         </div>
       ))}
     </dl>
@@ -55,7 +59,7 @@ export default async function CatalogModel({
       <Link href="/catalog" className={buttonClass.link}>
         ← Catalog
       </Link>
-      <h1 className="font-heading mt-4 text-3xl font-bold break-words">
+      <h1 className="font-heading mt-4 text-2xl font-bold break-words">
         {model.name}
       </h1>
       <p className="mt-2 text-muted-foreground">

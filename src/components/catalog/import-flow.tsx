@@ -21,9 +21,6 @@ import type { Location } from "@/lib/types";
 
 const labels: Record<string, string> = {
   name: "Model name",
-  gross_weight_oz: "Gross weight (oz)",
-  pin_min: "Pin minimum (in)",
-  pin_max: "Pin maximum (in)",
   location_id: "Location",
   upc: "UPC",
   model_name: "Model name",
@@ -73,6 +70,45 @@ function suggested(
   );
 }
 
+function groupErrors(errors: ImportReview["errors"]) {
+  const groups = new Map<
+    string,
+    { key: string; field: string; message: string; rows: number[] }
+  >();
+  for (const item of errors) {
+    const key = `${item.field}\u0000${item.message}`;
+    const group = groups.get(key) ?? {
+      key,
+      field: item.field,
+      message: item.message,
+      rows: [],
+    };
+    group.rows.push(item.row);
+    groups.set(key, group);
+  }
+  return [...groups.values()];
+}
+
+function ChangesFold({
+  folded,
+  count,
+  children,
+}: {
+  folded: boolean;
+  count: number;
+  children: React.ReactNode;
+}) {
+  if (!folded || count === 0) return <>{children}</>;
+  return (
+    <details className="mt-6 rounded-xl border border-border p-4">
+      <summary className="min-h-11 cursor-pointer font-medium">
+        Show {count.toLocaleString("en-PH")} changes without errors
+      </summary>
+      {children}
+    </details>
+  );
+}
+
 export function ImportFlow({
   locations,
   selected,
@@ -102,6 +138,8 @@ export function ImportFlow({
   const fileRef = useRef<HTMLInputElement>(null);
   const heading = useRef<HTMLHeadingElement>(null);
   const leaving = useRef(false);
+  const guardRef = useRef<string | null>(null);
+  const dirtyRef = useRef(false);
   const sheet = workbook?.sheets[sheetIndex];
   const fields = kind === "stock" ? STOCK_FIELDS : CATALOG_FIELDS;
   const dirty = workbook !== null && step !== "result";
@@ -110,9 +148,13 @@ export function ImportFlow({
   const unchanged =
     review?.changes.filter((change) => change.action === "unchanged") ?? [];
 
+  // Focus the heading of the current step, or the error summary of a review.
   useEffect(() => {
     heading.current?.focus();
-  }, [step]);
+  }, [step, review]);
+  useEffect(() => {
+    dirtyRef.current = dirty;
+  }, [dirty]);
   useEffect(() => {
     if (!dirty) return;
     const warn = (event: BeforeUnloadEvent) => event.preventDefault();
@@ -159,51 +201,79 @@ export function ImportFlow({
   }, [dirty, pending]);
 
   // A same-document history traversal does not fire beforeunload. Keep one
-  // same-route history entry while a file is unsaved, so Back can ask first.
+  // same-route history entry while this page is open with a file, so Back can
+  // ask first. After a save, Back skips that entry.
   useEffect(() => {
-    if (!dirty) return;
-    leaving.current = false;
+    if (!dirty || guardRef.current) return;
     const guard = crypto.randomUUID();
+    guardRef.current = guard;
+    leaving.current = false;
     window.history.pushState(
       { ...window.history.state, catalogImportGuard: guard },
       "",
       window.location.href,
     );
+  }, [dirty]);
+  useEffect(() => {
     let restoring = false;
     const onBack = (event: PopStateEvent) => {
-      if (leaving.current) return;
-      if (restoring) {
-        restoring = false;
-        event.stopImmediatePropagation();
+      const guard = guardRef.current;
+      if (!guard || leaving.current) return;
+      if (event.state?.catalogImportGuard === guard) {
+        if (restoring) {
+          restoring = false;
+          event.stopImmediatePropagation();
+        }
         return;
       }
-      if (event.state?.catalogImportGuard === guard) return;
       event.stopImmediatePropagation();
       if (
+        dirtyRef.current &&
         !window.confirm(
           "This import has not been confirmed. Leave and discard the review?",
         )
       ) {
         restoring = true;
         window.history.forward();
-      } else {
-        leaving.current = true;
-        window.history.back();
+        return;
       }
+      leaving.current = true;
+      guardRef.current = null;
+      window.history.back();
     };
     window.addEventListener("popstate", onBack, true);
     return () => window.removeEventListener("popstate", onBack, true);
-  }, [dirty]);
+  }, []);
 
   function runReview() {
     if (!sheet) return;
     setError("");
     startTransition(async () => {
       try {
+        // Send only the mapped columns. Other columns never reach the server.
+        const used = [
+          ...new Set(
+            Object.values(mapping).filter(
+              (index): index is number => index !== undefined,
+            ),
+          ),
+        ].sort((a, b) => a - b);
+        const position = new Map(used.map((index, at) => [index, at]));
         const response = await previewImportSheet({
           kind,
-          sheet,
-          mapping,
+          sheet: {
+            name: sheet.name,
+            headers: used.map((index) => sheet.headers[index] ?? ""),
+            rows: sheet.rows.map((item) => ({
+              row: item.row,
+              cells: used.map((index) => item.cells[index] ?? { text: "" }),
+            })),
+          },
+          mapping: Object.fromEntries(
+            Object.entries(mapping).flatMap(([field, index]) =>
+              index === undefined ? [] : [[field, position.get(index)]],
+            ),
+          ),
           defaultLocationId,
           reason,
         });
@@ -229,9 +299,9 @@ export function ImportFlow({
         ← Catalog
       </Link>
       <h1
-        ref={heading}
+        ref={step === "file" || step === "result" ? heading : undefined}
         tabIndex={-1}
-        className="font-heading mt-4 text-3xl font-bold outline-none"
+        className="font-heading mt-4 text-2xl font-bold outline-none"
       >
         {step === "result" ? "Import saved" : "Import catalog or stock"}
       </h1>
@@ -264,11 +334,14 @@ export function ImportFlow({
           {error}
         </p>
       )}
-      {pending && (
-        <p role="status" className="mt-4 text-sm">
-          {step === "review" ? "Saving import…" : "Reading and validating…"}
-        </p>
-      )}
+      {/* The live region stays mounted, so screen readers announce its new text. */}
+      <p role="status" aria-live="polite" className="mt-4 text-sm empty:hidden">
+        {pending
+          ? step === "review"
+            ? "Saving import…"
+            : "Reading and validating…"
+          : ""}
+      </p>
 
       {step === "file" && (
         <form
@@ -391,18 +464,24 @@ export function ImportFlow({
               >
                 {workbook.sheets.map((item, index) => (
                   <option key={index} value={index}>
-                    {item.name} ({item.rows.length} rows)
+                    {item.name} ({item.rows.length.toLocaleString("en-PH")}{" "}
+                    rows)
                   </option>
                 ))}
               </select>
             </Field>
           )}
-          <h2 className="font-heading text-xl font-semibold">
+          <h2
+            ref={heading}
+            tabIndex={-1}
+            className="font-heading text-xl font-semibold outline-none"
+          >
             Match your columns
           </h2>
           <p className="mt-2 text-sm text-muted-foreground">
-            {sheet.rows.length} rows in {sheet.name}. UPC is required. Stock
-            files also need serial number. New models need a name and weight.
+            {sheet.rows.length.toLocaleString("en-PH")} rows in {sheet.name}.
+            UPC is required. Stock files also need serial number. New models
+            need a name and weight.
           </p>
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             {fields.map((field) => (
@@ -493,7 +572,11 @@ export function ImportFlow({
 
       {step === "review" && review && (
         <div className="mt-6">
-          <h2 className="font-heading text-xl font-semibold">
+          <h2
+            ref={review.errors.length ? undefined : heading}
+            tabIndex={-1}
+            className="font-heading text-xl font-semibold outline-none"
+          >
             Check the changes
           </h2>
           <dl className="mt-4 flex flex-wrap gap-x-6 gap-y-3">
@@ -520,86 +603,103 @@ export function ImportFlow({
               aria-label="Import errors"
               className="mt-6 rounded-xl bg-destructive/10 p-4"
             >
-              <h3 className="font-semibold text-destructive">
-                Fix {review.errors.length}{" "}
+              <h3
+                ref={heading}
+                tabIndex={-1}
+                className="font-semibold text-destructive outline-none"
+              >
+                Fix {review.errors.length.toLocaleString("en-PH")}{" "}
                 {review.errors.length === 1 ? "error" : "errors"} before saving
               </h3>
-              <ul className="mt-3 max-h-80 space-y-2 overflow-y-auto text-sm">
-                {review.errors.map((item, index) => (
-                  <li key={index} className="break-words">
-                    Row {item.row} · {labels[item.field] ?? item.field}:{" "}
-                    {item.message}
+              <ul
+                tabIndex={0}
+                aria-label="Errors by problem"
+                className="mt-3 max-h-80 space-y-2 overflow-y-auto text-sm"
+              >
+                {groupErrors(review.errors).map((group) => (
+                  <li key={group.key} className="break-words">
+                    {group.rows.length === 1
+                      ? `Row ${group.rows[0]}`
+                      : `${group.rows.length} rows (${group.rows
+                          .slice(0, 12)
+                          .join(
+                            ", ",
+                          )}${group.rows.length > 12 ? ", …" : ""})`}{" "}
+                    · {labels[group.field] ?? group.field}: {group.message}
                   </li>
                 ))}
               </ul>
             </section>
           )}
-          <ul className="mt-6 divide-y divide-border rounded-(--radius-card) bg-card px-4 shadow-(--shadow-card)">
-            {changes.slice(0, shown).map((change, index) => (
-              <li key={index} className="py-4">
-                <div className="flex flex-wrap items-baseline justify-between gap-2">
-                  <h3 className="min-w-0 font-semibold break-all">
-                    {change.identity}
-                  </h3>
-                  <p className="text-sm text-muted-foreground">
-                    Row {change.row} ·{" "}
-                    {change.entity === "model" ? "Model" : "Ball"} ·{" "}
-                    {change.action === "add"
-                      ? "Add"
-                      : change.action === "update"
-                        ? "Update"
-                        : "Unchanged"}
-                  </p>
-                </div>
-                {change.fields.length > 0 && (
-                  <dl className="mt-3 space-y-2 text-sm">
-                    {change.fields.map((field, fieldIndex) => (
-                      <div
-                        key={fieldIndex}
-                        className="grid gap-1 sm:grid-cols-[9rem_minmax(0,1fr)]"
-                      >
-                        <dt className="text-muted-foreground">
-                          {labels[field.field] ?? field.field}
-                        </dt>
-                        <dd className="break-words">
-                          <span className="text-muted-foreground">
-                            {field.field === "location_id"
-                              ? (locations.find(
-                                  (item) => item.id === field.before,
-                                )?.name ??
-                                  field.before) ||
-                                "Empty"
-                              : field.before || "Empty"}
-                          </span>
-                          <span aria-label="changes to" className="mx-2">
-                            →
-                          </span>
-                          <span className="font-medium">
-                            {field.field === "location_id"
-                              ? (locations.find(
-                                  (item) => item.id === field.after,
-                                )?.name ??
-                                  field.after) ||
-                                "Empty"
-                              : field.after || "Empty"}
-                          </span>
-                        </dd>
-                      </div>
-                    ))}
-                  </dl>
-                )}
-              </li>
-            ))}
-          </ul>
-          {changes.length > shown && (
-            <button
-              type="button"
-              className={`${buttonClass.quiet} mt-4`}
-              onClick={() => setShown((current) => current + 50)}
-            >
-              Show more changes ({changes.length - shown} remaining)
-            </button>
-          )}
+          <ChangesFold folded={review.errors.length > 0} count={changes.length}>
+            <ul className="mt-6 divide-y divide-border rounded-(--radius-card) bg-card px-4 shadow-(--shadow-card)">
+              {changes.slice(0, shown).map((change, index) => (
+                <li key={index} className="py-4">
+                  <div className="flex flex-wrap items-baseline justify-between gap-2">
+                    <h3 className="min-w-0 font-semibold break-all">
+                      {change.identity}
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                      {change.detail && <>{change.detail} · </>}
+                      Row {change.row} ·{" "}
+                      {change.entity === "model" ? "Model" : "Ball"} ·{" "}
+                      {change.action === "add"
+                        ? "Add"
+                        : change.action === "update"
+                          ? "Update"
+                          : "Unchanged"}
+                    </p>
+                  </div>
+                  {change.fields.length > 0 && (
+                    <dl className="mt-3 space-y-2 text-sm">
+                      {change.fields.map((field, fieldIndex) => (
+                        <div
+                          key={fieldIndex}
+                          className="grid gap-1 sm:grid-cols-[9rem_minmax(0,1fr)]"
+                        >
+                          <dt className="text-muted-foreground">
+                            {labels[field.field] ?? field.field}
+                          </dt>
+                          <dd className="break-words">
+                            <span className="text-muted-foreground">
+                              {field.field === "location_id"
+                                ? (locations.find(
+                                    (item) => item.id === field.before,
+                                  )?.name ??
+                                    field.before) ||
+                                  "Empty"
+                                : field.before || "Empty"}
+                            </span>
+                            <span aria-label="changes to" className="mx-2">
+                              →
+                            </span>
+                            <span className="font-medium">
+                              {field.field === "location_id"
+                                ? (locations.find(
+                                    (item) => item.id === field.after,
+                                  )?.name ??
+                                    field.after) ||
+                                  "Empty"
+                                : field.after || "Empty"}
+                            </span>
+                          </dd>
+                        </div>
+                      ))}
+                    </dl>
+                  )}
+                </li>
+              ))}
+            </ul>
+            {changes.length > shown && (
+              <button
+                type="button"
+                className={`${buttonClass.quiet} mt-4`}
+                onClick={() => setShown((current) => current + 50)}
+              >
+                Show more changes ({changes.length - shown} remaining)
+              </button>
+            )}
+          </ChangesFold>
           {unchanged.length > 0 && (
             <details className="mt-5 rounded-xl border border-border p-4">
               <summary className="min-h-11 cursor-pointer font-medium">
@@ -612,6 +712,7 @@ export function ImportFlow({
                     Row {item.row} ·{" "}
                     {item.entity === "model" ? "Model" : "Ball"} ·{" "}
                     {item.identity}
+                    {item.detail && ` · ${item.detail}`}
                   </li>
                 ))}
               </ul>
@@ -661,6 +762,11 @@ export function ImportFlow({
             >
               Confirm import
             </button>
+            {review.errors.length > 0 && (
+              <p className="self-center text-sm text-destructive">
+                Fix the errors above to confirm.
+              </p>
+            )}
             <button
               type="button"
               className={buttonClass.quiet}

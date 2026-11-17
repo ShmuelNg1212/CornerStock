@@ -28,7 +28,7 @@ export function NewModel() {
       <Link href="/catalog" className={buttonClass.link}>
         ← Catalog
       </Link>
-      <h1 className="font-heading mt-4 text-3xl font-bold">Add model</h1>
+      <h1 className="font-heading mt-4 text-2xl font-bold">Add model</h1>
       <p className="mt-2 text-muted-foreground">
         Prepare a model before receiving stock. UPC, model name, and weight are
         required.

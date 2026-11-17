@@ -39,6 +39,22 @@ describe("import review", () => {
     expect(result.payload.models[0].after).toMatchObject({ upc: model.upc, color: "Green" });
     expect(result.summary).toMatchObject({ balls_updated: 1, models_updated: 1, balls_added: 0 });
   });
+  it("shows changes in the units and names that the rest of the app uses", () => {
+    const result = buildReview("stock", [
+      row({ serial: "ABC123", gross_weight: "15 lb 6 oz", pin_distance: "4", selling_price: "₱13,000" }),
+    ], state, { ...options, reason: "Reweighed" });
+    expect(result.errors).toEqual([]);
+    const modelChange = result.changes.find(c => c.entity === "model");
+    const ballChange = result.changes.find(c => c.entity === "ball");
+    expect(modelChange).toMatchObject({ identity: "Summit · 15 lb", detail: `UPC ${model.upc}` });
+    expect(modelChange?.fields).toContainEqual({ field: "selling_price", before: "₱12,500.00", after: "₱13,000.00" });
+    expect(result.payload.models[0].after.selling_price).toBe(13000);
+    expect(ballChange).toMatchObject({ identity: "ABC123", detail: "Summit · 15 lb" });
+    expect(ballChange?.fields).toEqual(expect.arrayContaining([
+      { field: "gross_weight", before: "15 lb 4 oz", after: "15 lb 6 oz" },
+      { field: "pin_distance", before: "3–3.5\"", after: "4\"" },
+    ]));
+  });
   it("still requires a UPC for a new ball", () => {
     const result = buildReview("stock", [row({ serial: "NEW123" })], state, options);
     expect(result.errors).toContainEqual(expect.objectContaining({ row: 2, field: "upc" }));

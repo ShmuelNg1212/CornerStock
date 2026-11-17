@@ -1,4 +1,5 @@
 import { formatGrossWeight, normalizeSerial, validateLabel, validateUpc, type BallLabel, type RawLabel } from "@/lib/label/rules";
+import { pinDistance, price } from "@/lib/format";
 import type { Ball, BallModel, Location } from "@/lib/types";
 
 export type ImportKind = "catalog" | "stock";
@@ -12,7 +13,7 @@ export type ImportPayload = {
   balls: { serial: string; before: Ball | null; label: BallLabel; location_id: string }[];
 };
 export type ImportSummary = { models_added: number; models_updated: number; balls_added: number; balls_updated: number; unchanged: number };
-export type ImportChange = { row: number; identity: string; entity: "model" | "ball"; action: "add" | "update" | "unchanged"; fields: { field: string; before: string; after: string }[] };
+export type ImportChange = { row: number; identity: string; detail?: string; entity: "model" | "ball"; action: "add" | "update" | "unchanged"; fields: { field: string; before: string; after: string }[] };
 export type ImportError = { row: number; field: string; message: string };
 export type ImportReview = { payload: ImportPayload; summary: ImportSummary; changes: ImportChange[]; errors: ImportError[] };
 export type ImportState = { models: ImportModel[]; balls: Ball[]; locations: Location[] };
@@ -28,10 +29,10 @@ export function buildReview(kind: ImportKind, rows: ImportRow[], state: ImportSt
     summary: { models_added: 0, models_updated: 0, balls_added: 0, balls_updated: 0, unchanged: 0 }, changes: [], errors: [],
   };
   const error = (row: number, field: string, message: string) => result.errors.push({ row, field, message });
-  const recordChange = (row: number, identity: string, entity: "model" | "ball", before: Record<string, unknown> | null, after: Record<string, unknown>) => {
+  const recordChange = (row: number, identity: string, detail: string, entity: "model" | "ball", before: Record<string, unknown> | null, after: Record<string, unknown>) => {
     const fields = Object.entries(after).filter(([field, value]) => text(before?.[field]) !== text(value)).map(([field, value]) => ({ field, before: text(before?.[field]), after: text(value) }));
     const action = !before ? "add" : fields.length ? "update" : "unchanged";
-    result.changes.push({ row, identity, entity, action, fields });
+    result.changes.push({ row, identity, detail, entity, action, fields });
     if (action === "unchanged") result.summary.unchanged++;
     else if (entity === "model") result.summary[action === "add" ? "models_added" : "models_updated"]++;
     else result.summary[action === "add" ? "balls_added" : "balls_updated"]++;
@@ -124,7 +125,8 @@ export function buildReview(kind: ImportKind, rows: ImportRow[], state: ImportSt
     if (label.top_weight !== null && label.top_weight !== Number(label.top_weight.toFixed(2))) error(input.row, "top_weight", "Use at most two decimal places.");
     if ([label.pin_min, label.pin_max].some(value => value !== null && value !== Number(value.toFixed(2)))) error(input.row, "pin_distance", "Use at most two decimal places.");
     if (before && Number(before.nominal_weight_lb) !== label.nominal_weight_lb) error(input.row, "nominal_weight_lb", "The weight of an existing UPC cannot change.");
-    const priceText = suppliedModel.selling_price;
+    // Accept the same price text as the price form: a peso sign, commas, and spaces.
+    const priceText = suppliedModel.selling_price?.replace(/[₱,\s]/g, "");
     if (priceText && priceText !== "__CLEAR__" && (!/^\d+(?:\.\d{1,2})?$/.test(priceText) || Number(priceText) >= 10_000_000)) error(input.row, "selling_price", "Use a nonnegative price below 10,000,000 with at most two decimal places.");
     const after: CatalogValues = {
       upc: label.upc, name: label.model_name, nominal_weight_lb: label.nominal_weight_lb,
@@ -135,7 +137,8 @@ export function buildReview(kind: ImportKind, rows: ImportRow[], state: ImportSt
     };
     if (!recordedModels.has(label.upc)) {
       result.payload.models.push({ upc: label.upc, before, after });
-      recordChange(input.row, label.upc, "model", before, after);
+      const shown = (values: Record<string, unknown>) => ({ ...values, selling_price: values.selling_price == null ? "" : price(Number(values.selling_price)) });
+      recordChange(input.row, `${label.model_name} · ${label.nominal_weight_lb} lb`, `UPC ${label.upc}`, "model", before && shown(before), shown(after));
       recordedModels.add(label.upc);
     }
     if (kind === "stock") {
@@ -150,11 +153,17 @@ export function buildReview(kind: ImportKind, rows: ImportRow[], state: ImportSt
       if (existingBall && state.models.find(model => model.id === existingBall.model_id)?.upc !== label.upc) error(input.row, "upc", "The UPC of an existing ball cannot change.");
       if (existingBall && existingBall.location_id !== locationId && existingBall.status !== "in_stock") error(input.row, "location", "Only a ball in stock can move to another location.");
       result.payload.balls.push({ serial: label.serial, before: existingBall, label, location_id: locationId });
-      recordChange(input.row, label.serial, "ball", existingBall, {
+      // Show measurements as the stock screens do. The payload keeps the stored values.
+      const shown = (ball: Pick<Ball, "gross_weight_oz" | "top_weight" | "pin_min" | "pin_max" | "boxed_on" | "location_id">) => ({
+        gross_weight: ball.gross_weight_oz == null ? "" : formatGrossWeight(ball.gross_weight_oz),
+        top_weight: ball.top_weight, pin_distance: ball.pin_min == null ? "" : pinDistance(ball),
+        boxed_on: ball.boxed_on, location_id: ball.location_id,
+      });
+      recordChange(input.row, label.serial, `${label.model_name} · ${label.nominal_weight_lb} lb`, "ball", existingBall && shown(existingBall), shown({
         gross_weight_oz: label.gross_weight_oz, top_weight: label.top_weight,
         pin_min: label.pin_min, pin_max: label.pin_max, boxed_on: label.boxed_on,
         location_id: locationId,
-      });
+      }));
       if (existingBall && result.changes.at(-1)?.action === "update" && !options.reason.trim()) error(input.row, "reason", "Give a reason for changes to existing stock.");
     }
   }

@@ -32,7 +32,7 @@ export function CatalogList({
     <div className="mx-auto max-w-5xl">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="font-heading text-3xl font-bold">Catalog</h1>
+          <h1 className="font-heading text-2xl font-bold">Catalog</h1>
           <p className="mt-2 text-muted-foreground">
             Every model and weight, including those with no stock.
           </p>
@@ -50,30 +50,22 @@ export function CatalogList({
             <Upload className="size-4" aria-hidden />
             Import catalog or stock
           </Link>
-          <details className="relative">
-            <summary
-              className={`${buttonClass.quiet} cursor-pointer list-none`}
-            >
-              <Download className="size-4" aria-hidden />
-              Export catalog
-            </summary>
-            <div className="absolute right-0 z-10 mt-2 w-48 rounded-xl border border-border bg-card p-2 shadow-(--shadow-card)">
-              <a
-                download
-                href="/catalog/download?format=csv"
-                className={`${buttonClass.link} w-full px-3`}
-              >
-                Download CSV
-              </a>
-              <a
-                download
-                href="/catalog/download?format=xlsx"
-                className={`${buttonClass.link} w-full px-3`}
-              >
-                Download Excel
-              </a>
-            </div>
-          </details>
+          <a
+            download
+            href="/catalog/download?format=csv"
+            className={`${buttonClass.link} min-h-11 gap-2 px-3`}
+          >
+            <Download className="size-4" aria-hidden />
+            Export CSV
+          </a>
+          <a
+            download
+            href="/catalog/download?format=xlsx"
+            className={`${buttonClass.link} min-h-11 gap-2 px-3`}
+          >
+            <Download className="size-4" aria-hidden />
+            Export Excel
+          </a>
         </div>
       )}
       <div className="relative mt-6">
@@ -118,7 +110,9 @@ export function CatalogList({
                     {model.upc}
                   </p>
                 </div>
-                <span className="tabular shrink-0 text-right text-sm font-medium">
+                <span
+                  className={`tabular shrink-0 text-right text-sm ${model.selling_price === null ? "text-muted-foreground" : "font-medium"}`}
+                >
                   {price(model.selling_price)}
                 </span>
               </Link>
