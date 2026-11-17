@@ -114,3 +114,18 @@ export const movements: Movement[] = [
 export const personName = (id: string) => staff.find((p) => p.id === id)?.full_name ?? "Staff";
 export const locationName = (id: string | null) => [...locations, closedLocation].find((l) => l.id === id)?.name ?? "—";
 export const modelOf = (id: string) => models.find((m) => m.id === id) ?? models[1];
+
+/** Store activity for the preview: each type, a long name, and rows on three days. */
+export function activityRows(now = new Date()): import("@/lib/activity").ActivityRow[] {
+  const ago = (minutes: number) => new Date(now.getTime() - minutes * 60_000).toISOString();
+  const base = { ball_id: "b1", serial: "24A1234", model_id: "m-phaze", model_name: "Phaze II", brand: "Storm", weight_lb: 15, from_location: null, to_location: null, reason: null, reference: null, old_values: null, new_values: null };
+  return [
+    { ...base, src: 0, id: 9, at: ago(4), type: "sell", actor_name: "Carlo Reyes", from_location: "Sta. Lucia East", reference: "OR-1102" },
+    { ...base, src: 1, id: 2, at: ago(20), type: "model_edit", actor_name: "Shmuel Ng", ball_id: null, serial: null, old_values: { selling_price: 9500, name: "Phaze 2" }, new_values: { selling_price: 9800, name: "Phaze II" } },
+    { ...base, src: 0, id: 8, at: ago(55), type: "receive", actor_name: "Maria Concepcion dela Cruz-Villanueva", model_name: "Ultimate Hybrid Pearl Reactive Special Edition", serial: "23VSLE30B047", to_location: "Stock room" },
+    { ...base, src: 0, id: 7, at: ago(60 * 26), type: "reverse_sale", actor_name: "Shmuel Ng", reason: "The customer chose a 14 lb ball" },
+    { ...base, src: 0, id: 6, at: ago(60 * 27), type: "adjust", actor_name: "Shmuel Ng", reason: "The top weight on the label was misread", old_values: { serial: "24A1234", top_weight: 3.28, pin_min: 3, pin_max: 3.5 }, new_values: { serial: "24A1234", top_weight: 3, pin_min: 4, pin_max: 4 } },
+    { ...base, src: 0, id: 5, at: ago(60 * 75), type: "transfer", actor_name: "Carlo Reyes", from_location: "Stock room", to_location: "Sta. Lucia East" },
+    { ...base, src: 0, id: 4, at: ago(60 * 76), type: "remove", actor_name: null, reason: "Cracked in the box" },
+  ];
+}
