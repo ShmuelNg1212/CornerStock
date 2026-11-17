@@ -37,6 +37,11 @@ type FrameCodes = { codes: LabelBarcodes; moduleSize: number | null };
 export type FrameRead = FrameScores & FrameCodes & { at: number };
 export type FrameHint = "aim" | "hold" | "glare" | "far" | "soft" | "align" | "added";
 export type FrameImage = { data: Uint8ClampedArray; width: number; height: number };
+/**
+ * Intake: the UPC and the serial, to record a new ball.
+ * Count: the serial alone. The ball is already recorded, so the UPC is not necessary.
+ */
+export type CaptureMode = "intake" | "count";
 
 /**
  * Sharpness: the variance of the Laplacian of the brightness, on a grid of cells.
@@ -109,7 +114,8 @@ export function frameScores({ data, width, height }: FrameImage): FrameScores {
 }
 
 const found = (codes: LabelBarcodes) => [codes.upc, codes.serial, codes.product_code].filter(Boolean).length;
-const complete = (codes: LabelBarcodes) => Boolean(codes.upc && codes.serial);
+const complete = (codes: LabelBarcodes, mode: CaptureMode = "intake") =>
+  Boolean(codes.serial && (mode === "count" || codes.upc));
 
 /**
  * Glare on the label. Two signs count:
@@ -119,12 +125,12 @@ const complete = (codes: LabelBarcodes) => Boolean(codes.upc && codes.serial);
  *   the bars silver. The bars do not go white, so the patch check does not see it. The
  *   neighbour barcode reads, which shows that the frame is sharp and the label is in view.
  */
-export function frameHasGlare(frame: FrameScores & FrameCodes): boolean {
+export function frameHasGlare(frame: FrameScores & FrameCodes, mode: CaptureMode = "intake"): boolean {
   if (frame.glareShare >= FRAME_LIMITS.glareBlobShare) return true;
-  return partial(frame) && frame.sharpness >= FRAME_LIMITS.softBelow && !tooFar(frame);
+  return partial(frame, mode) && frame.sharpness >= FRAME_LIMITS.softBelow && !tooFar(frame);
 }
 
-const partial = (frame: FrameCodes) => found(frame.codes) > 0 && !complete(frame.codes);
+const partial = (frame: FrameCodes, mode: CaptureMode = "intake") => found(frame.codes) > 0 && !complete(frame.codes, mode);
 const tooFar = (frame: FrameCodes) => frame.moduleSize !== null && frame.moduleSize < FRAME_LIMITS.farBelow;
 
 /**
@@ -138,11 +144,15 @@ const tooFar = (frame: FrameCodes) => frame.moduleSize !== null && frame.moduleS
  * A barcode reads exactly or fails, so reads from nearby frames can be combined.
  * No sharpness limit applies: when the barcodes read, the frame is sharp enough.
  */
-function captureCodes(history: FrameRead[], now: number): LabelBarcodes | null {
+function captureCodes(history: FrameRead[], now: number, mode: CaptureMode): LabelBarcodes | null {
   const window = history.filter((f) => f.at >= now - FRAME_LIMITS.captureWindowMs);
   const serial = window.at(-1)?.codes.serial;
   if (!serial) return null;
   if (window.some((f) => f.codes.serial !== null && f.codes.serial !== serial)) return null;
+  // Count mode: the same serial in 2 frames of the window, and no other serial.
+  if (mode === "count") {
+    return window.filter((f) => f.codes.serial === serial).length >= 2 ? { upc: null, serial, product_code: null } : null;
+  }
   const paired = window.findLast((f) => f.codes.serial === serial && f.codes.upc !== null);
   if (!paired) return null;
   const upc = paired.codes.upc;
@@ -161,15 +171,16 @@ export function decideFrame(
   history: FrameRead[],
   now: number,
   skipSerials: readonly string[] = [],
+  mode: CaptureMode = "intake",
 ): { capture: boolean; hint: FrameHint; codes: LabelBarcodes } {
   const last = history.at(-1);
   if (!last) return { capture: false, hint: "aim", codes: NO_CODES };
   const wait = (hint: FrameHint) => ({ capture: false, hint, codes: last.codes });
 
   if (last.codes.serial && skipSerials.includes(last.codes.serial)) return wait("added");
-  const codes = captureCodes(history, now);
+  const codes = captureCodes(history, now, mode);
   if (codes) return { capture: true, hint: "hold", codes };
-  if (complete(last.codes)) return wait("hold");
+  if (complete(last.codes, mode)) return wait("hold");
 
   // A cause counts only when every frame of the last window has it, and the window is long enough.
   const window = history.filter((f) => f.at >= now - FRAME_LIMITS.hintWindowMs);
@@ -177,8 +188,8 @@ export function decideFrame(
     window.length > 0 && window[0].at <= now - FRAME_LIMITS.hintHoldMs && window.every(test);
 
   // Distance first: small bars do not read, with or without glare, and a closer label also moves out of a reflection.
-  if (lasts((f) => partial(f) && tooFar(f))) return wait("far");
-  if (lasts(frameHasGlare)) return wait("glare");
+  if (lasts((f) => partial(f, mode) && tooFar(f))) return wait("far");
+  if (lasts((f) => frameHasGlare(f, mode))) return wait("glare");
   if (lasts((f) => found(f.codes) === 0 && f.sharpness < FRAME_LIMITS.softBelow)) return wait("soft");
 
   const lastCode = history.findLast((f) => found(f.codes) > 0);
