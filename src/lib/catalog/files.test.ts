@@ -115,6 +115,30 @@ describe("catalog file import", () => {
     }
   });
 
+  it("checks every entry that the Excel reader treats as a worksheet", async () => {
+    const workbook = new ExcelJS.Workbook();
+    workbook.addWorksheet("Stock").addRow(["upc"]);
+    const zip = await JSZip.loadAsync(await workbook.xlsx.writeBuffer());
+    const xml = await zip.file("xl/worksheets/sheet1.xml")!.async("string");
+    zip.file("x/xl/worksheets/sheet1.xml", xml.replace("</worksheet>", '<mergeCells count="1"><mergeCell ref="A1:XFD1048576"/></mergeCells></worksheet>'));
+    await expect(readWorkbook(await zip.generateAsync({ type: "uint8array" }), "stock.xlsx")).rejects.toThrow("Merged cells");
+  });
+  it("asks for a resave, not a row limit, when rows and cells have no address", async () => {
+    const workbook = new ExcelJS.Workbook();
+    workbook.addWorksheet("Stock").addRows([["upc", "model_name"], ["012345678905", "Summit"]]);
+    const zip = await JSZip.loadAsync(await workbook.xlsx.writeBuffer());
+    const xml = await zip.file("xl/worksheets/sheet1.xml")!.async("string");
+    zip.file("xl/worksheets/sheet1.xml", xml.replace(/<dimension[^>]*\/>/, "").replace(/ r="[A-Z]*\d+"/g, ""));
+    await expect(readWorkbook(await zip.generateAsync({ type: "uint8array" }), "stock.xlsx")).rejects.toThrow("Save it as .xlsx");
+  });
+  it("still bounds rows without an address", async () => {
+    const workbook = new ExcelJS.Workbook();
+    workbook.addWorksheet("Stock").addRows(Array.from({ length: 1003 }, () => ["x"]));
+    const zip = await JSZip.loadAsync(await workbook.xlsx.writeBuffer());
+    const xml = await zip.file("xl/worksheets/sheet1.xml")!.async("string");
+    zip.file("xl/worksheets/sheet1.xml", xml.replace(/<dimension[^>]*\/>/, "").replace(/ r="[A-Z]*\d+"/g, ""));
+    await expect(readWorkbook(await zip.generateAsync({ type: "uint8array" }), "stock.xlsx")).rejects.toThrow("1,000 data rows");
+  });
   it("stops CSV parsing at the row limit before processing a malformed tail", async () => {
     const content = 'upc\n' + '001234567895\n'.repeat(1001) + '"' + 'bad'.repeat(1000);
     await expect(readWorkbook(bytes(content), "stock.csv")).rejects.toThrow("1,000");

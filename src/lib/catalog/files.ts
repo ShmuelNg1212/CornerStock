@@ -90,7 +90,11 @@ async function checkZip(bytes: Uint8Array): Promise<void> {
         zip.openReadStream(entry, (error, stream) => {
           if (error || !stream) { fail(new Error("This Excel file could not be read.")); return; }
           stream.on("error", fail);
-          const worksheet = /^xl\/worksheets\/sheet\d+\.xml$/.test(entry.fileName);
+          // Match the Excel reader's own unanchored test, so every entry it loads as a sheet is checked.
+          const worksheet = /xl\/worksheets\/sheet\d+[.]xml/.test(entry.fileName);
+          // Row and cell addresses are optional. A missing address follows the previous one.
+          let rowNumber = 0;
+          let columnNumber = 0;
           const xml = worksheet ? new SaxesParser() : null;
           const decoder = new TextDecoder();
           xml?.on("doctype", () => { throw new Error("Workbook XML must not contain a document type."); });
@@ -104,7 +108,10 @@ async function checkZip(bytes: Uint8Array): Promise<void> {
               }
             }
             if (name === "row") {
-              if (!/^[1-9]\d*$/.test(address) || Number(address) > 1001) throw new Error("Use at most 1,000 data rows per worksheet. Split this file and try again.");
+              if (address && !/^[1-9]\d*$/.test(address)) throw new Error("This Excel file could not be read.");
+              rowNumber = address ? Number(address) : rowNumber + 1;
+              columnNumber = 0;
+              if (rowNumber > 1001) throw new Error("Use at most 1,000 data rows per worksheet. Split this file and try again.");
               if (tag.attributes.spans && !/^[1-9]\d*:[1-9]\d*$/.test(String(tag.attributes.spans))) throw new Error("Use at most 64 columns per worksheet.");
               for (const span of String(tag.attributes.spans ?? "1:1").split(":")) {
                 if (Number(span) > 64) throw new Error("Use at most 64 columns per worksheet.");
@@ -115,8 +122,10 @@ async function checkZip(bytes: Uint8Array): Promise<void> {
             }
             if (name === "c") {
               const match = address.match(/^([A-Z]+)(\d+)$/);
-              if (!match || Number(match[2]) > 1001) throw new Error("Use at most 1,000 data rows per worksheet. Split this file and try again.");
-              const column = [...match[1]].reduce((total, letter) => total * 26 + letter.charCodeAt(0) - 64, 0);
+              if (address && !match) throw new Error("This Excel file could not be read.");
+              if (match && Number(match[2]) > 1001) throw new Error("Use at most 1,000 data rows per worksheet. Split this file and try again.");
+              const column = match ? [...match[1]].reduce((total, letter) => total * 26 + letter.charCodeAt(0) - 64, 0) : columnNumber + 1;
+              columnNumber = column;
               if (column > 64) throw new Error("Use at most 64 columns per worksheet.");
             }
           });
