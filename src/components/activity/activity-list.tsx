@@ -182,7 +182,7 @@ function ActivityItem({ row, base }: { row: ActivityRow; base: string }) {
           </time>
         </div>
         <p className="mt-0.5 break-words">
-          {row.model_name} · <span className="tabular">{row.weight_lb} lb</span>
+          {row.model_name} · <span className="tabular whitespace-nowrap">{row.weight_lb} lb</span>
           {row.serial && <span className="ml-1.5 font-mono text-sm text-muted-foreground">#{row.serial}</span>}
         </p>
         {changes.length > 0 && (
@@ -195,7 +195,17 @@ function ActivityItem({ row, base }: { row: ActivityRow; base: string }) {
             ))}
           </ul>
         )}
-        {detail && <p className="mt-1 text-sm break-words text-muted-foreground">{detail}</p>}
+        {detail && (
+          <p className="mt-1 text-sm break-words text-muted-foreground">
+            {/* Each part stays on one line, so "Ref. OR-1102" does not break at its hyphen. */}
+            {detail.split(" · ").map((part, i) => (
+              <span key={i}>
+                {i > 0 && " · "}
+                <span className="whitespace-nowrap">{part}</span>
+              </span>
+            ))}
+          </p>
+        )}
         <p className="mt-1 text-sm text-muted-foreground">By {row.actor_name ?? "Staff"}</p>
       </div>
     </Link>
