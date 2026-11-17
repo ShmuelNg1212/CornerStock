@@ -71,7 +71,9 @@ export function Nav({ owner, variant, base = "" }: { owner: boolean; variant: "r
             label={detail ? "Back" : "Stock"}
             current={(stock && !detail) || path.startsWith("/catalog")}
             transitionTypes={detail ? BACK : undefined}
-            icon={detail ? ChevronLeft : LayoutList}
+            icon={LayoutList}
+            altIcon={ChevronLeft}
+            showAlt={detail}
             badge={<SavedBadge className="absolute -top-1 -right-2" />}
           />
         </li>
@@ -86,7 +88,8 @@ export function Nav({ owner, variant, base = "" }: { owner: boolean; variant: "r
           </Link>
         </li>
         <li className="flex justify-center">
-          <TabLink href={`${base}${third.href}`} label={third.label} current={third.current} icon={third.icon} />
+          {/* The key mounts a new tab when the role changes. A kept page (cacheComponents) must not show the old icon. */}
+          <TabLink key={third.href} href={`${base}${third.href}`} label={third.label} current={third.current} icon={third.icon} />
         </li>
       </ul>
     </nav>
@@ -97,7 +100,9 @@ function TabLink({
   href,
   label,
   current,
-  icon: Icon,
+  icon,
+  altIcon,
+  showAlt = false,
   transitionTypes,
   badge,
 }: {
@@ -105,9 +110,15 @@ function TabLink({
   label: string;
   current: boolean;
   icon: typeof LayoutList;
+  /** A second icon in the same place, for example Back in place of Stock. */
+  altIcon?: typeof LayoutList;
+  showAlt?: boolean;
   transitionTypes?: string[];
   badge?: React.ReactNode;
 }) {
+  // Both icons stay mounted in one grid cell, and only their opacity and scale change.
+  // An exit animation can stop in a hidden page, and then the old icon stays in view.
+  const icons = altIcon ? [{ Icon: icon, on: !showAlt }, { Icon: altIcon, on: showAlt }] : [{ Icon: icon, on: true }];
   return (
     <Link
       href={href}
@@ -117,18 +128,18 @@ function TabLink({
     >
       <span className="relative grid h-8 w-12 place-items-center">
         {current && <m.span layoutId="tab-indicator" transition={spring.tab} className="absolute inset-0 rounded-xl bg-primary" />}
-        <AnimatePresence mode="popLayout" initial={false}>
+        {icons.map(({ Icon, on }, i) => (
           <m.span
-            key={label}
-            className="relative grid place-items-center group-aria-[current=page]:text-primary-foreground"
-            initial={{ opacity: 0, scale: 0.6 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.6 }}
+            key={i}
+            aria-hidden="true"
+            className="relative col-start-1 row-start-1 grid place-items-center group-aria-[current=page]:text-primary-foreground"
+            initial={false}
+            animate={{ opacity: on ? 1 : 0, scale: on ? 1 : 0.6 }}
             transition={spring.snappy}
           >
-            <Icon className="size-5" aria-hidden="true" />
+            <Icon className="size-5" />
           </m.span>
-        </AnimatePresence>
+        ))}
         {badge}
       </span>
       {label}

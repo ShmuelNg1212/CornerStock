@@ -46,12 +46,16 @@ None. Answers from the human (2026-11-17):
 - Acceptance: a database test that a call with `serial = product_code` fails and writes no ball and no movement.
 - Completion: `npm test` passes, the database tests included.
 
-### [ ] 5. Fix the stacked icons in the staff tab bar — `tests: alongside`
+### [x] 5. Fix the stacked icons in the staff tab bar — `tests: alongside`
 - Cause (to confirm in execute with the preview shell): the third tab swaps its icon in `AnimatePresence mode="popLayout"`, keyed by the label. When `owner` changes while the app is open, the Settings icon starts an exit and stays on screen next to the new Account icon.
 - Fix: give the third tab a `key` from its route, so that a role change mounts a new tab with no exit. Keep the icon swap animation only on the Stock/Back tab, where the cause is a navigation.
 - Check the Stock/Back tab for the same fault: go to a model and back fast, several times.
 - Acceptance: in the preview shell, a change from owner to staff shows only the Account icon. At 320, 375, and 430 px wide, no icon or label overlaps another or the scan button.
 - Completion: probe screenshots before and after the role change, at the three widths.
+
+- Result (execute): the third tab has a `key` from its route. The Stock/Back tab keeps both icons mounted in one grid cell and changes only opacity and scale. No icon change depends on an exit animation now.
+- Probe (WebKit, preview shell, new cookie `preview-role`): owner and staff at 320, 375, and 430 px show one icon in the third tab and no overlap. An owner-to-staff change on an open page shows one icon. Five fast Stock/Back swaps end with one icon.
+- Not reproduced: the same probes pass on the old code too, also with a role change while the shell is hidden (`/preview/login`). The stack in the human's screenshot needs the phone's hidden-page path. The fix is structural: two icons cannot stack in a column now. Confirm on the phone after deploy.
 
 ### [x] 6. Make the search forgiving — `tests: first`
 - New `src/lib/search.ts` with `matches(text, query)`:
