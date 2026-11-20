@@ -12,7 +12,7 @@ async function Activity({ searchParams }: { searchParams: Promise<{ type?: strin
   const filter = typeof type === "string" ? type : undefined;
   const [profile, page] = await Promise.all([requireStaff(), readActivity(filter, null)]);
   // A new filter is a new list: the key drops the older pages of the last filter.
-  return <ActivityList key={filter ?? "all"} filter={filter} first={page} loadOlder={loadOlderActivity} showSalesReport={profile.role === "owner"} />;
+  return <ActivityList key={filter ?? "all"} filter={filter} first={page} loadOlder={loadOlderActivity} showOwnerReports={profile.role === "owner"} />;
 }
 
 export default function ActivityPage({ searchParams }: { searchParams: Promise<{ type?: string | string[] }> }) {

@@ -3,6 +3,7 @@ import { parse } from "csv-parse/sync";
 import ExcelJS from "exceljs";
 import { fromBuffer } from "yauzl";
 import { SaxesParser } from "saxes";
+import { writeXlsx } from "@/lib/workbook";
 import type { BallModel } from "@/lib/types";
 import { CATALOG_FIELDS, STOCK_FIELDS, type ColumnMapping, type FileCell, type FileError, type FileFormat, type ImportKind, type ImportRow, type ImportSheet } from "./fields";
 export * from "./fields";
@@ -209,19 +210,7 @@ async function writeFile(headers: readonly string[], rows: (string | number | nu
     }).join(","))].join("\r\n") + "\r\n";
     return new TextEncoder().encode(`\uFEFF${content}`);
   }
-  const workbook = new ExcelJS.Workbook();
-  const sheet = workbook.addWorksheet("Catalog");
-  sheet.addRow([...headers]);
-  for (const row of rows) sheet.addRow(row);
-  sheet.views = [{ state: "frozen", ySplit: 1 }];
-  sheet.getRow(1).font = { bold: true };
-  if (instructions) sheet.getRow(1).eachCell((cell) => { cell.note = "Blank cells keep existing values. Use __CLEAR__ to clear an optional value. Enter UPC and serial numbers as text."; });
-  sheet.autoFilter = { from: { row: 1, column: 1 }, to: { row: Math.max(1, rows.length + 1), column: headers.length } };
-  sheet.columns.forEach((column, index) => {
-    column.width = headers[index] === "model_name" ? 32 : 20;
-    if (headers[index] === "upc" || headers[index] === "serial") column.numFmt = "@";
-  });
-  return new Uint8Array(await workbook.xlsx.writeBuffer());
+  return writeXlsx("Catalog", headers, rows, instructions);
 }
 
 export async function exportCatalog(models: BallModel[], format: FileFormat): Promise<Uint8Array> {

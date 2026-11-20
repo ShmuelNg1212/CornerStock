@@ -404,6 +404,71 @@ describe("sales report", () => {
   });
 });
 
+describe("reorder worksheet", () => {
+  const worksheet = async (user: string | null = owner) =>
+    (await as(user, (c) => c.query("select public.reorder_worksheet() as worksheet"))).rows[0].worksheet;
+
+  it("uses each active location's low stock and counts uncancelled sales at the sale location", async () => {
+    const upc = "087970619007";
+    const ball = await receive(staff, { upc, model_name: "Worksheet Ball" }, warehouse);
+    const legacy = await receive(staff, { upc }, warehouse);
+    const before = await receive(staff, { upc }, warehouse);
+    const tomorrow = await receive(staff, { upc }, warehouse);
+    const full = (await admin.query("insert into public.locations(name) values ('Worksheet full') returning id")).rows[0].id;
+    const closed = (await admin.query("insert into public.locations(name, active) values ('Worksheet closed', false) returning id")).rows[0].id;
+    await receive(staff, { upc }, full);
+    await receive(staff, { upc }, full);
+    await receive(staff, { upc }, full);
+    await receive(staff, { upc }, full);
+    await receive(staff, { upc: "087970619008" });
+    await receive(staff, { upc: "087970619009" });
+    await admin.query("update public.ball_models set min_in_stock = 4 where upc = $1", [upc]);
+    await admin.query("update public.ball_models set min_in_stock = 0 where upc = '087970619009'");
+
+    const record = (id: string, location: string, type: string, day: number, seconds = 0) => admin.query(`
+      insert into public.stock_movements (ball_id, type, at, from_location_id, to_location_id, actor, request_id)
+      values ($1, $3::public.movement_type,
+        (((now() at time zone 'Asia/Manila')::date + $4::int)::timestamp at time zone 'Asia/Manila')
+          + make_interval(secs => $5),
+        case when $3 = 'sell' then $2::uuid end,
+        case when $3 = 'reverse_sale' then $2::uuid end, $6, gen_random_uuid())`,
+    [id, location, type, day, seconds, staff]);
+    await record(ball, mall, "sell", -29);
+    await record(ball, mall, "reverse_sale", -1);
+    await record(ball, warehouse, "sell", 0);
+    await record(legacy, mall, "sell", -29);
+    await record(before, mall, "sell", -29, -1);
+    await record(tomorrow, mall, "sell", 1);
+    await admin.query("update public.balls set status = 'sold' where id = any($1::uuid[])", [[ball, legacy, before, tomorrow]]);
+
+    const result = await worksheet();
+    expect(result.locations).toEqual(expect.arrayContaining([expect.objectContaining({ id: full })]));
+    expect(result.locations).not.toEqual(expect.arrayContaining([expect.objectContaining({ id: closed })]));
+    expect(result.rows.filter((row: { upc: string }) => row.upc.startsWith("08797061900"))).toEqual(expect.arrayContaining([
+      expect.objectContaining({ upc, location_id: mall, in_stock: 0, min_in_stock: 4, units: 1 }),
+      expect.objectContaining({ upc, location_id: warehouse, in_stock: 0, min_in_stock: 4, units: 1 }),
+    ]));
+    expect(result.rows.filter((row: { upc: string }) => row.upc.startsWith("08797061900"))).toHaveLength(2);
+    expect((Date.parse(result.end) - Date.parse(result.start)) / 86_400_000).toBe(29);
+    await admin.query("update public.locations set active = false where id = $1", [full]);
+  });
+
+  it("restricts access to the owner", async () => {
+    for (const user of [staff, inactive]) await expect(worksheet(user)).rejects.toThrow(/NOT_AUTHORIZED/);
+    await expect(worksheet(null)).rejects.toThrow(/permission denied/);
+  });
+
+  it("returns all low models and locations in one response", async () => {
+    await admin.query(`
+      insert into public.ball_models (upc, name, nominal_weight_lb, min_in_stock)
+      select '920' || lpad(n::text, 9, '0'), 'Volume reorder model', 15, 1 from generate_series(1, 501) n`);
+    const result = await worksheet();
+    const volumeRows = result.rows.filter((row: { upc: string }) => row.upc.startsWith("920"));
+    expect(volumeRows.filter((row: { location_id: string }) => row.location_id === mall)).toHaveLength(501);
+    expect(volumeRows.filter((row: { location_id: string }) => row.location_id === warehouse)).toHaveLength(501);
+  });
+});
+
 describe("sell_ball", () => {
   it("marks the ball as sold and writes a movement", async () => {
     const id = await receive(staff);

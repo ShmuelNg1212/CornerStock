@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRightLeft, Ban, BookOpen, ChartNoAxesColumn, ClipboardCheck, History, PackagePlus, Pencil, Tag, Undo2 } from "lucide-react";
+import { ArrowRightLeft, Ban, BookOpen, ChartNoAxesColumn, ClipboardCheck, History, ListChecks, PackagePlus, Pencil, Tag, Undo2 } from "lucide-react";
 import { m } from "motion/react";
 import Link from "next/link";
 import { useState, useTransition } from "react";
@@ -39,13 +39,13 @@ export function ActivityList({
   filter,
   first,
   loadOlder,
-  showSalesReport = false,
+  showOwnerReports = false,
   base = "",
 }: {
   filter: string | undefined;
   first: Page;
   loadOlder: (filter: string | undefined, before: unknown) => Promise<Page>;
-  showSalesReport?: boolean;
+  showOwnerReports?: boolean;
   base?: string;
 }) {
   const current = ACTIVITY_FILTERS.find((f) => f.key === filter)?.key ?? "all";
@@ -94,11 +94,17 @@ export function ActivityList({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <h1 className="font-heading text-2xl font-bold">Activity</h1>
         <div className="flex flex-wrap gap-2">
-          {showSalesReport && (
-            <Link href={`${base}/activity/sales`} className={`${buttonClass.small} h-11 sm:h-10`}>
-              <ChartNoAxesColumn className="size-4" aria-hidden="true" />
-              Sales report
-            </Link>
+          {showOwnerReports && (
+            <>
+              <Link href={`${base}/activity/sales`} className={`${buttonClass.small} h-11 sm:h-10`}>
+                <ChartNoAxesColumn className="size-4" aria-hidden="true" />
+                Sales report
+              </Link>
+              <Link href={`${base}/activity/reorder`} className={`${buttonClass.small} h-11 sm:h-10`}>
+                <ListChecks className="size-4" aria-hidden="true" />
+                Reorder worksheet
+              </Link>
+            </>
           )}
           <Link href={`${base}/count`} className={`${buttonClass.small} h-11 sm:h-10`}>
             <ClipboardCheck className="size-4" aria-hidden="true" />
