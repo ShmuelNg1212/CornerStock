@@ -294,6 +294,116 @@ describe("receive_ball", () => {
   });
 });
 
+describe("sale price records", () => {
+  it("keeps the catalog price for each sale, including zero and no price", async () => {
+    const upc = "887970610090";
+    const priced = await receive(staff, { upc });
+    const free = await receive(staff, { upc });
+    const unpriced = await receive(staff, { upc });
+    const changePrice = (price: string | null) => as(owner, (c) =>
+      c.query("update public.ball_models set selling_price = $1 where upc = $2", [price, upc]));
+    const sell = (id: string, request = randomUUID()) => as(staff, (c) =>
+      c.query("select public.sell_ball($1, $2)", [id, request]));
+
+    await changePrice("12500.25");
+    const request = randomUUID();
+    await sell(priced, request);
+    await changePrice("0");
+    await sell(priced, request);
+    await expect(sell(priced)).rejects.toThrow(/WRONG_STATUS/);
+    await sell(free);
+    await changePrice(null);
+    await sell(unpriced);
+
+    const { rows } = await admin.query(`
+      select m.ball_id, p.catalog_price
+      from public.sale_prices p join public.stock_movements m on m.id = p.movement_id
+      where m.ball_id = any($1::uuid[]) order by m.id`, [[priced, free, unpriced]]);
+    expect(rows).toEqual([
+      { ball_id: priced, catalog_price: "12500.25" },
+      { ball_id: free, catalog_price: "0.00" },
+      { ball_id: unpriced, catalog_price: null },
+    ]);
+    for (const user of [staff, null]) {
+      await expect(as(user, (c) => c.query("select * from public.sale_prices"))).rejects.toThrow(/permission denied/);
+    }
+  });
+});
+
+describe("sales report", () => {
+  const report = async (period: string, date: string, location: string | null = null, user: string | null = owner) =>
+    (await as(user, (c) => c.query("select public.sales_report($1, $2, $3) as report", [period, date, location]))).rows[0].report;
+
+  it("groups sales by model and weight in Manila periods and removes only the cancelled sale", async () => {
+    const upc = "887970610091";
+    const ball = await receive(staff, { upc, model_name: "Report Ball", nominal_weight_lb: 14 });
+    const legacy = await receive(staff, { upc });
+    const free = await receive(staff, { upc: "887970610092", model_name: "Report Ball", nominal_weight_lb: 15 });
+    const boundary = await receive(staff, { upc });
+    const archive = (await admin.query("insert into public.locations(name, active) values ('Old counter', false) returning id")).rows[0].id;
+    const movement = async (id: string, type: "sell" | "reverse_sale", at: string, location: string, price?: string) => {
+      const { rows } = await admin.query(`
+        insert into public.stock_movements (ball_id, type, at, from_location_id, to_location_id, actor, request_id)
+        values ($1, $2::public.movement_type, $3, case when $2 = 'sell' then $4::uuid end,
+          case when $2 = 'reverse_sale' then $4::uuid end, $5, $6) returning id`,
+      [id, type, at, location, staff, randomUUID()]);
+      if (price !== undefined) {
+        await admin.query("insert into public.sale_prices values ($1, $2)", [rows[0].id, price]);
+      }
+    };
+
+    await movement(boundary, "sell", "2024-02-25T15:59:59Z", mall, "0.20"); // Sunday in Manila.
+    await movement(legacy, "sell", "2024-02-25T16:00:00Z", archive); // Monday in Manila.
+    await movement(ball, "sell", "2024-02-25T16:02:00Z", mall, "5000.25");
+    await movement(free, "sell", "2024-02-29T15:59:59Z", mall, "0.00");
+    await movement(ball, "reverse_sale", "2024-02-29T16:00:00Z", mall);
+    await movement(ball, "sell", "2024-02-29T16:00:00Z", warehouse, "6000.10");
+
+    const day = await report("day", "2024-02-26");
+    expect(day.totals).toEqual({ units: 1, value: null, unpriced: 1 });
+    expect(day.locations).toContainEqual({ id: archive, name: "Old counter", active: false });
+    const week = await report("week", "2024-02-29");
+    expect(week).toMatchObject({ start: "2024-02-26", end: "2024-03-03", totals: { units: 3, value: "6000.10", unpriced: 1 } });
+    const month = await report("month", "2024-02-15");
+    expect(month).toMatchObject({ start: "2024-02-01", end: "2024-02-29", totals: { units: 3, value: "0.20", unpriced: 1 } });
+    expect(month.rows).toMatchObject([
+      { model_name: "Report Ball", weight_lb: 14, units: 2, value: "0.20", unpriced: 1 },
+      { model_name: "Report Ball", weight_lb: 15, units: 1, value: "0.00", unpriced: 0 },
+    ]);
+    expect((await report("month", "2024-03-01", warehouse)).totals).toEqual({ units: 1, value: "6000.10", unpriced: 0 });
+    expect((await report("month", "2024-03-01", mall)).totals).toEqual({ units: 0, value: null, unpriced: 0 });
+    expect((await report("month", "2024-02-01", archive)).totals).toEqual({ units: 1, value: null, unpriced: 1 });
+  });
+
+  it("denies report access to staff, inactive users, and anonymous visitors", async () => {
+    for (const user of [staff, inactive]) {
+      await expect(report("month", "2024-02-01", null, user)).rejects.toThrow(/NOT_AUTHORIZED/);
+    }
+    await expect(report("month", "2024-02-01", null, null)).rejects.toThrow(/permission denied/);
+    await expect(report("year", "2024-02-01")).rejects.toThrow(/INVALID_REPORT_PERIOD/);
+  });
+
+  it("returns all model groups and exact totals in one response", async () => {
+    await admin.query(`
+      with models as (
+        insert into public.ball_models (upc, name, nominal_weight_lb)
+        select '910' || lpad(n::text, 9, '0'), 'Volume report model', 15 from generate_series(1, 1001) n
+        returning id, upc
+      ), balls as (
+        insert into public.balls (serial, model_id, location_id, status, received_by)
+        select 'RPT' || upc, id, $1, 'sold', $2 from models returning id
+      ), sales as (
+        insert into public.stock_movements (ball_id, type, from_location_id, actor, at, request_id)
+        select id, 'sell', $1, $2, '2024-04-03T06:00:00Z', gen_random_uuid() from balls returning id
+      )
+      insert into public.sale_prices (movement_id, catalog_price) select id, 0.10 from sales`, [mall, staff]);
+
+    const result = await report("day", "2024-04-03");
+    expect(result.rows).toHaveLength(1001);
+    expect(result.totals).toEqual({ units: 1001, value: "100.10", unpriced: 0 });
+  });
+});
+
 describe("sell_ball", () => {
   it("marks the ball as sold and writes a movement", async () => {
     const id = await receive(staff);

@@ -12,7 +12,7 @@ export function pinDistance(ball: Pick<Ball, "pin_min" | "pin_max">): string {
 }
 
 const peso = new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP", maximumFractionDigits: 2 });
-export const price = (value: number | null) => (value === null ? "No price" : peso.format(Number(value)));
+export const price = (value: number | `${number}` | null) => (value === null ? "No price" : peso.format(value));
 
 const dateTime = new Intl.DateTimeFormat("en-PH", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Manila" });
 const dateOnly = new Intl.DateTimeFormat("en-PH", { dateStyle: "medium", timeZone: "UTC" });
