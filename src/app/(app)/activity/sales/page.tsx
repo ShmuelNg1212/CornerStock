@@ -27,7 +27,15 @@ function ReportFilters({ filters, locations }: { filters: SalesReportFilters; lo
         </select>
       </Field>
       <Field label="Date" className="min-w-0 max-[359px]:col-span-2">
-        <input type="date" name="date" required min="0001-01-01" max="9999-12-31" className={cn(inputClass, "min-w-0 px-2 sm:px-3.5")} defaultValue={filters.date} />
+        <input
+          type="date"
+          name="date"
+          required
+          min="0001-01-01"
+          max="9999-12-31"
+          className={cn(inputClass, "min-w-0 appearance-none px-2 py-0 align-bottom sm:px-3.5 [&::-webkit-date-and-time-value]:text-start")}
+          defaultValue={filters.date}
+        />
       </Field>
       <Field label="Location" className="col-span-2 min-w-0 sm:col-span-1">
         <select name="location" className={inputClass} defaultValue={filters.location ?? ""}>
